@@ -3,7 +3,7 @@ import React from 'react';
 import { Icon, Menu } from 'semantic-ui-react';
 
 const formatSpeed = (bytesPerSecond) => {
-  if (!bytesPerSecond) {
+  if (!bytesPerSecond || bytesPerSecond < 1) {
     return '   0 B/s';
   }
 

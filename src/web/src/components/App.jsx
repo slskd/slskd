@@ -156,6 +156,7 @@ class App extends Component {
     super(props);
 
     this.state = initialState;
+    this.hubConnections = {};
   }
 
   componentDidMount() {
@@ -208,6 +209,8 @@ class App extends Component {
             this.setState({ error: false, retriesExhausted: false }),
           );
 
+          await this.hubConnections.appHub?.stop();
+          this.hubConnections.appHub = appHub;
           await appHub.start();
 
           const metricsHub = createMetricsHubConnection();
@@ -216,6 +219,8 @@ class App extends Component {
             this.setState({ transferMetrics: metrics });
           });
 
+          await this.hubConnections.metricsHub?.stop();
+          this.hubConnections.metricsHub = metricsHub;
           await metricsHub.start();
         }
 

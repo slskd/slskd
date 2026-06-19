@@ -1227,14 +1227,12 @@ namespace slskd.Transfers.Downloads
 
                             if (!TransferStateCategories.Queued.Contains(args.PreviousState) && TransferStateCategories.Queued.Contains(transfer.State))
                             {
-                                Log.Warning("[{File}] Increment queued {Size}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Size);
                                 Telemetry.Metrics.Transfers.Downloads.Queued.Files.Inc(1);
                                 Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Inc(transfer.Size);
                             }
 
                             if (!TransferStateCategories.InProgress.Contains(args.PreviousState) && TransferStateCategories.InProgress.Contains(transfer.State))
                             {
-                                Log.Warning("[{File}] Decrement queued {Size}, Increment in progress {Size}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Size, transfer.Size);
                                 Telemetry.Metrics.Transfers.Downloads.Queued.Files.Dec(1);
                                 Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Dec(transfer.Size);
                                 Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Inc(1);
@@ -1387,13 +1385,11 @@ namespace slskd.Transfers.Downloads
 
                         if (TransferStateCategories.InProgress.Contains(mostRecentQueuedOrInProgressState))
                         {
-                            Log.Warning("[{File}] Decrement in progress {Size}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Size);
                             Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Dec(1);
                             Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Dec(transfer.Size);
                         }
                         else if (TransferStateCategories.Queued.Contains(mostRecentQueuedOrInProgressState))
                         {
-                            Log.Warning("[{File}] Decrement queued {Size}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Size);
                             Telemetry.Metrics.Transfers.Downloads.Queued.Files.Dec(1);
                             Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Dec(transfer.Size);
                         }
@@ -1547,7 +1543,7 @@ namespace slskd.Transfers.Downloads
             }
             finally
             {
-                Log.Debug("Download of {Filename} from user {Username} completed with states: {@States}", stateHistory);
+                Log.Debug("Download of {Filename} from user {Username} completed with states: {@States}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, stateHistory);
 
                 // figure out the most recent state that was either InProgress or Queued so that we can decrement the count and bytes
                 // for transfers that succeed this will be InProgress, for transfers that never started this will be Queued (cancelled or something)

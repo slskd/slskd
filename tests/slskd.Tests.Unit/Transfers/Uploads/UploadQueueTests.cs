@@ -8,10 +8,9 @@ namespace slskd.Tests.Unit.Transfers.Uploads
     using Moq;
     using slskd.Transfers;
     using slskd.Users;
-    using Soulseek;
     using System;
     using Xunit;
-    using static slskd.Transfers.UploadQueue;
+    using slskd.Transfers.Uploads;
 
     public class UploadQueueTests
     {
@@ -376,11 +375,11 @@ namespace slskd.Tests.Unit.Transfers.Uploads
             {
                 var (queue, _) = GetFixture();
 
-                Assert.Empty(queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads"));
+                Assert.Empty(queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary"));
 
                 queue.Enqueue(username, filename);
 
-                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary");
 
                 Assert.Single(uploads);
                 Assert.True(uploads.ContainsKey(username));
@@ -396,7 +395,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                 queue.Enqueue(username, filename);
                 queue.Enqueue(username, filename2);
 
-                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary");
 
                 Assert.Single(uploads);
                 Assert.True(uploads.ContainsKey(username));
@@ -410,12 +409,12 @@ namespace slskd.Tests.Unit.Transfers.Uploads
             {
                 var (queue, _) = GetFixture();
 
-                Assert.Empty(queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads"));
+                Assert.Empty(queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary"));
 
                 queue.Enqueue(username, filename);
                 queue.Enqueue(username2, filename2);
 
-                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary");
 
                 Assert.Equal(2, uploads.Count);
                 Assert.True(uploads.ContainsKey(username));
@@ -471,7 +470,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.Complete(username, filename);
 
-                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary");
 
                 Assert.Single(uploads);
                 Assert.True(uploads.ContainsKey(username));
@@ -509,14 +508,14 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                 queue.Enqueue(username, filename);
                 queue.Enqueue(username, filename2);
 
-                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary");
 
                 Assert.Single(uploads);
 
                 queue.Complete(username, filename);
                 queue.Complete(username, filename2);
 
-                uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+                uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary");
 
                 Assert.Empty(uploads);
             }
@@ -557,7 +556,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.Enqueue(username, filename);
 
-                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary");
 
                 var task = queue.AwaitStartAsync(username, filename);
 
@@ -605,7 +604,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                     new Upload() { Username = user1, Filename = file1, Ready = DateTime.UtcNow }
                 });
 
-                queue.SetProperty("Uploads", uploads);
+                queue.SetProperty("UploadDictionary", uploads);
 
                 var result = queue.InvokeMethod<Upload>("Process");
 
@@ -629,7 +628,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                     new Upload() { Username = user1, Filename = file1, Ready = DateTime.UtcNow }
                 });
 
-                queue.SetProperty("Uploads", uploads);
+                queue.SetProperty("UploadDictionary", uploads);
 
                 _ = queue.InvokeMethod<Upload>("Process");
 
@@ -658,7 +657,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                     new Upload() { Username = user2, Filename = file2, Ready = DateTime.UtcNow }
                 });
 
-                queue.SetProperty("Uploads", uploads);
+                queue.SetProperty("UploadDictionary", uploads);
 
                 var result = queue.InvokeMethod<Upload>("Process");
 
@@ -687,7 +686,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                     new Upload() { Username = user2, Filename = file2, Ready = DateTime.UtcNow }
                 });
 
-                queue.SetProperty("Uploads", uploads);
+                queue.SetProperty("UploadDictionary", uploads);
 
                 // all default group slots consumed
                 var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
@@ -722,7 +721,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                     new Upload() { Username = user2, Filename = file2, Enqueued = enqueued.AddHours(-2), Ready = ready }
                 });
 
-                queue.SetProperty("Uploads", uploads);
+                queue.SetProperty("UploadDictionary", uploads);
 
                 var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
                 groups[Application.DefaultGroup].Strategy = QueueStrategy.FirstInFirstOut;
@@ -754,7 +753,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                     new Upload() { Username = user2, Filename = file2, Enqueued = enqueued, Ready = ready.AddMinutes(-1) }
                 });
 
-                queue.SetProperty("Uploads", uploads);
+                queue.SetProperty("UploadDictionary", uploads);
 
                 var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
                 groups[Application.DefaultGroup].Strategy = QueueStrategy.RoundRobin;

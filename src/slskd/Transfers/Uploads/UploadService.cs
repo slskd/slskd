@@ -518,10 +518,10 @@ namespace slskd.Transfers.Uploads
             }
             finally
             {
-                Log.Debug("Upload of {Filename} to user {Username} completed with states: {@States}", stateHistory);
+                Log.Debug("Upload of {Filename} to user {Username} completed with states: {@States}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, stateHistory);
 
                 // figure out the most recent state that was either InProgress or Queued so that we can decrement the count and bytes
-                // for transfers that succeed this will be InProgress, for transfers that never started this will be Quued (cancelled or something)
+                // for transfers that succeed this will be InProgress, for transfers that never started this will be Queued (cancelled or something)
                 // state will almost certainly transition to errored or completed before we get here, so we can't just take the last state
                 var mostRecentQueuedOrInProgressState = stateHistory
                     .LastOrDefault(s => TransferStateCategories.InProgress.Contains(s) || TransferStateCategories.Queued.Contains(s));

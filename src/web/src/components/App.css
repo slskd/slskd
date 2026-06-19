@@ -129,7 +129,7 @@ body {
 
 .app-content-body {
     flex: 1;
-    padding-bottom: 45px; /* footer */
+    padding-bottom: 40px; /* footer */
 }
 
 .navigation {
