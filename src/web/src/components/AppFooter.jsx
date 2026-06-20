@@ -7,7 +7,7 @@ const formatSpeed = (bytesPerSecond) => {
     return '   0 B/s';
   }
 
-  return `${formatBytes(bytesPerSecond, 1, 5, ' ')}/s`;
+  return `${formatBytes(bytesPerSecond, 1, 4, ' ')}/s`;
 };
 
 const AppFooter = ({

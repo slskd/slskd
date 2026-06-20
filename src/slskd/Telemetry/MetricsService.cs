@@ -32,8 +32,15 @@
 
 namespace slskd.Telemetry;
 
+using Serilog;
+
+/// <summary>
+///     Metrics.
+/// </summary>
 public class MetricsService
 {
+    private ILogger Log { get; } = Serilog.Log.ForContext<MetricsService>();
+
     public object Current()
     {
         var metrics = new

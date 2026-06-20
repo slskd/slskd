@@ -51,10 +51,15 @@ public static class Metrics
     /// <summary>
     ///     Updates metrics under a mutex to prevent mismatches and under/overruns.
     /// </summary>
+    /// <remarks>
+    ///     This method uses a <see cref="SemaphoreSlim"/> for synchronization and it is therefore safe to do async work
+    ///     inside of <paramref name="work"/>, though it is discouraged for causing un-needed contention.
+    /// </remarks>
     /// <param name="work">Updates to execute.</param>
-    public static void Update(Action work)
+    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    public static void Update(Action work, CancellationToken cancellationToken = default)
     {
-        SyncRoot.Wait();
+        SyncRoot.Wait(cancellationToken);
 
         try
         {
