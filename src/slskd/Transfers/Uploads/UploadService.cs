@@ -592,7 +592,9 @@ namespace slskd.Transfers.Uploads
                     Locks.TryRemove(lockName, out _);
                     Log.Debug("Released lock {LockName}", lockName);
 
-                    CancellationTokens.TryRemove(transfer.Id, out _);
+                    CancellationTokens.TryRemove(transfer.Id, out var registeredCts);
+                    registeredCts?.TryDispose();
+                    cts?.TryDispose();
 
                     // if for some reason this logic exits without the slotReleased delegate and Complete() being invoked,
                     // the file will get stuck in the queue and prevent any further uploads to the user. be extra cautious

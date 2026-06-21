@@ -392,7 +392,10 @@ namespace slskd.Shares
             }
             finally
             {
+                var cts = CancellationTokenSource;
                 CancellationTokenSource = null;
+                cts?.Dispose();
+
                 SyncRoot.Release();
             }
         }
