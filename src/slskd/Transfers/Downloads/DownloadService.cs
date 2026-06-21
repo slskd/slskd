@@ -208,7 +208,7 @@ namespace slskd.Transfers.Downloads
             EventBus = eventBus;
 
             Clock.EveryMinute += (_, _) => Task.Run(() => CleanupEnqueueSemaphoresAsync());
-            Clock.EveryFiveSeconds += (_, _) => EmitMetrics();
+            Clock.EveryFiveSeconds += (_, _) => Task.Run(() => EmitMetrics());
         }
 
         /// <summary>

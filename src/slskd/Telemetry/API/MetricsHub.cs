@@ -50,8 +50,8 @@ public class MetricsHub : Hub<IMetricsHub>
         Metrics = metricsService;
     }
 
-    private MetricsService Metrics { get; }
     private static ILogger Log { get; } = Serilog.Log.ForContext<MetricsHub>();
+    private MetricsService Metrics { get; }
 
     public override async Task OnConnectedAsync()
     {

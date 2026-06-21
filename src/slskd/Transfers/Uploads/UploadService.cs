@@ -197,7 +197,7 @@ namespace slskd.Transfers.Uploads
             Governor = new UploadGovernor(userService, optionsMonitor);
             Queue = new UploadQueue(userService, optionsMonitor);
 
-            Clock.EveryFiveSeconds += (_, _) => EmitMetrics();
+            Clock.EveryFiveSeconds += (_, _) => Task.Run(() => EmitMetrics());
         }
 
         /// <summary>
@@ -253,7 +253,7 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <param name="transfer">The Transfer to upload.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation.</param>
-        /// /// <returns>The operation context.</returns>
+        /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
         /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>

@@ -278,6 +278,10 @@ class App extends Component {
 
   logout = () => {
     session.logout();
+
+    this.hubConnections?.appHub?.stop();
+    this.hubConnections?.metricsHub?.stop();
+
     this.setState({ login: { ...initialState.login } });
   };
 

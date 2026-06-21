@@ -1342,7 +1342,7 @@ namespace slskd
             */
             Prometheus.Metrics.ConfigureMeterAdapter(options =>
             {
-                options.InstrumentFilterPredicate = instrument => sources.Any(s => s.IsMatch(instrument?.Meter?.Name));
+                options.InstrumentFilterPredicate = instrument => sources.Any(s => instrument?.Meter?.Name is string name && s.IsMatch(name));
             });
 
             /*
@@ -1374,7 +1374,7 @@ namespace slskd
             */
             Prometheus.Metrics.ConfigureEventCounterAdapter(options =>
             {
-                options.EventSourceFilterPredicate = name => sources.Any(s => s.IsMatch(name));
+                options.EventSourceFilterPredicate = name => sources.Any(s => name is string n && s.IsMatch(n));
             });
 
             /*
