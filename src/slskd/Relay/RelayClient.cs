@@ -228,6 +228,7 @@ namespace slskd.Relay
                 if (disposing)
                 {
                     _ = HubConnection?.DisposeAsync();
+                    StartCancellationTokenSource?.Dispose();
                 }
 
                 Disposed = true;

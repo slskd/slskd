@@ -1,4 +1,4 @@
-// <copyright file="TelemetryService.cs" company="JP Dillingham">
+// <copyright file="MetricsHub.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,32 +30,31 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-using Microsoft.AspNetCore.SignalR;
-
 namespace slskd.Telemetry;
 
-public class TelemetryService
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using Serilog;
+
+public interface IMetricsHub
 {
-    public TelemetryService(
-        PrometheusService prometheusService,
-        ReportsService reportsService,
-        MetricsService metricsService,
-        IHubContext<MetricsHub, IMetricsHub> metricsHub)
+    Task Update(object metrics);
+}
+
+[Authorize]
+public class MetricsHub : Hub<IMetricsHub>
+{
+    public MetricsHub(MetricsService metricsService)
     {
-        Prometheus = prometheusService;
-        Reports = reportsService;
         Metrics = metricsService;
-
-        MetricsHub = metricsHub;
-
-        Clock.EverySecond += (_, _) =>
-        {
-            MetricsHub.Clients.All.Update(Metrics.Current());
-        };
     }
 
-    public PrometheusService Prometheus { get; }
-    public ReportsService Reports { get; }
-    public MetricsService Metrics { get; }
-    private IHubContext<MetricsHub, IMetricsHub> MetricsHub { get; }
+    private static ILogger Log { get; } = Serilog.Log.ForContext<MetricsHub>();
+    private MetricsService Metrics { get; }
+
+    public override async Task OnConnectedAsync()
+    {
+        await Clients.Caller.Update(Metrics.Current());
+    }
 }

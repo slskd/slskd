@@ -46,6 +46,7 @@ namespace slskd
     using System.Security.Cryptography.X509Certificates;
     using System.Text;
     using System.Text.Json.Serialization;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Asp.Versioning.ApiExplorer;
@@ -63,11 +64,12 @@ namespace slskd
     using Microsoft.Extensions.FileProviders.Physical;
     using Microsoft.IdentityModel.Tokens;
     using Microsoft.OpenApi;
+    using Prometheus;
     using Prometheus.DotNetRuntime;
     using Prometheus.SystemMetrics;
+    using Prometheus.SystemMetrics.Collectors;
     using Serilog;
     using Serilog.Events;
-    using Serilog.Formatting.Display;
     using Serilog.Sinks.Grafana.Loki;
     using Serilog.Sinks.SystemConsole.Themes;
     using slskd.Authentication;
@@ -627,6 +629,7 @@ namespace slskd
                 _ = app.Services.GetService<ScriptService>();
                 _ = app.Services.GetService<WebhookService>();
                 _ = app.Services.GetService<VPNService>();
+                _ = app.Services.GetService<TelemetryService>();
 
                 app.ConfigureAspDotNetPipeline();
 
@@ -757,6 +760,7 @@ namespace slskd
 
             services.AddSingleton<PrometheusService>();
             services.AddSingleton<ReportsService>();
+            services.AddSingleton<MetricsService>();
             services.AddSingleton<TelemetryService>();
 
             services.AddSingleton<VPNService>();
@@ -778,7 +782,7 @@ namespace slskd
 
             services.AddSingleton<IRoomService, RoomService>();
 
-            services.AddSingleton<ITransferService, TransferService>();
+            services.AddSingleton<TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
             services.AddSingleton<IBatchService, BatchService>();
@@ -828,10 +832,7 @@ namespace slskd
                 .AllowCredentials()
                 .WithExposedHeaders("X-URL-Base", "X-Total-Count")));
 
-            // note: don't dispose this (or let it be disposed) or some of the stats, like those related
-            // to the thread pool won't work
-            DotNetRuntimeStats = DotNetRuntimeStatsBuilder.Default().StartCollecting();
-            services.AddSystemMetrics();
+            services.ConfigureTelemetry();
 
             services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, "misc", ".DataProtection-Keys")));
@@ -1114,6 +1115,7 @@ namespace slskd
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
                 endpoints.MapHub<RelayHub>("/hub/relay");
+                endpoints.MapHub<MetricsHub>("/hub/metrics");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
@@ -1299,6 +1301,134 @@ namespace slskd
                     Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception.Message);
                 }
             };
+        }
+
+        private static IServiceCollection ConfigureTelemetry(this IServiceCollection services)
+        {
+            Prometheus.Metrics.SuppressDefaultMetrics(new SuppressDefaultMetricOptions
+            {
+                SuppressDebugMetrics = true, // prometheus_net_metric_families/instances/timeseries
+                SuppressProcessMetrics = false, // dotnet_collection_count_total, dotnet_total_memory_bytes, process_*
+                SuppressMeters = true, // system_
+                SuppressEventCounters = true, // more system_
+            });
+
+            Regex[] sources =
+            [
+                new Regex("^System.*", RegexOptions.Compiled),
+                new Regex("^Microsoft-Windows-DotNETRuntime", RegexOptions.Compiled),
+                new Regex("^Microsoft-Diagnostics-DiagnosticSource", RegexOptions.Compiled),
+                new Regex("^Private.InternalDiagnostics.System.Net.Sockets$", RegexOptions.Compiled),
+            ];
+
+            /*
+                Meter bridge - uses new .NET Meters
+
+                included:
+
+                System.Runtime
+
+                excluded:
+
+                Microsoft.AspNetCore.MemoryPool
+                Microsoft.AspNetCore.Server.Kestrel
+                Microsoft.AspNetCore.Http.Connections
+                Microsoft.AspNetCore.Hosting
+                Microsoft.AspNetCore.Routing
+                Microsoft.AspNetCore.Diagnostics
+                Microsoft.AspNetCore.Authentication
+                Microsoft.EntityFrameworkCore
+                Private.InternalDiagnostics.System.Net.Quic.MsQuic
+            */
+            Prometheus.Metrics.ConfigureMeterAdapter(options =>
+            {
+                options.InstrumentFilterPredicate = instrument => sources.Any(s => instrument?.Meter?.Name is string name && s.IsMatch(name));
+            });
+
+            /*
+                EventCounter bridge - uses 'legacy' EventSource counters
+
+                included:
+
+                System.Runtime
+                System.Data.DataCommonEventSource
+                System.Transactions.TransactionsEventSource
+                System.Diagnostics.Metrics
+                System.Buffers.ArrayPoolEventSource
+                System.Diagnostics.Eventing.FrameworkEventSource
+                System.Threading.Tasks.TplEventSource
+                System.Collections.Concurrent.ConcurrentCollectionsEventSource
+                System.Net.Sockets
+                Private.InternalDiagnostics.System.Net.Sockets
+
+                excluded:
+
+                Microsoft.AspNetCore.Hosting
+                Microsoft-AspNetCore-Server-Kestrel
+                Microsoft-Windows-DotNETRuntime
+                Microsoft-Diagnostics-DiagnosticSource
+                Microsoft-Extensions-Logging
+                Microsoft-Extensions-DependencyInjection
+                Microsoft.EntityFrameworkCore
+                Private.InternalDiagnostics.System.Net.Quic
+            */
+            Prometheus.Metrics.ConfigureEventCounterAdapter(options =>
+            {
+                options.EventSourceFilterPredicate = name => sources.Any(s => name is string n && s.IsMatch(n));
+            });
+
+            /*
+                https://github.com/djluck/prometheus-net.DotNetRuntime
+
+                this package overlaps nearly completely with the built in stats, but it offers a slightly different
+                calculation for memory, and a thread pool throughput stat that's fairly important to me.
+
+                this has been enabled for many years and it should be included because it may break people's stuff.
+                i may make it optional in the future. it honestly might make more sense to disable the meters above
+                and keep this.
+
+                included:
+
+                dotnet_build_info
+                dotnet_collection
+                dotnet_contention
+                dotnet_exceptions
+                dotnet_jit
+                dotnet_gc
+                dotnet_sockets
+                dotnet_threadpool
+            */
+            DotNetRuntimeStats = DotNetRuntimeStatsBuilder
+                .Customize()
+                .WithGcStats()
+                .WithThreadPoolStats()
+                .WithContentionStats()
+                .WithJitStats()
+                .WithExceptionStats()
+                .WithSocketStats()
+                .StartCollecting();
+
+            /*
+                https://github.com/Daniel15/prometheus-net.SystemMetrics
+
+                this package adds information about the host machine slskd is running on, including CPU, RAM, disks,
+                and network interfaces.
+
+                included:
+
+                node_filesystem_avail/size
+                node_network_receive_
+                node_network_transmit_
+                node_cpu_seconds_total (detailed user/syste/irq/idle for ALL cores)
+                node_memory_
+            */
+            services.AddSystemMetrics(registerDefaultCollectors: true);
+
+            // exclude tmpfs/overlay noise in containers
+            services.Configure<DiskCollectorConfig>(cfg =>
+                cfg.DriveTypes = new HashSet<DriveType> { DriveType.Fixed });
+
+            return services;
         }
 
         private static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile, bool reloadOnChange)

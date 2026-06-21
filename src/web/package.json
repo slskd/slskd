@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@babel/plugin-syntax-import-assertions": "^7.29.7",
     "@craco/craco": "^7.0.0",
     "@semantic-ui-react/craco-less": "^3.0.0",
     "@semantic-ui-react/css-patch": "^1.0.0",

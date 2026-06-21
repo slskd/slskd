@@ -69,7 +69,7 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
         /// </summary>
-        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, string)"/> instead.</remarks>
+        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, string, CancellationToken)"/> instead.</remarks>
         /// <param name="transfer"></param>
         void AddOrSupersede(Transfer transfer);
 
@@ -78,20 +78,22 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="filename">The local filename of the requested file.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
-        Task<Transfer> EnqueueAsync(string username, string filename);
+        Task<Transfer> EnqueueAsync(string username, string filename, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Uploads the specified enqueued <paramref name="transfer"/> to the requesting user.
         /// </summary>
         /// <param name="transfer">The Transfer to upload.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
         /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
         /// <exception cref="DuplicateTransferException">Thrown if an upload matching the username and filename is already tracked by Soulseek.NET.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified file can't be found on disk.</exception>
-        Task<Transfer> UploadAsync(Transfer transfer);
+        Task<Transfer> UploadAsync(Transfer transfer, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Finds a single upload matching the specified <paramref name="expression"/>.
@@ -194,6 +196,8 @@ namespace slskd.Transfers.Uploads
 
             Governor = new UploadGovernor(userService, optionsMonitor);
             Queue = new UploadQueue(userService, optionsMonitor);
+
+            Clock.EveryFiveSeconds += (_, _) => Task.Run(() => EmitMetrics());
         }
 
         /// <summary>
@@ -221,7 +225,7 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
         /// </summary>
-        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, string)"/> instead.</remarks>
+        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, string, CancellationToken)"/> instead.</remarks>
         /// <param name="transfer"></param>
         public void AddOrSupersede(Transfer transfer)
         {
@@ -248,20 +252,23 @@ namespace slskd.Transfers.Uploads
         ///     Uploads the specified enqueued <paramref name="transfer"/> to the requesting user.
         /// </summary>
         /// <param name="transfer">The Transfer to upload.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
         /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
         /// <exception cref="DuplicateTransferException">Thrown if an upload matching the username and filename is already tracked by Soulseek.NET.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified file can't be found on disk.</exception>
-        public async Task<Transfer> UploadAsync(Transfer transfer)
+        public async Task<Transfer> UploadAsync(Transfer transfer, CancellationToken cancellationToken = default)
         {
-            var cts = new CancellationTokenSource();
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var syncRoot = new SemaphoreSlim(1, 1);
 
             string host = default;
             string localFilename = default;
             long localFileLength = default;
+            var stateHistory = new List<TransferStates>();
+            DateTime lastReportedAverageSpeed = default;
 
             var lockName = $"{nameof(UploadAsync)}:{transfer.Username}:{transfer.Filename}";
 
@@ -345,6 +352,25 @@ namespace slskd.Transfers.Uploads
 
                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
 
+                        Telemetry.Metrics.Update(() =>
+                        {
+                            if (!TransferStateCategories.Queued.Contains(args.PreviousState) && TransferStateCategories.Queued.Contains(transfer.State))
+                            {
+                                Telemetry.Metrics.Transfers.Uploads.Queued.Files.Inc(1);
+                                Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Inc(transfer.Size);
+                            }
+
+                            if (!TransferStateCategories.InProgress.Contains(args.PreviousState) && TransferStateCategories.InProgress.Contains(transfer.State))
+                            {
+                                Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
+                                Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size);
+                                Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Inc(1);
+                                Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Inc(transfer.Size);
+                            }
+                        }, cancellationToken);
+
+                        stateHistory.Add(transfer.State);
+
                         // todo: broadcast
                         SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
                     },
@@ -372,6 +398,22 @@ namespace slskd.Transfers.Uploads
                                     context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
                                         .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
                                         .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+
+                                    // progress is reported at 4x the speed (250ms) that the transfer's average speed is calculated (1000ms)
+                                    // the transfer's speed is also zero until it has enough data to compute the EMA, so throw both
+                                    // repeated and zero values out
+                                    var now = DateTime.UtcNow;
+
+                                    if (transfer.AverageSpeed > 0 && now >= lastReportedAverageSpeed.AddMilliseconds(1000))
+                                    {
+                                        Telemetry.Metrics.Update(() =>
+                                        {
+                                            Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentAverageSpeed.Update(transfer.AverageSpeed);
+                                        }, cancellationToken);
+
+                                        lastReportedAverageSpeed = now;
+                                    }
+
                                 }
                                 finally
                                 {
@@ -444,6 +486,13 @@ namespace slskd.Transfers.Uploads
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Succeeded.Inc(1);
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Bytes.Inc(transfer.BytesTransferred);
+                    Telemetry.Metrics.Transfers.Uploads.Completed.AverageSpeed.Observe(transfer.AverageSpeed);
+                }, cancellationToken);
+
                 EventBus.Raise(new UploadFileCompleteEvent
                 {
                     Timestamp = transfer.EndedAt.Value,
@@ -463,6 +512,11 @@ namespace slskd.Transfers.Uploads
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+                }, cancellationToken);
+
                 throw;
             }
             catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException)
@@ -473,6 +527,11 @@ namespace slskd.Transfers.Uploads
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
+
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+                }, cancellationToken);
 
                 throw;
             }
@@ -485,10 +544,37 @@ namespace slskd.Transfers.Uploads
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+                }, cancellationToken);
+
                 throw;
             }
             finally
             {
+                Log.Debug("Upload of {Filename} to user {Username} completed with states: {@States}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, stateHistory);
+
+                // figure out the most recent state that was either InProgress or Queued so that we can decrement the count and bytes
+                // for transfers that succeed this will be InProgress, for transfers that never started this will be Queued (cancelled or something)
+                // state will almost certainly transition to errored or completed before we get here, so we can't just take the last state
+                var mostRecentQueuedOrInProgressState = stateHistory
+                    .LastOrDefault(s => TransferStateCategories.InProgress.Contains(s) || TransferStateCategories.Queued.Contains(s));
+
+                Telemetry.Metrics.Update(() =>
+                {
+                    if (TransferStateCategories.InProgress.Contains(mostRecentQueuedOrInProgressState) && Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Value > 0)
+                    {
+                        Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Dec(1);
+                        Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Dec(transfer.Size);
+                    }
+                    else if (TransferStateCategories.Queued.Contains(mostRecentQueuedOrInProgressState) && Telemetry.Metrics.Transfers.Uploads.Queued.Files.Value > 0)
+                    {
+                        Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
+                        Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size);
+                    }
+                }, cancellationToken);
+
                 if (host != Program.LocalHostName)
                 {
                     try
@@ -506,7 +592,9 @@ namespace slskd.Transfers.Uploads
                     Locks.TryRemove(lockName, out _);
                     Log.Debug("Released lock {LockName}", lockName);
 
-                    CancellationTokens.TryRemove(transfer.Id, out _);
+                    CancellationTokens.TryRemove(transfer.Id, out var registeredCts);
+                    registeredCts?.TryDispose();
+                    cts?.TryDispose();
 
                     // if for some reason this logic exits without the slotReleased delegate and Complete() being invoked,
                     // the file will get stuck in the queue and prevent any further uploads to the user. be extra cautious
@@ -525,8 +613,9 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="filename">The local filename of the requested file.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
-        public async Task<Transfer> EnqueueAsync(string username, string filename)
+        public async Task<Transfer> EnqueueAsync(string username, string filename, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -681,7 +770,7 @@ namespace slskd.Transfers.Uploads
                     {
                         Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed execution: {Message}", id, task.Exception.Message);
                     }
-                });
+                }, cancellationToken);
 
                 return transfer;
             }
@@ -938,6 +1027,57 @@ namespace slskd.Transfers.Uploads
                 .FirstOrDefault();
 
             return stats ?? new UserUploadStatistics();
+        }
+
+        protected virtual void EmitMetrics()
+        {
+            void EmitQueuedMetrics()
+            {
+                var queued = Client.Uploads.Where(u => u.State.HasFlag(TransferStates.Queued));
+
+                Telemetry.Metrics.Transfers.Uploads.Queued.Users
+                    .Set(queued.Select(u => u.Username).Distinct().Count());
+
+                Telemetry.Metrics.Transfers.Uploads.Queued.Files
+                    .Set(queued.Count());
+
+                Telemetry.Metrics.Transfers.Uploads.Queued.Bytes
+                    .Set(queued.Sum(q => q.Size));
+            }
+
+            void EmitInProgressMetrics()
+            {
+                var inProgress = Client.Uploads.Where(u => u.State == TransferStates.InProgress);
+
+                Telemetry.Metrics.Transfers.Uploads.InProgress.Users
+                    .Set(inProgress.Select(u => u.Username).Distinct().Count());
+
+                Telemetry.Metrics.Transfers.Uploads.InProgress.Files
+                    .Set(inProgress.Count());
+
+                Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes
+                    .Set(inProgress.Sum(u => u.Size));
+
+                if (inProgress.Any())
+                {
+                    Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentTotalSpeed
+                        .Update(inProgress.Sum(u => u.AverageSpeed));
+
+                    Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentAverageSpeed
+                        .Update(inProgress.Any() ? inProgress.Average(u => u.AverageSpeed) : 0);
+                }
+                else
+                {
+                    Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentTotalSpeed.Reset();
+                    Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentAverageSpeed.Reset();
+                }
+            }
+
+            Telemetry.Metrics.Update(() =>
+            {
+                EmitQueuedMetrics();
+                EmitInProgressMetrics();
+            });
         }
 
         private bool TryFail(Guid id, string exception, TransferStates state)

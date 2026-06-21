@@ -112,7 +112,7 @@ namespace slskd
             ISoulseekClient soulseekClient,
             FileService fileService,
             ConnectionWatchdog connectionWatchdog,
-            ITransferService transferService,
+            TransferService transferService,
             IBrowseTracker browseTracker,
             IRoomService roomService,
             IUserService userService,
@@ -257,7 +257,7 @@ namespace slskd
         private IPushbulletService Pushbullet { get; }
         private DateTime SharesRefreshStarted { get; set; }
         private IManagedState<State> State { get; }
-        private ITransferService Transfers { get; init; }
+        private TransferService Transfers { get; init; }
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
         private IHubContext<LogsHub> LogHub { get; set; }
         private EventBus EventBus { get; }

@@ -19,8 +19,13 @@ export const formatBytesAsUnit = (bytes, unit, decimals = 2) => {
   return Number.parseFloat((bytes / k ** sizes[unit]).toFixed(dm));
 };
 
-export const formatBytes = (bytes, decimals = 2) => {
-  if (bytes === 0) return '0 B';
+export const formatBytes = (
+  bytes,
+  decimals = 2,
+  padding = 0,
+  paddingCharacter = ' ',
+) => {
+  if (bytes === 0 || bytes < 1) return '0 B';
 
   const k = 1_024;
   const dm = decimals < 0 ? 0 : decimals;
@@ -28,9 +33,10 @@ export const formatBytes = (bytes, decimals = 2) => {
 
   const index = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return (
-    Number.parseFloat((bytes / k ** index).toFixed(dm)) + ' ' + sizes[index]
-  );
+  const number = Number.parseFloat((bytes / k ** index).toFixed(dm));
+  const padded = number.toString().padStart(padding, paddingCharacter);
+
+  return padded + ' ' + sizes[index];
 };
 
 export const formatDate = (date) => {
