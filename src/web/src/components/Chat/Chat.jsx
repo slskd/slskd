@@ -31,14 +31,14 @@ const initialState = {
 };
 
 const ChatMessageHistory = React.memo(
-  ({ formatTimestamp, messages, selfUsername }) => {
+  ({ formatTimestamp, messages, onHandleContextMenu, selfUsername }) => {
     return (
       <>
         {messages.map((message) => (
           <div
             key={`${message.timestamp}+${message.message}`}
             onContextMenu={(clickEvent) =>
-              this.handleContextMenu(clickEvent, message)
+              onHandleContextMenu(clickEvent, message)
             }
           >
           <List.Content
@@ -313,6 +313,7 @@ class Chat extends Component {
                           <ChatMessageHistory
                             formatTimestamp={this.formatTimestamp}
                             messages={messages}
+                            onHandleContextMenu={this.handleContextMenu}
                             selfUsername={user.username}
                           />
                         </List>

@@ -101,11 +101,20 @@ export const createContextMenuHandlers = (component, options = {}) => {
 
     handleReply() {
       const message = component.state.contextMenu.message;
+      const reply = formatReply(message);
       const messageRef = getMessageRef();
-      if (messageRef.current && message) {
-        messageRef.current.value = formatReply(message);
+
+      if ('message' in component.state) {
+        component.setState({ message: reply }, () => {
+          focusInput();
+          component.handleCloseContextMenu();
+        });
+        return;
       }
 
+      if (messageRef.current && message) {
+        messageRef.current.value = reply;
+      }
       focusInput();
       component.handleCloseContextMenu();
     },
