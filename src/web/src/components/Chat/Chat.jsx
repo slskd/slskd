@@ -41,18 +41,18 @@ const ChatMessageHistory = React.memo(
               onHandleContextMenu(clickEvent, message)
             }
           >
-          <List.Content
-            className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
-            key={`${message.timestamp}+${message.message}`}
-          >
-            <span className="chat-message-time">
-              {formatTimestamp(message.timestamp)}
-            </span>
-            <span className="chat-message-name">
-              {message.direction === 'Out' ? selfUsername : message.username}:
-            </span>
-            <span className="chat-message-message">{message.message}</span>
-          </List.Content>
+            <List.Content
+              className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
+              key={`${message.timestamp}+${message.message}`}
+            >
+              <span className="chat-message-time">
+                {formatTimestamp(message.timestamp)}
+              </span>
+              <span className="chat-message-name">
+                {message.direction === 'Out' ? selfUsername : message.username}:
+              </span>
+              <span className="chat-message-message">{message.message}</span>
+            </List.Content>
           </div>
         ))}
         <List.Content id="chat-history-scroll-anchor" />

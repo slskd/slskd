@@ -115,6 +115,7 @@ export const createContextMenuHandlers = (component, options = {}) => {
       if (messageRef.current && message) {
         messageRef.current.value = reply;
       }
+
       focusInput();
       component.handleCloseContextMenu();
     },
