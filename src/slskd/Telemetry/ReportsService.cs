@@ -361,7 +361,6 @@ public class ReportsService
                 Direction,
                 Filename,
                 Size,
-                StartOffset,
                 State,
                 RequestedAt
                 EnqueuedAt,
