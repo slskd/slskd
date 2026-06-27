@@ -25,6 +25,7 @@
     "react-responsive": "^9.0.0-beta.5",
     "react-router-dom": "^5.0.0",
     "react-toastify": "^9.0.1",
+    "recharts": "^2.15.4",
     "semantic-ui-less": "^2.5.0",
     "semantic-ui-react": "^2.1.0",
     "signalr": "^2.4.1",
