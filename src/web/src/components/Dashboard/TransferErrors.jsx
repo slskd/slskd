@@ -63,23 +63,20 @@ const ERRORS_SERIES = [
     format: (v) => v.toLocaleString(),
     key: 'uploadErrors',
     name: 'Upload Errors',
+    unit: 'count',
   },
   {
     color: '#a333c8',
     format: (v) => v.toLocaleString(),
     key: 'downloadErrors',
     name: 'Download Errors',
+    unit: 'count',
   },
 ];
 
 const DEFAULT_ERRORS_SERIES = new Set(['uploadErrors', 'downloadErrors']);
 
-const TransferErrors = ({
-  chartData,
-  download,
-  historyDays,
-  upload,
-}) => {
+const TransferErrors = ({ chartData, download, upload }) => {
   const isDark = useDarkMode();
 
   const paretoRows = useMemo(
@@ -91,20 +88,6 @@ const TransferErrors = ({
     [upload.recent, download.recent],
   );
 
-  const xFormatter = (timestamp) => {
-    if (historyDays === 1) {
-      return new Date(timestamp).toLocaleTimeString(undefined, {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-
-    return new Date(timestamp).toLocaleDateString(undefined, {
-      day: 'numeric',
-      month: 'short',
-    });
-  };
-
   const maxParetoCount =
     paretoRows && paretoRows.length > 0 ? paretoRows[0].count : 1;
 
@@ -115,8 +98,6 @@ const TransferErrors = ({
         data={chartData ?? []}
         defaultSeries={DEFAULT_ERRORS_SERIES}
         series={ERRORS_SERIES}
-        xFormatter={xFormatter}
-        yFormatter={(v) => v.toLocaleString()}
       />
       <Divider />
       <Header as="h5">
@@ -219,7 +200,9 @@ const TransferErrors = ({
           )}
           {recentRows &&
             recentRows.map((row) => (
-              <Table.Row key={`${row.direction}-${row.endedAt}-${row.filename}`}>
+              <Table.Row
+                key={`${row.direction}-${row.endedAt}-${row.filename}`}
+              >
                 <Table.Cell style={{ whiteSpace: 'nowrap' }}>
                   {formatDateTime(row.endedAt)}
                 </Table.Cell>

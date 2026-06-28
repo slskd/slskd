@@ -149,7 +149,6 @@ const Dashboard = ({ server } = {}) => {
         directories={data.directories}
         exceptions={data.exceptions}
         histogram={data.histogram}
-        historyDays={historyParameters.days}
         historyEnd={historyParameters.end}
         historyLabel={historyLabel}
         historyRanges={HISTORY_RANGES}

@@ -85,72 +85,84 @@ const HISTORY_SERIES = [
     format: formatBytes,
     key: 'uploadBytes',
     name: 'Upload Size',
+    unit: 'bytes',
   },
   {
     color: '#2185d0',
     format: formatBytes,
     key: 'downloadBytes',
     name: 'Download Size',
+    unit: 'bytes',
   },
   {
     color: '#6435c9',
     format: (v) => v.toLocaleString(),
     key: 'uploadCount',
     name: 'Upload Count',
+    unit: 'count',
   },
   {
     color: '#e03997',
     format: (v) => v.toLocaleString(),
     key: 'downloadCount',
     name: 'Download Count',
+    unit: 'count',
   },
   {
     color: '#f2711c',
     format: formatSpeed,
     key: 'uploadSpeed',
     name: 'Upload Speed',
+    unit: 'speed',
   },
   {
     color: '#fbbd08',
     format: formatSpeed,
     key: 'downloadSpeed',
     name: 'Download Speed',
+    unit: 'speed',
   },
   {
     color: '#db2828',
     format: (v) => v.toLocaleString(),
     key: 'uploadErrors',
     name: 'Upload Errors',
+    unit: 'count',
   },
   {
     color: '#a333c8',
     format: (v) => v.toLocaleString(),
     key: 'downloadErrors',
     name: 'Download Errors',
+    unit: 'count',
   },
   {
     color: '#d4500a',
     format: (v) => `${v.toFixed(1)}%`,
     key: 'uploadErrorRate',
     name: 'Upload Error Rate',
+    unit: 'rate',
   },
   {
     color: '#1aa9b0',
     format: (v) => `${v.toFixed(1)}%`,
     key: 'downloadErrorRate',
     name: 'Download Error Rate',
+    unit: 'rate',
   },
   {
     color: '#8e44ad',
     format: formatWait,
     key: 'uploadWait',
     name: 'Upload Queue Wait',
+    unit: 'seconds',
   },
   {
     color: '#b5cc18',
     format: (v) => v.toFixed(2),
     key: 'shareRatio',
     name: 'Share Ratio',
+    unit: 'ratio',
   },
 ];
 
@@ -161,7 +173,6 @@ const HistoricalStatistics = ({
   directories,
   exceptions,
   histogram,
-  historyDays,
   historyEnd,
   historyLabel,
   historyRanges,
@@ -185,20 +196,6 @@ const HistoricalStatistics = ({
         : shareRatio >= 0.33
           ? 'yellow'
           : 'red';
-
-  const histogramTickFormatter = (timestamp) => {
-    if (historyDays === 1) {
-      return new Date(timestamp).toLocaleTimeString(undefined, {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-
-    return new Date(timestamp).toLocaleDateString(undefined, {
-      day: 'numeric',
-      month: 'short',
-    });
-  };
 
   const historyPanes = [
     {
@@ -229,7 +226,6 @@ const HistoricalStatistics = ({
           <TransferErrors
             chartData={chartData}
             download={exceptions.download}
-            historyDays={historyDays}
             upload={exceptions.upload}
           />
         </Tab.Pane>
@@ -338,8 +334,6 @@ const HistoricalStatistics = ({
               data={chartData}
               defaultSeries={DEFAULT_HISTORY_SERIES}
               series={HISTORY_SERIES}
-              xFormatter={histogramTickFormatter}
-              yFormatter={formatBytes}
             />
           </div>
           <Divider />
