@@ -106,7 +106,6 @@ export const sleep = (milliseconds) => {
  */
 export const downloadFile = (data, filename, mime) => {
   const blob = new Blob([data], { type: mime || 'application/octet-stream' });
-  // eslint-disable-next-line no-negated-condition
   if (typeof window.navigator.msSaveBlob !== 'undefined') {
     // IE workaround for "HTML7007: One or more blob URLs were
     // revoked by closing the blob for which they were created.
