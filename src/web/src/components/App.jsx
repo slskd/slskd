@@ -587,6 +587,7 @@ class App extends Component {
                           <div className="view">
                             <Dashboard
                               server={applicationState.server}
+                              transferMetrics={transferMetrics}
                               {...props}
                             />
                           </div>,
