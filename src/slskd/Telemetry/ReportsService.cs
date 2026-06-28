@@ -362,20 +362,22 @@ public class ReportsService
                 Filename,
                 Size,
                 State,
-                RequestedAt
+                RequestedAt,
                 EnqueuedAt,
                 StartedAt,
                 EndedAt,
                 BytesTransferred,
                 AverageSpeed,
-                CASE 
-                    WHEN INSTR(Exception, ':') > 0 
+                CASE
+                    WHEN INSTR(Exception, ':') > 0
                     THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
                     ELSE Exception
                 END as Exception
-            FROM transfers 
+            FROM transfers
             WHERE state & ~48
                 AND Direction = @Direction
+                AND EndedAt IS NOT NULL
+                AND EndedAt BETWEEN @Start AND @End
                 {(username is not null ? "AND Username = @Username" : string.Empty)}
             ORDER BY EndedAt {sortOrder}
             LIMIT @Limit
@@ -433,21 +435,23 @@ public class ReportsService
         }
 
         var sql = @$"
-            SELECT 
-                CASE 
-                    WHEN INSTR(Exception, ':') > 0 
+            SELECT
+                CASE
+                    WHEN INSTR(Exception, ':') > 0
                     THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
                     ELSE Exception
                 END as Exception,
                 COUNT(*) as Count,
                 COUNT(DISTINCT Username) as DistinctUsers
-            FROM transfers 
+            FROM transfers
             WHERE state & ~48
                 AND Direction = @Direction
+                AND EndedAt IS NOT NULL
+                AND EndedAt BETWEEN @Start AND @End
                 {(username is not null ? "AND Username = @Username" : string.Empty)}
             GROUP BY Direction,
-            CASE 
-                WHEN INSTR(Exception, ':') > 0 
+            CASE
+                WHEN INSTR(Exception, ':') > 0
                 THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
                 ELSE Exception
             END
