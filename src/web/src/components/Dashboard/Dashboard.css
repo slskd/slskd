@@ -1,0 +1,11 @@
+.dark .dashboard .ui.statistics .statistic .label {
+    color: var(--slskd-color);
+}
+
+.dark .dashboard .ui.statistics .statistic:not(.blue):not(.green):not(.red):not(.yellow) > .value {
+    color: var(--slskd-color);
+}
+
+.dashboard .ui.small.statistics .statistic > .value {
+    height: 50px;
+}
