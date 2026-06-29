@@ -45,7 +45,6 @@ const Dashboard = ({ server } = {}) => {
       HISTORY_RANGES.find((r) => r.label === historyLabel) ?? HISTORY_RANGES[2];
     const now = new Date();
     return {
-      days: range.days,
       end: now.toISOString(),
       interval: range.interval,
       start:
