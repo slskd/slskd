@@ -16,15 +16,11 @@ const formatReply = (message) => {
  * Creates context menu handlers that can be used in class components
  * @param {object} component - The component instance (component)
  * @param {object} options - Configuration options
- * @param {Function} options.getMessageRef - Function that returns the message input ref
- * @param {Function} options.focusInput - Function to focus the input
  * @param {string[]} options.handlerKeys - Optional list of context menu actions to show
  * @returns {object} Object containing all context menu handler methods
  */
 export const createContextMenuHandlers = (component, options = {}) => {
   const {
-    getMessageRef = () => component.messageRef,
-    focusInput = () => component.focusInput(),
     handlerKeys = ['reply', 'userProfile', 'browseShares', 'ignoreUser'],
   } = options;
 
@@ -102,22 +98,11 @@ export const createContextMenuHandlers = (component, options = {}) => {
     handleReply() {
       const message = component.state.contextMenu.message;
       const reply = formatReply(message);
-      const messageRef = getMessageRef();
 
-      if ('message' in component.state) {
-        component.setState({ message: reply }, () => {
-          focusInput();
-          component.handleCloseContextMenu();
-        });
-        return;
-      }
-
-      if (messageRef.current && message) {
-        messageRef.current.value = reply;
-      }
-
-      focusInput();
-      component.handleCloseContextMenu();
+      component.setState({ message: reply }, () => {
+        component.focusInput();
+        component.handleCloseContextMenu();
+      });
     },
 
     handleUserProfile() {
