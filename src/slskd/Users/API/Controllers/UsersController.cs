@@ -149,6 +149,45 @@ namespace slskd.Users.API
         }
 
         /// <summary>
+        ///     Retrieves the directory index for the files shared by the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="username">The username of the user.</param>
+        /// <returns></returns>
+        [HttpGet("{username}/browse/index")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(BrowseIndexResponse), 200)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> BrowseIndex([FromRoute, UrlEncoded, Required] string username)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            if (Users.IsBlacklisted(username))
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var result = await Client.BrowseAsync(username);
+
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(5000);
+                    BrowseTracker.TryRemove(username);
+                });
+
+                return Ok(BrowseIndexResponse.FromSoulseek(result));
+            }
+            catch (UserOfflineException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        /// <summary>
         ///     Retrieves the status of the current browse operation for the specified <paramref name="username"/>, if any.
         /// </summary>
         /// <param name="username">The username of the user.</param>
