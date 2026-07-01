@@ -1,8 +1,9 @@
-const trimSlashes = (value = '') => value.replace(/^\/+|\/+$/g, '');
+/* eslint-disable unicorn/prevent-abbreviations */
+const trimSlashes = (value = '') => value.replaceAll(/^\/+|\/+$/gu, '');
 
 export const toBrowsePathSegments = (directory = '') =>
   trimSlashes(directory)
-    .split(/[\\/]+/)
+    .split(/[/\\]+/gu)
     .filter(Boolean)
     .map((segment) => encodeURIComponent(segment))
     .join('/');
@@ -27,7 +28,7 @@ export const buildBrowseUrl = ({ directory = '', urlBase = '', username }) => {
   }`;
 };
 
-export const decodeBrowseParams = (params = {}) => ({
-  directory: fromBrowsePathSegments(params.directory),
-  username: params.username ? decodeURIComponent(params.username) : '',
+export const decodeBrowseParams = (parameters = {}) => ({
+  directory: fromBrowsePathSegments(parameters.directory),
+  username: parameters.username ? decodeURIComponent(parameters.username) : '',
 });

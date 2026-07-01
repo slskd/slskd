@@ -587,7 +587,11 @@ class App extends Component {
                       }
                     />
                     <Route
-                      path={`${urlBase}/browse`}
+                      path={[
+                        `${urlBase}/browse/:username/:directory*`,
+                        `${urlBase}/browse/:username`,
+                        `${urlBase}/browse`,
+                      ]}
                       render={(props) =>
                         this.withTokenCheck(<Browse {...props} />)
                       }

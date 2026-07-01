@@ -2,7 +2,7 @@ import * as transfers from '../../lib/transfers';
 import { formatBytes } from '../../lib/util';
 import FileList from '../Shared/FileList';
 import React, { Component } from 'react';
-import { Button, Card, Icon, Label } from 'semantic-ui-react';
+import { Button, Card, Icon, Label, Loader, Message } from 'semantic-ui-react';
 
 const initialState = {
   downloadError: '',
@@ -20,7 +20,10 @@ class Directory extends Component {
   }
 
   componentDidUpdate(previousProps) {
-    if (this.props.name !== previousProps.name) {
+    if (
+      this.props.name !== previousProps.name ||
+      this.props.files !== previousProps.files
+    ) {
       this.setState({
         files: this.props.files.map((f) => ({ selected: false, ...f })),
       });
@@ -56,7 +59,8 @@ class Directory extends Component {
   };
 
   render() {
-    const { locked, marginTop, name, onClose, username } = this.props;
+    const { error, loading, locked, marginTop, name, onClose, username } =
+      this.props;
     const { downloadError, downloadRequest, files } = this.state;
 
     const selectedFiles = files.filter((f) => f.selected);
@@ -81,6 +85,20 @@ class Directory extends Component {
               onSelectionChange={this.handleFileSelectionChange}
             />
           </div>
+          {loading && (
+            <Loader
+              active
+              inline="centered"
+            >
+              Loading directory files
+            </Loader>
+          )}
+          {error && (
+            <Message
+              content={error}
+              negative
+            />
+          )}
         </Card.Content>
         {selectedFiles.length > 0 && (
           <Card.Content extra>

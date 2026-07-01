@@ -1,10 +1,10 @@
-/* eslint-disable promise/prefer-await-to-then */
+/* eslint-disable promise/prefer-await-to-then, unicorn/prevent-abbreviations */
 import './Browse.css';
 import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
+import { buildBrowseUrl, decodeBrowseParams } from './browseRoutes';
 import Directory from './Directory';
 import DirectoryTree from './DirectoryTree';
-import * as lzString from 'lz-string';
 import React, { Component } from 'react';
 import { withRouter } from 'react-router-dom';
 import { Card, Icon, Input, Loader, Segment } from 'semantic-ui-react';
@@ -13,6 +13,9 @@ const initialState = {
   browseError: undefined,
   browseState: 'idle',
   browseStatus: 0,
+  directoryError: undefined,
+  directoryFilesByName: {},
+  directoryState: 'idle',
   info: {
     directories: 0,
     files: 0,
@@ -21,7 +24,6 @@ const initialState = {
   },
   interval: undefined,
   selectedDirectory: {},
-  selectedFiles: [],
   separator: '\\',
   tree: [],
   username: '',
@@ -35,19 +37,24 @@ class Browse extends Component {
   }
 
   componentDidMount() {
-    this.fetchStatus();
     this.loadState();
     this.setState(
       {
         interval: window.setInterval(this.fetchStatus, 500),
       },
-      () => this.saveState(),
+      () => {
+        this.syncFromRoute();
+        this.saveState();
+      },
     );
-    if (this.props.location.state?.user) {
-      this.setState({ username: this.props.location.state.user }, this.browse);
-    }
 
     document.addEventListener('keyup', this.keyUp, false);
+  }
+
+  componentDidUpdate(previousProps) {
+    if (this.props.location.pathname !== previousProps.location.pathname) {
+      this.syncFromRoute();
+    }
   }
 
   componentWillUnmount() {
@@ -56,61 +63,91 @@ class Browse extends Component {
     document.removeEventListener('keyup', this.keyUp, false);
   }
 
-  browse = () => {
-    const username = this.inputtext.inputRef.current.value;
+  getRouteState = () => decodeBrowseParams(this.props.match.params);
+
+  syncFromRoute = () => {
+    const { directory, username } = this.getRouteState();
+
+    if (!username) {
+      this.setState(initialState, () => this.saveState());
+      return;
+    }
+
+    if (username !== this.state.username || this.state.browseState === 'idle') {
+      this.setState(
+        (previousState) => ({
+          ...initialState,
+          interval: previousState.interval,
+          username,
+        }),
+        () => this.browse(username, directory),
+      );
+      return;
+    }
+
+    if (directory && directory !== this.state.selectedDirectory.name) {
+      this.selectDirectoryByName(directory);
+    }
+  };
+
+  browse = (usernameOverride, directoryToSelect) => {
+    const username = usernameOverride || this.inputtext.inputRef.current.value;
+
+    if (!usernameOverride) {
+      this.props.history.push(buildBrowseUrl({ username }));
+      return;
+    }
 
     this.setState(
-      { browseError: undefined, browseState: 'pending', username },
+      {
+        browseError: undefined,
+        browseState: 'pending',
+        directoryError: undefined,
+        directoryFilesByName: {},
+        directoryState: 'idle',
+        selectedDirectory: {},
+        username,
+      },
       () => {
         users
-          .browse({ username })
+          .browseIndex({ username })
           .then((response) => {
-            let { directories } = response;
+            const { directories } = response;
             const { lockedDirectories } = response;
 
-            // we need to know the directory separator. assume it is \ to start
             let separator;
+            const allDirectories = directories.concat(
+              lockedDirectories.map((d) => ({ ...d, locked: true })),
+            );
 
-            const directoryCount = directories.length;
-            const fileCount = directories.reduce((accumulator, directory) => {
-              // examine each directory as we process it to see if it contains \ or /, and set separator accordingly
+            for (const directory of allDirectories) {
               if (!separator) {
                 if (directory.name.includes('\\')) separator = '\\';
                 else if (directory.name.includes('/')) separator = '/';
               }
+            }
 
-              return accumulator + directory.fileCount;
-            }, 0);
+            separator = separator || '\\';
 
-            const lockedDirectoryCount = lockedDirectories.length;
-            const lockedFileCount = lockedDirectories.reduce(
-              (accumulator, directory) => accumulator + directory.fileCount,
-              0,
-            );
-
-            directories = directories.concat(
-              lockedDirectories.map((d) => ({ ...d, locked: true })),
-            );
-
-            this.setState({
-              info: {
-                directories: directoryCount,
-                files: fileCount,
-                lockedDirectories: lockedDirectoryCount,
-                lockedFiles: lockedFileCount,
-              },
-              separator,
-              tree: this.getDirectoryTree({ directories, separator }),
-            });
-          })
-          .then(() =>
             this.setState(
-              { browseError: undefined, browseState: 'complete' },
+              {
+                browseError: undefined,
+                browseState: 'complete',
+                info: response.info,
+                separator,
+                tree: this.getDirectoryTree({
+                  directories: allDirectories,
+                  separator,
+                }),
+              },
               () => {
                 this.saveState();
+                if (directoryToSelect) {
+                  this.selectDirectoryByName(directoryToSelect);
+                }
               },
-            ),
-          )
+            );
+          })
           .catch((error) =>
             this.setState({ browseError: error, browseState: 'error' }),
           );
@@ -120,7 +157,8 @@ class Browse extends Component {
 
   clear = () => {
     this.setState(initialState, () => {
-      this.saveState();
+      localStorage.removeItem('soulseek-example-browse-state');
+      this.props.history.push(buildBrowseUrl({}));
       this.inputtext.focus();
     });
   };
@@ -130,38 +168,40 @@ class Browse extends Component {
   saveState = () => {
     this.inputtext.inputRef.current.value = this.state.username;
     this.inputtext.inputRef.current.disabled =
-      this.state.browseState !== 'idle';
+      this.state.browseState !== 'idle' &&
+      this.state.browseState !== 'complete';
 
-    const storeToLocalStorage = () => {
-      try {
-        localStorage.setItem(
-          'soulseek-example-browse-state',
-          lzString.compress(JSON.stringify(this.state)),
-        );
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    // Shifting the compression and safe out of the current render loop to speed up responsiveness
-    // requestIdleCallback is not supported in Safari hence we push to next tick using Promise.resolve
-    if (window.requestIdleCallback) {
-      window.requestIdleCallback(storeToLocalStorage);
-    } else {
-      Promise.resolve().then(storeToLocalStorage);
-    }
+    localStorage.setItem(
+      'soulseek-example-browse-state',
+      JSON.stringify({
+        selectedDirectoryName: this.state.selectedDirectory.name || '',
+        username: this.state.username,
+      }),
+    );
   };
 
   loadState = () => {
-    this.setState(
-      (!this.props.location.state?.user &&
-        JSON.parse(
-          lzString.decompress(
-            localStorage.getItem('soulseek-example-browse-state') || '',
-          ),
-        )) ||
-        initialState,
-    );
+    const routeState = this.getRouteState();
+    if (routeState.username) {
+      return;
+    }
+
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem('soulseek-example-browse-state') || '{}',
+      );
+
+      if (saved.username) {
+        this.props.history.replace(
+          buildBrowseUrl({
+            directory: saved.selectedDirectoryName,
+            username: saved.username,
+          }),
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   fetchStatus = () => {
@@ -220,16 +260,101 @@ class Browse extends Component {
     };
   };
 
-  selectDirectory = (directory) => {
-    this.setState({ selectedDirectory: { ...directory, children: [] } }, () =>
-      this.saveState(),
+  findDirectoryByName = (directories, directoryName) => {
+    for (const directory of directories || []) {
+      if (directory.name === directoryName) {
+        return directory;
+      }
+
+      const child = this.findDirectoryByName(directory.children, directoryName);
+      if (child) {
+        return child;
+      }
+    }
+
+    return undefined;
+  };
+
+  selectDirectoryByName = (directoryName) => {
+    const directory = this.findDirectoryByName(this.state.tree, directoryName);
+
+    if (!directory) {
+      this.setState({
+        directoryError: `Directory '${directoryName}' was not found in this browse response.`,
+        directoryState: 'error',
+        selectedDirectory: { name: directoryName },
+      });
+      return;
+    }
+
+    this.selectDirectory(directory, { updateHistory: false });
+  };
+
+  loadDirectoryFiles = (directory) => {
+    if (this.state.directoryFilesByName[directory.name]) {
+      this.setState({ directoryError: undefined, directoryState: 'complete' });
+      return;
+    }
+
+    this.setState(
+      { directoryError: undefined, directoryState: 'pending' },
+      async () => {
+        try {
+          const allDirectories = await users.getDirectoryContents({
+            directory: directory.name,
+            username: this.state.username,
+          });
+          const rootDirectory = allDirectories?.[0];
+
+          if (!rootDirectory) {
+            throw new Error('No directories were included in the response');
+          }
+
+          this.setState((previousState) => ({
+            directoryFilesByName: {
+              ...previousState.directoryFilesByName,
+              [directory.name]: (rootDirectory.files || []).map((file) => ({
+                ...file,
+                filename: `${directory.name}${previousState.separator}${file.filename}`,
+              })),
+            },
+            directoryState: 'complete',
+          }));
+        } catch (error) {
+          console.error(error);
+          this.setState({
+            directoryError: error?.response?.data ?? error?.message ?? error,
+            directoryState: 'error',
+          });
+        }
+      },
+    );
+  };
+
+  selectDirectory = (directory, { updateHistory = true } = {}) => {
+    this.setState(
+      {
+        directoryError: undefined,
+        selectedDirectory: { ...directory, children: [] },
+      },
+      () => {
+        if (updateHistory) {
+          this.props.history.push(
+            buildBrowseUrl({
+              directory: directory.name,
+              username: this.state.username,
+            }),
+          );
+        }
+
+        this.loadDirectoryFiles(directory);
+        this.saveState();
+      },
     );
   };
 
   handleDeselectDirectory = () => {
-    this.setState({ selectedDirectory: initialState.selectedDirectory }, () =>
-      this.saveState(),
-    );
+    this.props.history.push(buildBrowseUrl({ username: this.state.username }));
   };
 
   render() {
@@ -237,9 +362,11 @@ class Browse extends Component {
       browseError,
       browseState,
       browseStatus,
+      directoryError,
+      directoryFilesByName,
+      directoryState,
       info,
       selectedDirectory,
-      separator,
       tree,
       username,
     } = this.state;
@@ -248,10 +375,7 @@ class Browse extends Component {
 
     const emptyTree = !(tree && tree.length > 0);
 
-    const files = (selectedDirectory.files || []).map((f) => ({
-      ...f,
-      filename: `${name}${separator}${f.filename}`,
-    }));
+    const files = directoryFilesByName[name] || [];
 
     return (
       <div className="search-container">
@@ -340,7 +464,9 @@ class Browse extends Component {
                 )}
                 {name && (
                   <Directory
+                    error={directoryError}
                     files={files}
+                    loading={directoryState === 'pending'}
                     locked={locked}
                     marginTop={-20}
                     name={name}
