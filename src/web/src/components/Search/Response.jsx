@@ -1,3 +1,4 @@
+import { urlBase } from '../../config';
 import * as transfers from '../../lib/transfers';
 import { getDirectoryContents } from '../../lib/users';
 import { formatBytes, getDirectoryName } from '../../lib/util';
@@ -216,6 +217,7 @@ class Response extends Component {
                     to={buildBrowseUrl({
                       directory,
                       username: response.username,
+                      urlBase,
                     })}
                   >
                     <Icon name="folder open" />

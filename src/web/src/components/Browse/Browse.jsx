@@ -1,5 +1,6 @@
 /* eslint-disable promise/prefer-await-to-then, unicorn/prevent-abbreviations */
 import './Browse.css';
+import { urlBase } from '../../config';
 import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import {
@@ -111,7 +112,7 @@ class Browse extends Component {
     const username = usernameOverride || this.inputtext.inputRef.current.value;
 
     if (!usernameOverride) {
-      this.props.history.push(buildBrowseUrl({ username }));
+      this.props.history.push(buildBrowseUrl({ username, urlBase }));
       return;
     }
 
@@ -184,7 +185,7 @@ class Browse extends Component {
       }),
       () => {
         localStorage.removeItem('soulseek-example-browse-state');
-        this.props.history.push(buildBrowseUrl({}));
+        this.props.history.push(buildBrowseUrl({ urlBase }));
         this.inputtext.focus();
       },
     );
@@ -230,6 +231,7 @@ class Browse extends Component {
             buildBrowseUrl({
               directory: saved.selectedDirectoryName,
               username: saved.username,
+              urlBase,
             }),
           );
         });
@@ -388,6 +390,7 @@ class Browse extends Component {
             buildBrowseUrl({
               directory: directory.name,
               username: this.state.username,
+              urlBase,
             }),
           );
         }
@@ -399,7 +402,9 @@ class Browse extends Component {
   };
 
   handleDeselectDirectory = () => {
-    this.props.history.push(buildBrowseUrl({ username: this.state.username }));
+    this.props.history.push(
+      buildBrowseUrl({ username: this.state.username, urlBase }),
+    );
   };
 
   render() {

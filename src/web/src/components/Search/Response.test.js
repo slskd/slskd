@@ -9,4 +9,14 @@ describe('search response browse links', () => {
       }),
     ).toBe('/browse/some%20user/Music/Artist%20Name/Album');
   });
+
+  it('includes urlBase in the Browse link for a search result directory', () => {
+    expect(
+      buildBrowseUrl({
+        directory: 'Music\\Artist Name\\Album',
+        username: 'some user',
+        urlBase: '/ui',
+      }),
+    ).toBe('/ui/browse/some%20user/Music/Artist%20Name/Album');
+  });
 });
