@@ -212,16 +212,19 @@ class Browse extends Component {
       );
 
       if (saved.username) {
+        const stateUpdate = {};
         if (saved.separator) {
-          this.setState({ separator: saved.separator });
+          stateUpdate.separator = saved.separator;
         }
 
-        this.props.history.replace(
-          buildBrowseUrl({
-            directory: saved.selectedDirectoryName,
-            username: saved.username,
-          }),
-        );
+        this.setState(stateUpdate, () => {
+          this.props.history.replace(
+            buildBrowseUrl({
+              directory: saved.selectedDirectoryName,
+              username: saved.username,
+            }),
+          );
+        });
       }
     } catch (error) {
       console.error(error);
