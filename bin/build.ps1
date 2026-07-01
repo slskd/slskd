@@ -62,25 +62,25 @@ $webPath = Join-Path $root 'src\web'
 $slskdPath = Join-Path $root 'src\slskd'
 
 if ($DotnetOnly) {
-  Write-Output "`n`t>>  web build skipped`n"
+  Write-Output ">>  web build skipped"
 }
 else {
   Push-Location $webPath
   try {
-    Write-Output "`n`tLocation:  $(Get-Location)`n"
+    Write-Output "Location:  $(Get-Location)"
 
-    Write-Output "`n`tRunning:  npm ci`n"
+    Write-Output "Running:  npm ci"
     Invoke-Native npm ci
 
     if ($SkipTests) {
-      Write-Output "`n`t>>  web tests skipped`n"
+      Write-Output ">>  web tests skipped"
     }
     else {
-      Write-Output "`n`tTesting:  npm run test-unattended`n"
+      Write-Output "Testing:  npm run test-unattended"
       Invoke-Native npm run test-unattended
     }
 
-    Write-Output "`n`tRunning:  npm run build`n"
+    Write-Output "Running:  npm run build"
     Invoke-Native npm run build
 
     if (-not $WebOnly) {
@@ -92,7 +92,7 @@ else {
       New-Item -ItemType Directory -Path $wwwrootPath | Out-Null
       New-Item -ItemType File -Path (Join-Path $wwwrootPath '.gitkeep') -Force | Out-Null
 
-      Write-Output "`n`tRunning:  Copy-Item build\* $wwwrootPath\`n"
+      Write-Output "Running:  Copy-Item build\* $wwwrootPath\"
       Copy-Item -Path (Join-Path (Get-Location) 'build\*') -Destination $wwwrootPath -Recurse -Force
     }
   }
@@ -102,21 +102,21 @@ else {
 }
 
 if ($WebOnly) {
-  Write-Output "`n`t>>  dotnet build skipped`n"
+  Write-Output ">>  dotnet build skipped"
 }
 else {
   Push-Location $slskdPath
   try {
-    Write-Output "`n`tLocation:  $(Get-Location)`n"
+    Write-Output "Location:  $(Get-Location)"
 
-    Write-Output "`n`tRunning:  dotnet build --no-incremental --nologo --configuration Release -p:Version=$Version`n"
+    Write-Output "Running:  dotnet build --no-incremental --nologo --configuration Release -p:Version=$Version"
     Invoke-Native dotnet build --no-incremental --nologo --configuration Release "-p:Version=$Version"
 
     if ($SkipTests) {
-      Write-Output "`n`t>>  dotnet tests skipped`n"
+      Write-Output ">>  dotnet tests skipped"
     }
     else {
-      Write-Output "`n`tTesting:  dotnet test --configuration Release ..\..\tests\slskd.Tests.Unit`n"
+      Write-Output "Testing:  dotnet test --configuration Release ..\..\tests\slskd.Tests.Unit"
       Invoke-Native dotnet test --configuration Release '..\..\tests\slskd.Tests.Unit'
     }
   }
@@ -125,4 +125,4 @@ else {
   }
 }
 
-Write-Output "`n`tBuild succeeded!`n"
+Write-Output "Build succeeded!"

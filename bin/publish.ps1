@@ -72,7 +72,7 @@ if (-not [string]::IsNullOrWhiteSpace($Platform)) {
     }
   }
 
-  Write-Output "`n`tInfo:  runtime overridden by platform option $Platform, using $Runtime`n"
+  Write-Output "Info:  runtime overridden by platform option $Platform, using $Runtime"
 }
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
@@ -95,21 +95,21 @@ elseif (-not [System.IO.Path]::IsPathRooted($Output)) {
 }
 
 if (-not $NoPrebuild) {
-  Write-Output "`n`tRunning:  bin\build.ps1 -Version $Version`n"
+  Write-Output "Running:  bin\build.ps1 -Version $Version"
   & (Join-Path $PSScriptRoot 'build.ps1') -Version $Version
   if ($LASTEXITCODE -ne 0) {
     throw "build.ps1 exited with code $LASTEXITCODE"
   }
 }
 else {
-  Write-Output "`n`t>>  pre-build skipped`n"
+  Write-Output ">>  pre-build skipped"
 }
 
 Push-Location $slskdPath
 try {
-  Write-Output "`n`tLocation:  $(Get-Location)`n"
+  Write-Output "Location:  $(Get-Location)"
 
-  Write-Output "`n`tRunning:  dotnet publish ... --runtime $Runtime -p:Version=$Version --output $Output`n"
+  Write-Output "Running:  dotnet publish ... --runtime $Runtime -p:Version=$Version --output $Output"
 
   $legacyDistPath = Join-Path (Join-Path $slskdPath 'dist') $Runtime
   if (Test-Path -LiteralPath $legacyDistPath) {
@@ -133,12 +133,12 @@ finally {
 
 Push-Location $Output
 try {
-  Write-Output "`n`tLocation:  $(Get-Location)`n"
-  Write-Output "`n`tArtifacts:`n"
+  Write-Output "Location:  $(Get-Location)"
+  Write-Output "Artifacts:"
   Get-ChildItem -Force
 }
 finally {
   Pop-Location
 }
 
-Write-Output "`n`tPublish succeeded!`n"
+Write-Output "Publish succeeded!"
