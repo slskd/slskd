@@ -37,7 +37,7 @@ namespace slskd.Tests.Unit.Users.API.DTO
         }
 
         [Fact]
-        public void FromSoulseek_Maps_Locked_Directory_Metadata_And_Counts()
+        public void FromSoulseek_Returns_Empty_Collections_For_Empty_Browse_Response()
         {
             var directories = Array.Empty<Directory>();
             var response = new BrowseResponse(directories);
