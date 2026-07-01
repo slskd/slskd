@@ -1,7 +1,5 @@
 .vs
 .vscode/*
-!.vscode/
-!.vscode/mcp.json
 .idea/
 .DS_Store
 /src/slskd/bin/
