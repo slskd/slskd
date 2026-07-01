@@ -1,5 +1,6 @@
-import { activeRoomKey } from '../../config';
+import { activeRoomKey, urlBase } from '../../config';
 import * as rooms from '../../lib/rooms';
+import { buildBrowseUrl } from '../Browse/browseRoutes';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import RoomMenu from './RoomMenu';
 import RoomUserList from './RoomUserList';
@@ -254,9 +255,9 @@ class Rooms extends Component {
   };
 
   handleBrowseShares = () => {
-    this.props.history.push(
-      `/browse/${encodeURIComponent(this.state.contextMenu.message.username)}`,
-    );
+    const username = this.state.contextMenu.message.username;
+    const url = buildBrowseUrl({ username, urlBase });
+    this.props.history.push(url);
   };
 
   renderContextMenu() {
