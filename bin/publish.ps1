@@ -1,13 +1,24 @@
+[CmdletBinding()]
+param(
+  [Alias('h')]
+  [switch] $Help,
+  [switch] $NoPrebuild,
+  [string] $Runtime,
+  [string] $Platform,
+  [string] $Version,
+  [string] $Output
+)
+
 $ErrorActionPreference = 'Stop'
 
 function Show-Help {
   Write-Output 'options:'
-  Write-Output '-h, --help          show help'
-  Write-Output '--no-prebuild       skip build and test'
-  Write-Output '--runtime           a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)'
-  Write-Output '--platform          one of: linux/amd64, linux/arm64, linux/arm/v7.  overrides runtime.'
-  Write-Output '--version           version for the binary. defaults to current git tag+SHA'
-  Write-Output '--output            the output directory.  defaults to ../../dist/<runtime>'
+  Write-Output '-Help              show help'
+  Write-Output '-NoPrebuild        skip build and test'
+  Write-Output '-Runtime           a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)'
+  Write-Output '-Platform          one of: linux/amd64, linux/arm64, linux/arm/v7.  overrides runtime.'
+  Write-Output '-Version           version for the binary. defaults to current git tag+SHA'
+  Write-Output '-Output            the output directory.  defaults to ../../dist/<runtime>'
 }
 
 function Invoke-Native {
@@ -39,69 +50,21 @@ function Get-DefaultVersion {
   return "$tag+$sha"
 }
 
-$prebuild = $true
-$runtime = $null
-$platform = $null
-$version = $null
-$output = $null
-
-for ($i = 0; $i -lt $args.Count; $i++) {
-  switch ($args[$i]) {
-    { $_ -in @('-h', '--help') } {
-      Show-Help
-      exit 0
-    }
-    '--no-prebuild' {
-      $prebuild = $false
-    }
-    '--runtime' {
-      $i++
-      if ($i -ge $args.Count) {
-        throw 'missing value for --runtime'
-      }
-
-      $runtime = $args[$i]
-    }
-    '--platform' {
-      $i++
-      if ($i -ge $args.Count) {
-        throw 'missing value for --platform'
-      }
-
-      $platform = $args[$i]
-    }
-    '--version' {
-      $i++
-      if ($i -ge $args.Count) {
-        throw 'missing value for --version'
-      }
-
-      $version = $args[$i]
-    }
-    '--output' {
-      $i++
-      if ($i -ge $args.Count) {
-        throw 'missing value for --output'
-      }
-
-      $output = $args[$i]
-    }
-    default {
-      throw "unknown option: $($args[$i])"
-    }
-  }
+if ($Help) {
+  Show-Help
+  exit 0
 }
 
-if (-not [string]::IsNullOrWhiteSpace($platform)) {
-  switch ($platform) {
+if (-not [string]::IsNullOrWhiteSpace($Platform)) {
+  switch ($Platform) {
     'linux/amd64' {
-      $runtime = 'linux-x64'
+      $Runtime = 'linux-x64'
     }
     'linux/arm64' {
-      $runtime = 'linux-arm64'
+      $Runtime = 'linux-arm64'
     }
     'linux/arm/v7' {
-      $runtime = 'linux-arm'
+      $Runtime = 'linux-arm'
     }
     default {
       Write-Error 'error: platform must be one of: linux/amd64, linux/arm64, linux/arm/v7'
@@ -109,14 +72,14 @@ if (-not [string]::IsNullOrWhiteSpace($platform)) {
     }
   }
 
-  Write-Output "`n`tInfo:  runtime overridden by platform option $platform, using $runtime`n"
+  Write-Output "`n`tInfo:  runtime overridden by platform option $Platform, using $Runtime`n"
 }
 
-if ([string]::IsNullOrWhiteSpace($version)) {
-  $version = Get-DefaultVersion
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $Version = Get-DefaultVersion
 }
 
-if ([string]::IsNullOrWhiteSpace($runtime)) {
+if ([string]::IsNullOrWhiteSpace($Runtime)) {
   Write-Error 'error: no runtime specified; provide a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)'
   exit 1
 }
@@ -124,16 +87,16 @@ if ([string]::IsNullOrWhiteSpace($runtime)) {
 $root = Split-Path -Parent $PSScriptRoot
 $slskdPath = Join-Path $root 'src\slskd'
 
-if ([string]::IsNullOrWhiteSpace($output)) {
-  $output = Join-Path $root "dist\$runtime"
+if ([string]::IsNullOrWhiteSpace($Output)) {
+  $Output = Join-Path $root "dist\$Runtime"
 }
-elseif (-not [System.IO.Path]::IsPathRooted($output)) {
-  $output = Join-Path $slskdPath $output
+elseif (-not [System.IO.Path]::IsPathRooted($Output)) {
+  $Output = Join-Path $slskdPath $Output
 }
 
-if ($prebuild) {
-  Write-Output "`n`tRunning:  bin\build.ps1 --version $version`n"
-  & (Join-Path $PSScriptRoot 'build.ps1') --version $version
+if (-not $NoPrebuild) {
+  Write-Output "`n`tRunning:  bin\build.ps1 -Version $Version`n"
+  & (Join-Path $PSScriptRoot 'build.ps1') -Version $Version
   if ($LASTEXITCODE -ne 0) {
     throw "build.ps1 exited with code $LASTEXITCODE"
   }
@@ -146,9 +109,9 @@ Push-Location $slskdPath
 try {
   Write-Output "`n`tLocation:  $(Get-Location)`n"
 
-  Write-Output "`n`tRunning:  dotnet publish ... --runtime $runtime -p:Version=$version --output $output`n"
+  Write-Output "`n`tRunning:  dotnet publish ... --runtime $Runtime -p:Version=$Version --output $Output`n"
 
-  $legacyDistPath = Join-Path (Join-Path $slskdPath 'dist') $runtime
+  $legacyDistPath = Join-Path (Join-Path $slskdPath 'dist') $Runtime
   if (Test-Path -LiteralPath $legacyDistPath) {
     Get-ChildItem -LiteralPath $legacyDistPath -Force | Remove-Item -Recurse -Force
   }
@@ -159,16 +122,16 @@ try {
     -p:ReadyToRun=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:CopyOutputSymbolsToPublishDirectory=false `
-    "-p:Version=$version" `
+    "-p:Version=$Version" `
     --self-contained `
-    --runtime $runtime `
-    --output $output
+    --runtime $Runtime `
+    --output $Output
 }
 finally {
   Pop-Location
 }
 
-Push-Location $output
+Push-Location $Output
 try {
   Write-Output "`n`tLocation:  $(Get-Location)`n"
   Write-Output "`n`tArtifacts:`n"

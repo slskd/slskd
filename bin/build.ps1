@@ -1,12 +1,22 @@
+[CmdletBinding()]
+param(
+  [Alias('h')]
+  [switch] $Help,
+  [switch] $WebOnly,
+  [switch] $DotnetOnly,
+  [switch] $SkipTests,
+  [string] $Version
+)
+
 $ErrorActionPreference = 'Stop'
 
 function Show-Help {
   Write-Output 'options:'
-  Write-Output '-h, --help          show help'
-  Write-Output '--web-only          skip dotnet build'
-  Write-Output '--dotnet-only       skip web build'
-  Write-Output '--skip-tests        skip execution of npm and dotnet tests'
-  Write-Output '--version           version for the binary. defaults to current git tag+SHA'
+  Write-Output '-Help              show help'
+  Write-Output '-WebOnly           skip dotnet build'
+  Write-Output '-DotnetOnly        skip web build'
+  Write-Output '-SkipTests         skip execution of npm and dotnet tests'
+  Write-Output '-Version           version for the binary. defaults to current git tag+SHA'
 }
 
 function Invoke-Native {
@@ -38,49 +48,20 @@ function Get-DefaultVersion {
   return "$tag+$sha"
 }
 
-$webOnly = $false
-$dotnetOnly = $false
-$skipTests = $false
-$version = $null
-
-for ($i = 0; $i -lt $args.Count; $i++) {
-  switch ($args[$i]) {
-    { $_ -in @('-h', '--help') } {
-      Show-Help
-      exit 0
-    }
-    '--web-only' {
-      $webOnly = $true
-    }
-    '--dotnet-only' {
-      $dotnetOnly = $true
-    }
-    '--skip-tests' {
-      $skipTests = $true
-    }
-    '--version' {
-      $i++
-      if ($i -ge $args.Count) {
-        throw 'missing value for --version'
-      }
-
-      $version = $args[$i]
-    }
-    default {
-      throw "unknown option: $($args[$i])"
-    }
-  }
+if ($Help) {
+  Show-Help
+  exit 0
 }
 
-if ([string]::IsNullOrWhiteSpace($version)) {
-  $version = Get-DefaultVersion
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $Version = Get-DefaultVersion
 }
 
 $root = Split-Path -Parent $PSScriptRoot
 $webPath = Join-Path $root 'src\web'
 $slskdPath = Join-Path $root 'src\slskd'
 
-if ($dotnetOnly) {
+if ($DotnetOnly) {
   Write-Output "`n`t>>  web build skipped`n"
 }
 else {
@@ -91,7 +72,7 @@ else {
     Write-Output "`n`tRunning:  npm ci`n"
     Invoke-Native npm ci
 
-    if ($skipTests) {
+    if ($SkipTests) {
       Write-Output "`n`t>>  web tests skipped`n"
     }
     else {
@@ -102,7 +83,7 @@ else {
     Write-Output "`n`tRunning:  npm run build`n"
     Invoke-Native npm run build
 
-    if (-not $webOnly) {
+    if (-not $WebOnly) {
       $wwwrootPath = Join-Path $slskdPath 'wwwroot'
       if (Test-Path -LiteralPath $wwwrootPath) {
         Remove-Item -LiteralPath $wwwrootPath -Recurse -Force
@@ -120,7 +101,7 @@ else {
   }
 }
 
-if ($webOnly) {
+if ($WebOnly) {
   Write-Output "`n`t>>  dotnet build skipped`n"
 }
 else {
@@ -128,10 +109,10 @@ else {
   try {
     Write-Output "`n`tLocation:  $(Get-Location)`n"
 
-    Write-Output "`n`tRunning:  dotnet build --no-incremental --nologo --configuration Release -p:Version=$version`n"
-    Invoke-Native dotnet build --no-incremental --nologo --configuration Release "-p:Version=$version"
+    Write-Output "`n`tRunning:  dotnet build --no-incremental --nologo --configuration Release -p:Version=$Version`n"
+    Invoke-Native dotnet build --no-incremental --nologo --configuration Release "-p:Version=$Version"
 
-    if ($skipTests) {
+    if ($SkipTests) {
       Write-Output "`n`t>>  dotnet tests skipped`n"
     }
     else {
