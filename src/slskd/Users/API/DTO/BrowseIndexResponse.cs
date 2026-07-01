@@ -68,6 +68,7 @@ namespace slskd.Users.API
         public static BrowseIndexResponse FromSoulseek(BrowseResponse response)
         {
             var directories = (response?.Directories ?? Enumerable.Empty<Directory>()).ToList();
+            var lockedDirectories = (response?.LockedDirectories ?? Enumerable.Empty<Directory>()).ToList();
 
             return new BrowseIndexResponse
             {
@@ -75,11 +76,11 @@ namespace slskd.Users.API
                 {
                     Directories = directories.Count,
                     Files = directories.Sum(directory => directory.FileCount),
-                    LockedDirectories = 0,
-                    LockedFiles = 0,
+                    LockedDirectories = lockedDirectories.Count,
+                    LockedFiles = lockedDirectories.Sum(directory => directory.FileCount),
                 },
                 Directories = directories.Select(BrowseIndexDirectory.FromSoulseek).ToList(),
-                LockedDirectories = new List<BrowseIndexDirectory>(),
+                LockedDirectories = lockedDirectories.Select(BrowseIndexDirectory.FromSoulseek).ToList(),
             };
         }
     }

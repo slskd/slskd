@@ -2,7 +2,11 @@
 import './Browse.css';
 import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
-import { buildBrowseUrl, decodeBrowseParams } from './browseRoutes';
+import {
+  buildBrowseUrl,
+  decodeBrowseParams,
+  fromBrowsePathSegments,
+} from './browseRoutes';
 import Directory from './Directory';
 import DirectoryTree from './DirectoryTree';
 import React, { Component } from 'react';
@@ -156,7 +160,11 @@ class Browse extends Component {
               () => {
                 this.saveState();
                 if (directoryToSelect) {
-                  this.selectDirectoryByName(directoryToSelect);
+                  const redecodedDirectory = fromBrowsePathSegments(
+                    this.props.match.params.directory || '',
+                    separator,
+                  );
+                  this.selectDirectoryByName(redecodedDirectory);
                 }
               },
             );
