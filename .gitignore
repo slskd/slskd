@@ -19,3 +19,5 @@ global.json
 .claude
 
 pub/
+
+.worktrees/
