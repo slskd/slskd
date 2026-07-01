@@ -254,9 +254,9 @@ class Rooms extends Component {
   };
 
   handleBrowseShares = () => {
-    this.props.history.push('/browse', {
-      user: this.state.contextMenu.message.username,
-    });
+    this.props.history.push(
+      `/browse/${encodeURIComponent(this.state.contextMenu.message.username)}`,
+    );
   };
 
   renderContextMenu() {

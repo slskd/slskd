@@ -8,12 +8,12 @@ export const toBrowsePathSegments = (directory = '') =>
     .map((segment) => encodeURIComponent(segment))
     .join('/');
 
-export const fromBrowsePathSegments = (path = '') =>
+export const fromBrowsePathSegments = (path = '', separator = '\\') =>
   trimSlashes(path)
     .split('/')
     .filter(Boolean)
     .map((segment) => decodeURIComponent(segment))
-    .join('\\');
+    .join(separator);
 
 export const buildBrowseUrl = ({ directory = '', urlBase = '', username }) => {
   if (!username) {
@@ -28,7 +28,7 @@ export const buildBrowseUrl = ({ directory = '', urlBase = '', username }) => {
   }`;
 };
 
-export const decodeBrowseParams = (parameters = {}) => ({
-  directory: fromBrowsePathSegments(parameters.directory),
+export const decodeBrowseParams = (parameters = {}, separator = '\\') => ({
+  directory: fromBrowsePathSegments(parameters.directory, separator),
   username: parameters.username ? decodeURIComponent(parameters.username) : '',
 });

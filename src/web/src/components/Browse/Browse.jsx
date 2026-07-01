@@ -63,13 +63,20 @@ class Browse extends Component {
     document.removeEventListener('keyup', this.keyUp, false);
   }
 
-  getRouteState = () => decodeBrowseParams(this.props.match.params);
+  getRouteState = () =>
+    decodeBrowseParams(this.props.match.params, this.state.separator);
 
   syncFromRoute = () => {
     const { directory, username } = this.getRouteState();
 
     if (!username) {
-      this.setState(initialState, () => this.saveState());
+      this.setState(
+        (previousState) => ({
+          ...initialState,
+          interval: previousState.interval,
+        }),
+        () => this.saveState(),
+      );
       return;
     }
 
@@ -87,6 +94,12 @@ class Browse extends Component {
 
     if (directory && directory !== this.state.selectedDirectory.name) {
       this.selectDirectoryByName(directory);
+    } else if (!directory && this.state.selectedDirectory.name) {
+      this.setState({
+        directoryError: undefined,
+        directoryState: 'idle',
+        selectedDirectory: {},
+      });
     }
   };
 
@@ -156,11 +169,17 @@ class Browse extends Component {
   };
 
   clear = () => {
-    this.setState(initialState, () => {
-      localStorage.removeItem('soulseek-example-browse-state');
-      this.props.history.push(buildBrowseUrl({}));
-      this.inputtext.focus();
-    });
+    this.setState(
+      (previousState) => ({
+        ...initialState,
+        interval: previousState.interval,
+      }),
+      () => {
+        localStorage.removeItem('soulseek-example-browse-state');
+        this.props.history.push(buildBrowseUrl({}));
+        this.inputtext.focus();
+      },
+    );
   };
 
   keyUp = (event) => (event.key === 'Escape' ? this.clear() : '');
@@ -175,6 +194,7 @@ class Browse extends Component {
       'soulseek-example-browse-state',
       JSON.stringify({
         selectedDirectoryName: this.state.selectedDirectory.name || '',
+        separator: this.state.separator,
         username: this.state.username,
       }),
     );
@@ -192,6 +212,10 @@ class Browse extends Component {
       );
 
       if (saved.username) {
+        if (saved.separator) {
+          this.setState({ separator: saved.separator });
+        }
+
         this.props.history.replace(
           buildBrowseUrl({
             directory: saved.selectedDirectoryName,
@@ -296,14 +320,20 @@ class Browse extends Component {
       return;
     }
 
+    const directoryName = directory.name;
     this.setState(
       { directoryError: undefined, directoryState: 'pending' },
       async () => {
         try {
           const allDirectories = await users.getDirectoryContents({
-            directory: directory.name,
+            directory: directoryName,
             username: this.state.username,
           });
+
+          if (this.state.selectedDirectory.name !== directoryName) {
+            return;
+          }
+
           const rootDirectory = allDirectories?.[0];
 
           if (!rootDirectory) {
@@ -313,14 +343,18 @@ class Browse extends Component {
           this.setState((previousState) => ({
             directoryFilesByName: {
               ...previousState.directoryFilesByName,
-              [directory.name]: (rootDirectory.files || []).map((file) => ({
+              [directoryName]: (rootDirectory.files || []).map((file) => ({
                 ...file,
-                filename: `${directory.name}${previousState.separator}${file.filename}`,
+                filename: `${directoryName}${previousState.separator}${file.filename}`,
               })),
             },
             directoryState: 'complete',
           }));
         } catch (error) {
+          if (this.state.selectedDirectory.name !== directoryName) {
+            return;
+          }
+
           console.error(error);
           this.setState({
             directoryError: error?.response?.data ?? error?.message ?? error,

@@ -17,9 +17,8 @@ export const browse = async ({ username }) => {
 };
 
 export const browseIndex = async ({ username }) => {
-  return (
-    await api.get(`/users/${encodeURIComponent(username)}/browse/index`)
-  ).data;
+  return (await api.get(`/users/${encodeURIComponent(username)}/browse/index`))
+    .data;
 };
 
 export const getBrowseStatus = ({ username }) => {

@@ -1,6 +1,6 @@
 import {
   buildBrowseUrl,
-  decodeBrowseParams,
+  decodeBrowseParams as decodeBrowseParameters,
   fromBrowsePathSegments,
   toBrowsePathSegments,
 } from './browseRoutes';
@@ -33,7 +33,7 @@ describe('browseRoutes', () => {
 
   it('decodes browse params from react-router params', () => {
     expect(
-      decodeBrowseParams({
+      decodeBrowseParameters({
         directory: 'Music/Artist%20Name/Album',
         username: 'some%2Fuser',
       }),
