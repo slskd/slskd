@@ -16,6 +16,12 @@ export const browse = async ({ username }) => {
   return (await api.get(`/users/${encodeURIComponent(username)}/browse`)).data;
 };
 
+export const browseIndex = async ({ username }) => {
+  return (
+    await api.get(`/users/${encodeURIComponent(username)}/browse/index`)
+  ).data;
+};
+
 export const getBrowseStatus = ({ username }) => {
   return api.get(`/users/${encodeURIComponent(username)}/browse/status`);
 };
