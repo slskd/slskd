@@ -1,8 +1,10 @@
 import * as transfers from '../../lib/transfers';
 import { getDirectoryContents } from '../../lib/users';
 import { formatBytes, getDirectoryName } from '../../lib/util';
+import { buildBrowseUrl } from '../Browse/browseRoutes';
 import FileList from '../Shared/FileList';
 import React, { Component } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Button, Card, Icon, Label } from 'semantic-ui-react';
 
@@ -188,25 +190,38 @@ class Response extends Component {
               disabled={downloadRequest === 'inProgress'}
               files={tree[directory]}
               footer={
-                <button
-                  disabled={fetchingDirectoryContents}
-                  onClick={() =>
-                    this.getFullDirectory(response.username, directory)
-                  }
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    width: '100%',
-                  }}
-                  type="button"
-                >
-                  <Icon
-                    loading={fetchingDirectoryContents}
-                    name={fetchingDirectoryContents ? 'circle notch' : 'search'}
-                  />
-                  Search for Additional Files in This Directory
-                </button>
+                <div>
+                  <button
+                    disabled={fetchingDirectoryContents}
+                    onClick={() =>
+                      this.getFullDirectory(response.username, directory)
+                    }
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                    type="button"
+                  >
+                    <Icon
+                      loading={fetchingDirectoryContents}
+                      name={
+                        fetchingDirectoryContents ? 'circle notch' : 'search'
+                      }
+                    />
+                    Search for Additional Files in This Directory
+                  </button>
+                  <Link
+                    to={buildBrowseUrl({
+                      directory,
+                      username: response.username,
+                    })}
+                  >
+                    <Icon name="folder open" />
+                    Browse This Directory
+                  </Link>
+                </div>
               }
               key={directory}
               locked={tree[directory].find((file) => file.locked)}
