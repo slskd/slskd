@@ -118,10 +118,10 @@ try {
 
   Invoke-Native dotnet publish `
     --configuration Release `
-    -p:PublishSingleFile=true `
-    -p:ReadyToRun=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:CopyOutputSymbolsToPublishDirectory=false `
+    "-p:PublishSingleFile=true" `
+    "-p:ReadyToRun=true" `
+    "-p:IncludeNativeLibrariesForSelfExtract=true" `
+    "-p:CopyOutputSymbolsToPublishDirectory=false" `
     "-p:Version=$Version" `
     --self-contained `
     --runtime $Runtime `

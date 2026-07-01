@@ -17,3 +17,5 @@ coverage.json
 global.json
 
 .claude
+
+pub/
