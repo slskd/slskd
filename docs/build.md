@@ -41,6 +41,12 @@ Windows:
 ./bin/publish --runtime win-x64
 ```
 
+Windows (native PowerShell):
+
+```
+.\bin\publish.ps1 --runtime win-x64
+```
+
 macOS (Intel):
 
 ```
