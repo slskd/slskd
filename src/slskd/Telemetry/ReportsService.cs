@@ -181,8 +181,8 @@ public class ReportsService
                 StateDescription,
                 SUM(Size) AS TotalBytes,
                 COUNT(*) AS Count,
-                COUNT(DISTINCT Username) AS Users,
-                AVG(AverageSpeed) AS AverageSpeed,
+                COUNT(DISTINCT Username) AS DistinctUsers,
+                CAST(SUM(Size) AS REAL) / NULLIF(SUM(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0) AS AverageSpeed,
                 COALESCE(AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)), 0.0) AS AverageWait,
                 COALESCE(AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0.0) AS AverageDuration
             FROM Transfers

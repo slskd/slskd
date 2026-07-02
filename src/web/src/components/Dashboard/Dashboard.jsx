@@ -50,7 +50,7 @@ const Dashboard = ({ server } = {}) => {
       start:
         range.days != null
           ? new Date(now - range.days * 86_400_000).toISOString()
-          : null,
+          : new Date(0).toISOString(),
     };
   }, [historyLabel]);
 
