@@ -137,32 +137,77 @@ public class ReportsService
     }
 
     /// <summary>
-    ///     Returns a histogram of all transfer data, aggregated into fixed size time intervals and grouped by
-    ///     direction and final transfer state. Includes only completed transfers.
+    ///     Returns a histogram of all transfer data, aggregated into either fixed size time intervals or a fixed
+    ///     number of evenly sized buckets, and grouped by direction and final transfer state. Includes only
+    ///     completed transfers.
     /// </summary>
     /// <param name="start">The start time of the histogram window.</param>
     /// <param name="end">The end time of the histogram window.</param>
-    /// <param name="interval">The interval for the histogram.</param>
+    /// <param name="interval">
+    ///     The interval for the histogram. Mutually exclusive with <paramref name="buckets"/>; exactly one must
+    ///     be specified.
+    /// </param>
+    /// <param name="buckets">
+    ///     The number of evenly sized buckets into which the histogram window should be divided. Mutually
+    ///     exclusive with <paramref name="interval"/>; exactly one must be specified.
+    /// </param>
     /// <param name="direction">The optional direction (Upload or Download) by which to filter results.</param>
     /// <param name="username">The optional username by which to filter results.</param>
     /// <returns>A nested dictionary keyed by direction and state and containing summary information.</returns>
-    /// <exception cref="ArgumentException">Thrown if end time is not later than start time.</exception>
+    /// <exception cref="ArgumentException">
+    ///     Thrown if either <paramref name="start"/> or <paramref name="end"/> is default, if both <paramref name="interval"/>
+    ///     and <paramref name="buckets"/> are specified, if neither is specified.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    ///     Thrown if <paramref name="end"/> is not later than <paramref name="start"/>, or if <paramref name="buckets"/>
+    ///     is outside of the allowed range.
+    /// </exception>
     public Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>> GetTransferHistogram(
         DateTime start,
         DateTime end,
-        TimeSpan interval,
+        TimeSpan? interval = null,
+        int? buckets = null,
         TransferDirection? direction = null,
         string username = null)
     {
+        if (start == default || end == default)
+        {
+            throw new ArgumentException("Start and end times are both required");
+        }
+
         if (end <= start)
         {
-            throw new ArgumentException("End time must be later than start time");
+            throw new ArgumentOutOfRangeException(nameof(end), "End time must be later than start time");
         }
+
+        if (interval.HasValue && buckets.HasValue)
+        {
+            throw new ArgumentException("Interval and buckets are mutually exclusive, provide one or the other, not both");
+        }
+
+        if (!interval.HasValue && !buckets.HasValue)
+        {
+            throw new ArgumentException("Either interval or buckets must be supplied");
+        }
+
+        if (buckets.HasValue && (buckets.Value > 5000 || buckets.Value < 1))
+        {
+            throw new ArgumentOutOfRangeException(nameof(buckets), buckets, "Buckets must be between 1 and 5000");
+        }
+
+        if (interval.HasValue && interval.Value <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(interval), interval, "Interval must be greater than zero");
+        }
+
+        // if interval was provided, just use that. otherwise, compute the interval from the seconds between start and end
+        // divided by the desired buckets
+        var effectiveInterval = interval ?? TimeSpan.FromSeconds(Math.Max(1, (long)(end - start).TotalSeconds / buckets!.Value));
 
         var dict = new Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>();
 
         // fill the dictionary with gapless intervals and empty dictionaries
-        var currentInterval = new DateTime(start.Ticks / interval.Ticks * interval.Ticks, DateTimeKind.Utc);
+        var currentInterval = new DateTime(start.Ticks / effectiveInterval.Ticks * effectiveInterval.Ticks, DateTimeKind.Utc);
 
         while (currentInterval < end)
         {
@@ -171,7 +216,7 @@ public class ReportsService
                 { TransferDirection.Download, new Dictionary<TransferStates, TransferSummary>() },
                 { TransferDirection.Upload, new Dictionary<TransferStates, TransferSummary>() },
             };
-            currentInterval = currentInterval.Add(interval);
+            currentInterval = currentInterval.Add(effectiveInterval);
         }
 
         var sql = @$"
@@ -203,7 +248,7 @@ public class ReportsService
             Username = username,
             Start = start,
             End = end,
-            Interval = (int)interval.TotalSeconds,
+            Interval = (int)effectiveInterval.TotalSeconds,
         };
 
         var results = connection.Query<TransferSummaryRow>(sql, param);
@@ -223,7 +268,7 @@ public class ReportsService
             if (result.Interval.HasValue)
             {
                 // normalize the result interval to match the bucket interval
-                var bucketInterval = new DateTime(result.Interval.Value.Ticks / interval.Ticks * interval.Ticks, DateTimeKind.Utc);
+                var bucketInterval = new DateTime(result.Interval.Value.Ticks / effectiveInterval.Ticks * effectiveInterval.Ticks, DateTimeKind.Utc);
 
                 if (dict.TryGetValue(bucketInterval, out var intervalDict))
                 {
