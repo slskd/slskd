@@ -11,7 +11,7 @@
 .chat {
   display: flex;
   margin-top: 1rem;
-  height: calc(100vh - 255px);
+  height: calc(100vh - 295px);
 }
 
 .chat > .segments {
@@ -68,7 +68,7 @@
   overscroll-behavior-y: contain;
   scroll-snap-type: y proximity;
   display: grid;
-  height: calc(100vh - 292px);
+  height: calc(100vh - 332px);
 }
 
 .chat-history > .list {
