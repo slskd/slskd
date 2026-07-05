@@ -190,7 +190,7 @@ public class ReportsService
             throw new ArgumentException("Either interval or buckets must be supplied");
         }
 
-        if (buckets.HasValue && (buckets.Value > 5000 || buckets.Value < 1))
+        if (buckets.HasValue && (buckets.Value > 1000 || buckets.Value < 1))
         {
             throw new ArgumentOutOfRangeException(nameof(buckets), buckets, "Buckets must be between 1 and 5000");
         }
