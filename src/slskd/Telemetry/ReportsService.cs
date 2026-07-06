@@ -192,7 +192,7 @@ public class ReportsService
 
         if (buckets.HasValue && (buckets.Value > 1000 || buckets.Value < 1))
         {
-            throw new ArgumentOutOfRangeException(nameof(buckets), buckets, "Buckets must be between 1 and 5000");
+            throw new ArgumentOutOfRangeException(nameof(buckets), buckets, "Buckets must be between 1 and 1000");
         }
 
         if (interval.HasValue && interval.Value <= TimeSpan.Zero)
@@ -227,7 +227,7 @@ public class ReportsService
                 SUM(Size) AS TotalBytes,
                 COUNT(*) AS Count,
                 COUNT(DISTINCT Username) AS DistinctUsers,
-                CAST(SUM(Size) AS REAL) / NULLIF(SUM(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0) AS AverageSpeed,
+                COALESCE(CAST(SUM(Size) AS REAL) / NULLIF(SUM(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0), 0.0) AS AverageSpeed,
                 COALESCE(AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)), 0.0) AS AverageWait,
                 COALESCE(AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0.0) AS AverageDuration
             FROM Transfers

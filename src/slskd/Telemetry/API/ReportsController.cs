@@ -193,7 +193,7 @@ public class ReportsController : ControllerBase
         // and this will let the caller avoid a bunch of empty series on their histogram
         if (start < Program.GenesisDateTime)
         {
-            start = Transfers.Query<DateTime?>(q => q.Min(t => t.RequestedAt)) ?? Program.GenesisDateTime;
+            start = Transfers.Query(q => q.Select(t => (DateTime?)t.RequestedAt).Min()) ?? Program.GenesisDateTime;
         }
 
         TransferDirection? transferDirection = null;

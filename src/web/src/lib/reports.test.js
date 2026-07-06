@@ -74,9 +74,9 @@ describe('reports', () => {
       expect(paramsOf().get('end')).toBe(end.toISOString());
     });
 
-    it('appends interval when provided', async () => {
-      await reports.getHistogram({ interval: 360 });
-      expect(paramsOf().get('interval')).toBe('360');
+    it('appends buckets when provided', async () => {
+      await reports.getHistogram({ buckets: 50 });
+      expect(paramsOf().get('buckets')).toBe('50');
     });
 
     it('appends direction when provided', async () => {
@@ -94,7 +94,7 @@ describe('reports', () => {
       const p = paramsOf();
       expect(p.has('start')).toBe(false);
       expect(p.has('end')).toBe(false);
-      expect(p.has('interval')).toBe(false);
+      expect(p.has('buckets')).toBe(false);
       expect(p.has('direction')).toBe(false);
       expect(p.has('username')).toBe(false);
     });

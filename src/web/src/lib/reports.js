@@ -131,17 +131,3 @@ export const getExceptionPareto = async ({
     )
   ).data;
 };
-
-export const getUserDetails = async ({
-  username,
-  start = null,
-  end = null,
-} = {}) => {
-  const parameters = new URLSearchParams();
-
-  parameters.append('username', username);
-  parameters.append('start', start);
-  parameters.append('end', end);
-
-  return (await api.get(`/telemetry/reports/transfers/users/${username}`)).data;
-};
