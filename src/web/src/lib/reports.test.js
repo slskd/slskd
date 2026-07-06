@@ -6,6 +6,9 @@ jest.mock('./api', () => ({
   default: { get: jest.fn() },
 }));
 
+const urlOf = () => api.get.mock.calls[0][0];
+const parametersOf = () => new URLSearchParams(urlOf().split('?')[1] ?? '');
+
 describe('reports', () => {
   beforeEach(() => {
     api.get.mockResolvedValue({ data: {} });
@@ -15,40 +18,43 @@ describe('reports', () => {
     jest.clearAllMocks();
   });
 
-  const urlOf = () => api.get.mock.calls[0][0];
-  const paramsOf = () => new URLSearchParams(urlOf().split('?')[1] ?? '');
-
   describe('getSummary', () => {
     it('calls the correct endpoint', async () => {
+      expect.hasAssertions();
       await reports.getSummary();
       expect(urlOf()).toContain('/telemetry/reports/transfers/summary');
     });
 
     it('appends start as an ISO string', async () => {
+      expect.hasAssertions();
       const start = new Date('2024-01-01T00:00:00.000Z');
       await reports.getSummary({ start });
-      expect(paramsOf().get('start')).toBe(start.toISOString());
+      expect(parametersOf().get('start')).toBe(start.toISOString());
     });
 
     it('appends end as an ISO string', async () => {
+      expect.hasAssertions();
       const end = new Date('2024-12-31T00:00:00.000Z');
       await reports.getSummary({ end });
-      expect(paramsOf().get('end')).toBe(end.toISOString());
+      expect(parametersOf().get('end')).toBe(end.toISOString());
     });
 
     it('appends direction when provided', async () => {
+      expect.hasAssertions();
       await reports.getSummary({ direction: 'Upload' });
-      expect(paramsOf().get('direction')).toBe('Upload');
+      expect(parametersOf().get('direction')).toBe('Upload');
     });
 
     it('appends username when provided', async () => {
+      expect.hasAssertions();
       await reports.getSummary({ username: 'testuser' });
-      expect(paramsOf().get('username')).toBe('testuser');
+      expect(parametersOf().get('username')).toBe('testuser');
     });
 
     it('omits optional params when not provided', async () => {
+      expect.hasAssertions();
       await reports.getSummary();
-      const p = paramsOf();
+      const p = parametersOf();
       expect(p.has('start')).toBe(false);
       expect(p.has('end')).toBe(false);
       expect(p.has('direction')).toBe(false);
@@ -58,40 +64,47 @@ describe('reports', () => {
 
   describe('getHistogram', () => {
     it('calls the correct endpoint', async () => {
+      expect.hasAssertions();
       await reports.getHistogram();
       expect(urlOf()).toContain('/telemetry/reports/transfers/histogram');
     });
 
     it('appends start as an ISO string', async () => {
+      expect.hasAssertions();
       const start = new Date('2024-01-01T00:00:00.000Z');
       await reports.getHistogram({ start });
-      expect(paramsOf().get('start')).toBe(start.toISOString());
+      expect(parametersOf().get('start')).toBe(start.toISOString());
     });
 
     it('appends end as an ISO string', async () => {
+      expect.hasAssertions();
       const end = new Date('2024-12-31T00:00:00.000Z');
       await reports.getHistogram({ end });
-      expect(paramsOf().get('end')).toBe(end.toISOString());
+      expect(parametersOf().get('end')).toBe(end.toISOString());
     });
 
     it('appends buckets when provided', async () => {
+      expect.hasAssertions();
       await reports.getHistogram({ buckets: 50 });
-      expect(paramsOf().get('buckets')).toBe('50');
+      expect(parametersOf().get('buckets')).toBe('50');
     });
 
     it('appends direction when provided', async () => {
+      expect.hasAssertions();
       await reports.getHistogram({ direction: 'Download' });
-      expect(paramsOf().get('direction')).toBe('Download');
+      expect(parametersOf().get('direction')).toBe('Download');
     });
 
     it('appends username when provided', async () => {
+      expect.hasAssertions();
       await reports.getHistogram({ username: 'testuser' });
-      expect(paramsOf().get('username')).toBe('testuser');
+      expect(parametersOf().get('username')).toBe('testuser');
     });
 
     it('omits optional params when not provided', async () => {
+      expect.hasAssertions();
       await reports.getHistogram();
-      const p = paramsOf();
+      const p = parametersOf();
       expect(p.has('start')).toBe(false);
       expect(p.has('end')).toBe(false);
       expect(p.has('buckets')).toBe(false);
@@ -102,50 +115,59 @@ describe('reports', () => {
 
   describe('getLeaderboard', () => {
     it('calls the correct endpoint', async () => {
+      expect.hasAssertions();
       await reports.getLeaderboard();
       expect(urlOf()).toContain('/telemetry/reports/transfers/leaderboard');
     });
 
     it('appends direction when provided', async () => {
+      expect.hasAssertions();
       await reports.getLeaderboard({ direction: 'Upload' });
-      expect(paramsOf().get('direction')).toBe('Upload');
+      expect(parametersOf().get('direction')).toBe('Upload');
     });
 
     it('defaults limit to 10', async () => {
+      expect.hasAssertions();
       await reports.getLeaderboard();
-      expect(paramsOf().get('limit')).toBe('10');
+      expect(parametersOf().get('limit')).toBe('10');
     });
 
     it('appends the specified limit', async () => {
+      expect.hasAssertions();
       await reports.getLeaderboard({ limit: 25 });
-      expect(paramsOf().get('limit')).toBe('25');
+      expect(parametersOf().get('limit')).toBe('25');
     });
 
     it('defaults sortBy to Count', async () => {
+      expect.hasAssertions();
       await reports.getLeaderboard();
-      expect(paramsOf().get('sortBy')).toBe('Count');
+      expect(parametersOf().get('sortBy')).toBe('Count');
     });
 
     it('appends the specified sortBy', async () => {
+      expect.hasAssertions();
       await reports.getLeaderboard({ sortBy: 'TotalBytes' });
-      expect(paramsOf().get('sortBy')).toBe('TotalBytes');
+      expect(parametersOf().get('sortBy')).toBe('TotalBytes');
     });
 
     it('appends start as an ISO string', async () => {
+      expect.hasAssertions();
       const start = new Date('2024-01-01T00:00:00.000Z');
       await reports.getLeaderboard({ start });
-      expect(paramsOf().get('start')).toBe(start.toISOString());
+      expect(parametersOf().get('start')).toBe(start.toISOString());
     });
 
     it('appends end as an ISO string', async () => {
+      expect.hasAssertions();
       const end = new Date('2024-12-31T00:00:00.000Z');
       await reports.getLeaderboard({ end });
-      expect(paramsOf().get('end')).toBe(end.toISOString());
+      expect(parametersOf().get('end')).toBe(end.toISOString());
     });
 
     it('omits start and end when not provided', async () => {
+      expect.hasAssertions();
       await reports.getLeaderboard();
-      const p = paramsOf();
+      const p = parametersOf();
       expect(p.has('start')).toBe(false);
       expect(p.has('end')).toBe(false);
     });
@@ -153,35 +175,41 @@ describe('reports', () => {
 
   describe('getTopDirectories', () => {
     it('calls the correct endpoint', async () => {
+      expect.hasAssertions();
       await reports.getTopDirectories();
       expect(urlOf()).toContain('/telemetry/reports/transfers/directories');
     });
 
     it('defaults limit to 10', async () => {
+      expect.hasAssertions();
       await reports.getTopDirectories();
-      expect(paramsOf().get('limit')).toBe('10');
+      expect(parametersOf().get('limit')).toBe('10');
     });
 
     it('appends the specified limit', async () => {
+      expect.hasAssertions();
       await reports.getTopDirectories({ limit: 20 });
-      expect(paramsOf().get('limit')).toBe('20');
+      expect(parametersOf().get('limit')).toBe('20');
     });
 
     it('appends start as an ISO string', async () => {
+      expect.hasAssertions();
       const start = new Date('2024-01-01T00:00:00.000Z');
       await reports.getTopDirectories({ start });
-      expect(paramsOf().get('start')).toBe(start.toISOString());
+      expect(parametersOf().get('start')).toBe(start.toISOString());
     });
 
     it('appends end as an ISO string', async () => {
+      expect.hasAssertions();
       const end = new Date('2024-12-31T00:00:00.000Z');
       await reports.getTopDirectories({ end });
-      expect(paramsOf().get('end')).toBe(end.toISOString());
+      expect(parametersOf().get('end')).toBe(end.toISOString());
     });
 
     it('omits start and end when not provided', async () => {
+      expect.hasAssertions();
       await reports.getTopDirectories();
-      const p = paramsOf();
+      const p = parametersOf();
       expect(p.has('start')).toBe(false);
       expect(p.has('end')).toBe(false);
     });
@@ -189,40 +217,49 @@ describe('reports', () => {
 
   describe('getExceptionPareto', () => {
     it('calls the correct endpoint', async () => {
+      expect.hasAssertions();
       await reports.getExceptionPareto();
-      expect(urlOf()).toContain('/telemetry/reports/transfers/exceptions/pareto');
+      expect(urlOf()).toContain(
+        '/telemetry/reports/transfers/exceptions/pareto',
+      );
     });
 
     it('appends direction when provided', async () => {
+      expect.hasAssertions();
       await reports.getExceptionPareto({ direction: 'Download' });
-      expect(paramsOf().get('direction')).toBe('Download');
+      expect(parametersOf().get('direction')).toBe('Download');
     });
 
     it('defaults limit to 10', async () => {
+      expect.hasAssertions();
       await reports.getExceptionPareto();
-      expect(paramsOf().get('limit')).toBe('10');
+      expect(parametersOf().get('limit')).toBe('10');
     });
 
     it('appends the specified limit', async () => {
+      expect.hasAssertions();
       await reports.getExceptionPareto({ limit: 20 });
-      expect(paramsOf().get('limit')).toBe('20');
+      expect(parametersOf().get('limit')).toBe('20');
     });
 
     it('appends start as an ISO string', async () => {
+      expect.hasAssertions();
       const start = new Date('2024-01-01T00:00:00.000Z');
       await reports.getExceptionPareto({ start });
-      expect(paramsOf().get('start')).toBe(start.toISOString());
+      expect(parametersOf().get('start')).toBe(start.toISOString());
     });
 
     it('appends end as an ISO string', async () => {
+      expect.hasAssertions();
       const end = new Date('2024-12-31T00:00:00.000Z');
       await reports.getExceptionPareto({ end });
-      expect(paramsOf().get('end')).toBe(end.toISOString());
+      expect(parametersOf().get('end')).toBe(end.toISOString());
     });
 
     it('omits direction, start, and end when not provided', async () => {
+      expect.hasAssertions();
       await reports.getExceptionPareto();
-      const p = paramsOf();
+      const p = parametersOf();
       expect(p.has('direction')).toBe(false);
       expect(p.has('start')).toBe(false);
       expect(p.has('end')).toBe(false);
@@ -231,51 +268,60 @@ describe('reports', () => {
 
   describe('getExceptions', () => {
     it('calls the correct endpoint', async () => {
+      expect.hasAssertions();
       await reports.getExceptions();
       expect(urlOf()).toContain('/telemetry/reports/transfers/exceptions');
       expect(urlOf()).not.toContain('/exceptions/pareto');
     });
 
     it('appends direction when provided', async () => {
+      expect.hasAssertions();
       await reports.getExceptions({ direction: 'Upload' });
-      expect(paramsOf().get('direction')).toBe('Upload');
+      expect(parametersOf().get('direction')).toBe('Upload');
     });
 
     it('defaults limit to 10', async () => {
+      expect.hasAssertions();
       await reports.getExceptions();
-      expect(paramsOf().get('limit')).toBe('10');
+      expect(parametersOf().get('limit')).toBe('10');
     });
 
     it('appends the specified limit', async () => {
+      expect.hasAssertions();
       await reports.getExceptions({ limit: 50 });
-      expect(paramsOf().get('limit')).toBe('50');
+      expect(parametersOf().get('limit')).toBe('50');
     });
 
     it('defaults sortOrder to DESC', async () => {
+      expect.hasAssertions();
       await reports.getExceptions();
-      expect(paramsOf().get('sortOrder')).toBe('DESC');
+      expect(parametersOf().get('sortOrder')).toBe('DESC');
     });
 
     it('appends the specified sortOrder', async () => {
+      expect.hasAssertions();
       await reports.getExceptions({ sortOrder: 'ASC' });
-      expect(paramsOf().get('sortOrder')).toBe('ASC');
+      expect(parametersOf().get('sortOrder')).toBe('ASC');
     });
 
     it('appends start as an ISO string', async () => {
+      expect.hasAssertions();
       const start = new Date('2024-01-01T00:00:00.000Z');
       await reports.getExceptions({ start });
-      expect(paramsOf().get('start')).toBe(start.toISOString());
+      expect(parametersOf().get('start')).toBe(start.toISOString());
     });
 
     it('appends end as an ISO string', async () => {
+      expect.hasAssertions();
       const end = new Date('2024-12-31T00:00:00.000Z');
       await reports.getExceptions({ end });
-      expect(paramsOf().get('end')).toBe(end.toISOString());
+      expect(parametersOf().get('end')).toBe(end.toISOString());
     });
 
     it('omits direction, start, and end when not provided', async () => {
+      expect.hasAssertions();
       await reports.getExceptions();
-      const p = paramsOf();
+      const p = parametersOf();
       expect(p.has('direction')).toBe(false);
       expect(p.has('start')).toBe(false);
       expect(p.has('end')).toBe(false);

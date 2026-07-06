@@ -116,8 +116,11 @@ const Graph = ({ data = [], defaultSeries, height = 200, series = [] }) => {
       new Date(xRange.min).getFullYear() !== new Date(xRange.max).getFullYear();
 
     return (timestamp) => {
-      const d    = new Date(timestamp);
-      const date = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+      const d = new Date(timestamp);
+      const date = d.toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+      });
       return spansYears ? `${date} '${String(d.getFullYear()).slice(2)}` : date;
     };
   }, [xRange]);
