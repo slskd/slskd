@@ -5,13 +5,13 @@ import SearchBar from './SearchBar';
 import React, { useEffect, useMemo, useState } from 'react';
 
 const HISTORY_RANGES = [
-  { label: '24h', days: 1, interval: 60 },
-  { label: '7d', days: 7, interval: 360 },
-  { label: '30d', days: 30, interval: 1_440 },
-  { label: '90d', days: 90, interval: 1_440 },
-  { label: '180d', days: 180, interval: 2_880 },
-  { label: '1y', days: 365, interval: 10_080 },
-  { label: 'All', days: null, interval: 43_200 },
+  { label: '24h', days: 1, buckets: 24 },
+  { label: '7d', days: 7, buckets: 84 },
+  { label: '30d', days: 30, buckets: 60 },
+  { label: '90d', days: 90, buckets: 90 },
+  { label: '180d', days: 180, buckets: 90 },
+  { label: '1y', days: 365, buckets: 100 },
+  { label: 'All', days: null, buckets: 100 },
 ];
 
 const initialState = {
@@ -45,8 +45,8 @@ const Dashboard = ({ server } = {}) => {
       HISTORY_RANGES.find((r) => r.label === historyLabel) ?? HISTORY_RANGES[2];
     const now = new Date();
     return {
+      buckets: range.buckets,
       end: now.toISOString(),
-      interval: range.interval,
       start:
         range.days != null
           ? new Date(now - range.days * 86_400_000).toISOString()
@@ -76,7 +76,7 @@ const Dashboard = ({ server } = {}) => {
         return {};
       }),
       reports
-        .getHistogram({ end, interval: parameters.interval, start })
+        .getHistogram({ buckets: parameters.buckets, end, start })
         .catch((error) => {
           console.error(error);
           return {};
