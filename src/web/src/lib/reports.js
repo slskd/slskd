@@ -20,7 +20,7 @@ export const getSummary = async ({
 export const getHistogram = async ({
   start,
   end,
-  interval,
+  buckets,
   direction,
   username = null,
 } = {}) => {
@@ -28,7 +28,7 @@ export const getHistogram = async ({
 
   if (start) parameters.append('start', start.toISOString());
   if (end) parameters.append('end', end.toISOString());
-  if (interval) parameters.append('interval', interval);
+  if (buckets) parameters.append('buckets', buckets);
   if (direction) parameters.append('direction', direction);
   if (username) parameters.append('username', username);
 
