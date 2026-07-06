@@ -413,7 +413,6 @@ namespace slskd.Transfers.Uploads
 
                                         lastReportedAverageSpeed = now;
                                     }
-
                                 }
                                 finally
                                 {

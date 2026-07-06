@@ -1354,7 +1354,7 @@ namespace slskd
             [Argument(default, "blacklist-file")]
             [EnvironmentVariable("BLACKLIST_FILE")]
             [Description("path to blacklist file")]
-            [FileExists(FileAccess.Read)]
+            [FileExists]
             public string File { get; init; }
 
             /// <summary>
@@ -1748,7 +1748,7 @@ namespace slskd
             [Argument(default, "slsk-picture")]
             [EnvironmentVariable("SLSK_PICTURE")]
             [Description("user picture for the Soulseek network")]
-            [FileExists(FileAccess.Read)]
+            [FileExists]
             public string Picture { get; init; } = null;
 
             /// <summary>
@@ -2356,7 +2356,7 @@ namespace slskd
                     [Argument(default, "https-cert-pfx")]
                     [EnvironmentVariable("HTTPS_CERT_PFX")]
                     [Description("path to X509 certificate .pfx")]
-                    [FileExists(FileAccess.Read)]
+                    [FileExists]
                     [RequiresRestart]
                     public string Pfx { get; init; }
 
