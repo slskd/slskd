@@ -134,7 +134,7 @@ const TransferErrors = ({ chartData, download, upload }) => {
                 colSpan={4}
                 style={{ opacity: 0.5, textAlign: 'center' }}
               >
-                No data to display.
+                No data to display
               </Table.Cell>
             </Table.Row>
           )}
@@ -194,7 +194,7 @@ const TransferErrors = ({ chartData, download, upload }) => {
                 colSpan={5}
                 style={{ opacity: 0.5, textAlign: 'center' }}
               >
-                No data to display.
+                No data to display
               </Table.Cell>
             </Table.Row>
           )}
