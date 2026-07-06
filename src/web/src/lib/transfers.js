@@ -20,6 +20,14 @@ export const download = ({ username, files = [] }) => {
   );
 };
 
+export const downloadBatch = ({ username, files = [], destination }) => {
+  return api.post('/transfers/downloads/batches', {
+    files,
+    options: destination ? { destination } : {},
+    username,
+  });
+};
+
 export const cancel = ({ direction, username, id, remove = false }) => {
   return api.delete(
     `/transfers/${direction}s/${encodeURIComponent(username)}/${encodeURIComponent(id)}?remove=${remove}`,

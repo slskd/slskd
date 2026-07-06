@@ -31,6 +31,7 @@ class Response extends Component {
       downloadRequest: undefined,
       fetchingDirectoryContents: false,
       isFolded: this.props.isInitiallyFolded,
+      recursiveDownload: undefined,
       tree: buildTree(this.props.response),
     };
   }
@@ -127,6 +128,82 @@ class Response extends Component {
     }
   };
 
+  downloadRecursively = async (username, directory) => {
+    this.setState({ recursiveDownload: directory });
+
+    try {
+      const separator =
+        directory.includes('/') && !directory.includes('\\') ? '/' : '\\';
+      const parent = directory.split(separator).slice(0, -1).join(separator);
+
+      // find the clicked directory and all of its subdirectories that appear
+      // in the current search results
+      const candidates = Object.keys(this.state.tree).filter(
+        (d) => d === directory || d.startsWith(`${directory}${separator}`),
+      );
+
+      const contents = {};
+
+      for (const candidate of candidates) {
+        try {
+          // fetch the full contents of each directory. some clients return
+          // the entire subtree in a single response, so collect every
+          // directory returned that falls under the clicked directory
+          // eslint-disable-next-line no-await-in-loop
+          const allDirectories = await getDirectoryContents({
+            directory: candidate,
+            username,
+          });
+
+          for (const d of allDirectories ?? []) {
+            if (
+              (d.name === directory ||
+                d.name.startsWith(`${directory}${separator}`)) &&
+              (d.files || []).length > 0
+            ) {
+              contents[d.name] = d.files.map((f) => ({
+                filename: `${d.name}${separator}${f.filename}`,
+                size: f.size,
+              }));
+            }
+          }
+        } catch (error) {
+          // fall back to the files already present in the search results
+          console.error(error);
+          contents[candidate] ??= this.state.tree[candidate].map((f) => ({
+            filename: f.filename,
+            size: f.size,
+          }));
+        }
+      }
+
+      if (Object.keys(contents).length === 0) {
+        throw new Error('No files were found to download');
+      }
+
+      for (const name of Object.keys(contents)) {
+        const destination = name
+          .slice(parent.length > 0 ? parent.length + 1 : 0)
+          .split(separator)
+          .join('/');
+
+        // eslint-disable-next-line no-await-in-loop
+        await transfers.downloadBatch({
+          destination,
+          files: contents[name],
+          username,
+        });
+      }
+
+      toast.success(`Downloading ${directory}`);
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.response?.data ?? error?.message ?? error);
+    } finally {
+      this.setState({ recursiveDownload: undefined });
+    }
+  };
+
   handleToggleFolded = () => {
     this.setState((previousState) => ({ isFolded: !previousState.isFolded }));
   };
@@ -140,6 +217,7 @@ class Response extends Component {
       downloadRequest,
       fetchingDirectoryContents,
       isFolded,
+      recursiveDownload,
       tree,
     } = this.state;
 
@@ -186,6 +264,7 @@ class Response extends Component {
             <FileList
               directoryName={directory}
               disabled={downloadRequest === 'inProgress'}
+              downloadingRecursively={recursiveDownload === directory}
               files={tree[directory]}
               footer={
                 <button
@@ -210,6 +289,9 @@ class Response extends Component {
               }
               key={directory}
               locked={tree[directory].find((file) => file.locked)}
+              onDownloadRecursively={() =>
+                this.downloadRecursively(response.username, directory)
+              }
               onSelectionChange={this.handleFileSelectionChange}
             />
           ))}

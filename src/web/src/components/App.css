@@ -212,6 +212,13 @@ body {
     line-height: 1.15 !important;
 }
 
+.download-folder-button {
+    float: right;
+    margin-right: 5px !important;
+    font-size: 16pt !important;
+    line-height: 1.15 !important;
+}
+
 .placeholder-segment, .placeholder-segment-small {
     opacity: .25;
 }

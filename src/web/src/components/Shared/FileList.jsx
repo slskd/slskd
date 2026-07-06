@@ -10,10 +10,12 @@ import { Checkbox, Header, Icon, List, Table } from 'semantic-ui-react';
 const FileList = ({
   directoryName,
   disabled,
+  downloadingRecursively,
   files,
   footer,
   locked,
   onClose,
+  onDownloadRecursively,
   onSelectionChange,
 }) => {
   const [folded, setFolded] = useState(false);
@@ -40,6 +42,18 @@ const FileList = ({
               link
               name="close"
               onClick={() => onClose()}
+            />
+          )}
+
+          {Boolean(onDownloadRecursively) && !locked && (
+            <Icon
+              className="download-folder-button"
+              color="green"
+              link={!downloadingRecursively}
+              loading={downloadingRecursively}
+              name={downloadingRecursively ? 'circle notch' : 'download'}
+              onClick={() => !downloadingRecursively && onDownloadRecursively()}
+              title="Download this folder and all subfolders"
             />
           )}
         </div>

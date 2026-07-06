@@ -1,5 +1,6 @@
 /* eslint-disable promise/prefer-await-to-then */
 import './Browse.css';
+import * as transfers from '../../lib/transfers';
 import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import Directory from './Directory';
@@ -13,6 +14,7 @@ const initialState = {
   browseError: undefined,
   browseState: 'idle',
   browseStatus: 0,
+  downloadRequest: undefined,
   info: {
     directories: 0,
     files: 0,
@@ -221,9 +223,48 @@ class Browse extends Component {
   };
 
   selectDirectory = (directory) => {
-    this.setState({ selectedDirectory: { ...directory, children: [] } }, () =>
-      this.saveState(),
+    this.setState({ selectedDirectory: directory }, () => this.saveState());
+  };
+
+  getDirectoriesRecursively = (directory) => {
+    return [directory].concat(
+      (directory.children || []).flatMap((child) =>
+        this.getDirectoriesRecursively(child),
+      ),
     );
+  };
+
+  handleDownloadFolder = (username, separator, selectedDirectory) => {
+    this.setState({ downloadRequest: 'inProgress' }, async () => {
+      try {
+        const parent = selectedDirectory.name
+          .split(separator)
+          .slice(0, -1)
+          .join(separator);
+        const directories = this.getDirectoriesRecursively(
+          selectedDirectory,
+        ).filter((d) => (d.files || []).length > 0);
+
+        for (const directory of directories) {
+          const destination = directory.name
+            .slice(parent.length > 0 ? parent.length + 1 : 0)
+            .split(separator)
+            .join('/');
+          const files = directory.files.map((f) => ({
+            filename: `${directory.name}${separator}${f.filename}`,
+            size: f.size,
+          }));
+
+          // eslint-disable-next-line no-await-in-loop
+          await transfers.downloadBatch({ destination, files, username });
+        }
+
+        this.setState({ downloadRequest: 'complete' });
+      } catch (error) {
+        console.error(error);
+        this.setState({ downloadRequest: 'error' });
+      }
+    });
   };
 
   handleDeselectDirectory = () => {
@@ -237,6 +278,7 @@ class Browse extends Component {
       browseError,
       browseState,
       browseStatus,
+      downloadRequest,
       info,
       selectedDirectory,
       separator,
@@ -340,11 +382,19 @@ class Browse extends Component {
                 )}
                 {name && (
                   <Directory
+                    downloadingRecursively={downloadRequest === 'inProgress'}
                     files={files}
                     locked={locked}
                     marginTop={-20}
                     name={name}
                     onClose={this.handleDeselectDirectory}
+                    onDownloadRecursively={() =>
+                      this.handleDownloadFolder(
+                        username,
+                        separator,
+                        selectedDirectory,
+                      )
+                    }
                     username={username}
                   />
                 )}

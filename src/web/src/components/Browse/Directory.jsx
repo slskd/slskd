@@ -56,7 +56,15 @@ class Directory extends Component {
   };
 
   render() {
-    const { locked, marginTop, name, onClose, username } = this.props;
+    const {
+      downloadingRecursively,
+      locked,
+      marginTop,
+      name,
+      onClose,
+      onDownloadRecursively,
+      username,
+    } = this.props;
     const { downloadError, downloadRequest, files } = this.state;
 
     const selectedFiles = files.filter((f) => f.selected);
@@ -75,9 +83,11 @@ class Directory extends Component {
             <FileList
               directoryName={name}
               disabled={downloadRequest === 'inProgress'}
+              downloadingRecursively={downloadingRecursively}
               files={files}
               locked={locked}
               onClose={onClose}
+              onDownloadRecursively={onDownloadRecursively}
               onSelectionChange={this.handleFileSelectionChange}
             />
           </div>
