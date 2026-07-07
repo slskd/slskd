@@ -217,7 +217,7 @@ class Chat extends Component {
   };
 
   initiateConversation = async (username, message) => {
-    await this.sendMessage(username, message);
+    await chat.send({ username, message });
     await this.fetchConversations();
     this.selectConversation(username);
   };

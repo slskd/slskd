@@ -1,10 +1,9 @@
 import './Chat.css';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Button, Form, Header, Icon, Input, Modal } from 'semantic-ui-react';
 
-const usernameRef = React.createRef();
-
 const SendMessageModal = ({ initiateConversation, ...rest }) => {
+  const usernameRef = useRef();
   const [open, setOpen] = React.useState(false);
   const [username, setUsername] = React.useState('');
   const [message, setMessage] = React.useState('');
