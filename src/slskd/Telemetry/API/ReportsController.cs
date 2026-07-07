@@ -40,6 +40,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using slskd.Transfers;
 using Soulseek;
 
 /// <summary>
@@ -55,12 +56,16 @@ public class ReportsController : ControllerBase
     /// <summary>
     ///     Initializes a new instance of the <see cref="ReportsController"/> class.
     /// </summary>
-    public ReportsController(TelemetryService telemetryService)
+    public ReportsController(
+        TelemetryService telemetryService,
+        TransferService transferService)
     {
         Telemetry = telemetryService;
+        Transfers = transferService;
     }
 
     private TelemetryService Telemetry { get; }
+    private TransferService Transfers { get; }
     private ILogger Log { get; } = Serilog.Log.ForContext<ReportsController>();
 
     /// <summary>
@@ -128,7 +133,8 @@ public class ReportsController : ControllerBase
     /// </summary>
     /// <param name="start">The start time of the window (default: 7 days ago).</param>
     /// <param name="end">The end time of the window (default: now).</param>
-    /// <param name="interval">The interval, in minutes (default: 60).</param>
+    /// <param name="buckets">The number of evenly sized buckets that the data will be divided into (default: 100).</param>
+    /// <param name="interval">The interval, in minutes (default: null).</param>
     /// <param name="direction">An optional direction (Upload, Download) by which to filter records.</param>
     /// <param name="username">An optional username by which to filter records.</param>
     /// <returns></returns>
@@ -143,7 +149,8 @@ public class ReportsController : ControllerBase
     public IActionResult GetTransferHistogram(
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
-        [FromQuery] int interval = 60,
+        [FromQuery] int? buckets = null,
+        [FromQuery] int? interval = null,
         [FromQuery] string direction = null,
         [FromQuery] string username = null)
     {
@@ -157,20 +164,42 @@ public class ReportsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
-        // clamp the start time to the earliest reasonable date to avoid returning a ton of empty intervals
-        // and introducing performance issues client side
+        if (end < Program.GenesisDateTime)
+        {
+            return BadRequest($"End time impossibly early (earlier than slskd genesis time {Program.GenesisDateTime})");
+        }
+
+        if (buckets.HasValue && interval.HasValue)
+        {
+            return BadRequest("Specify either interval or buckets, not both");
+        }
+
+        if (buckets.HasValue && (buckets < 1 || buckets > 1000))
+        {
+            return BadRequest("Buckets must be between 1 and 1000, if specified");
+        }
+
+        if (interval.HasValue && interval <= 1)
+        {
+            return BadRequest("Interval must be greater than 1");
+        }
+
+        if (!buckets.HasValue && !interval.HasValue)
+        {
+            buckets = 100; // the default, according to API docs. update the docs if this changes
+        }
+
+        // at this point it is either buckets or interval, and both would have valid values, so convert
+        // interval to a timespan if it exists and send both values into the service, it will sort things out
+        TimeSpan? intervalTimeSpan = !buckets.HasValue ? TimeSpan.FromMinutes(interval.Value) : null;
+
+        // if a caller supplies a start timestamp that is equal to, or is earlier than the genesis time for slskd (12/30/2020 6:22:00 UTC)
+        // then replace the provided timestamp with the oldest transfer record (regardless of direction); there's no data older than that
+        // and this will let the caller avoid a bunch of empty series on their histogram
         if (start < Program.GenesisDateTime)
         {
-            Log.Warning("A start time prior to the genesis date of the application was supplied; the start time has been adjusted to the genesis time {Genesis}", Program.GenesisDateTime);
-            start = Program.GenesisDateTime;
+            start = Transfers.Query(q => q.Select(t => (DateTime?)t.RequestedAt).Min()) ?? Program.GenesisDateTime;
         }
-
-        if (interval < 5)
-        {
-            return BadRequest("Interval must be greater than or equal to 5");
-        }
-
-        var intervalTimeSpan = TimeSpan.FromMinutes(interval);
 
         TransferDirection? transferDirection = null;
 
@@ -189,6 +218,7 @@ public class ReportsController : ControllerBase
             return Ok(Telemetry.Reports.GetTransferHistogram(
                 start: start.Value,
                 end: end.Value,
+                buckets: buckets,
                 interval: intervalTimeSpan,
                 direction: transferDirection,
                 username: username));
