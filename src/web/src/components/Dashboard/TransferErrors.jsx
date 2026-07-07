@@ -5,23 +5,13 @@ import ExceptionPareto from './ExceptionPareto';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Header, Icon } from 'semantic-ui-react';
 
-const mergePareto = (uploadRows, downloadRows) => {
-  const combined = {};
-  for (const row of [...(uploadRows || []), ...(downloadRows || [])]) {
-    const key = row.exception ?? '';
-    combined[key] = combined[key]
-      ? {
-          exception: key,
-          count: combined[key].count + row.count,
-          distinctUsers: combined[key].distinctUsers + row.distinctUsers,
-        }
-      : { ...row };
-  }
-
-  return Object.values(combined)
+const buildParetoRows = (uploadRows, downloadRows) =>
+  [
+    ...(uploadRows || []).map((r) => ({ ...r, direction: 'Upload' })),
+    ...(downloadRows || []).map((r) => ({ ...r, direction: 'Download' })),
+  ]
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
-};
 
 const mergeRecent = (uploadRows, downloadRows) =>
   [
@@ -50,148 +40,122 @@ const ERRORS_SERIES = [
 
 const DEFAULT_ERRORS_SERIES = new Set(['uploadErrors', 'downloadErrors']);
 
-const TransferErrors = ({ chartData, download, upload }) => {
-  const isDark = useDarkMode();
+const RECENT_PAGE_SIZE = 10;
 
-  const paretoRows = useMemo(
-    () => mergePareto(upload.pareto, download.pareto),
+const TransferErrors = ({ chartData, download, end, start, upload }) => {
+  const [paretoDirection, setParetoDirection] = useState('All');
+  const [paretoRows, setParetoRows] = useState(null);
+  const [paretoLoading, setParetoLoading] = useState(false);
+
+  const [recentDirection, setRecentDirection] = useState('All');
+  const [recentRows, setRecentRows] = useState(null);
+  const [recentLoading, setRecentLoading] = useState(false);
+
+  useEffect(() => {
+    setParetoDirection('All');
+    setParetoRows(null);
+    setRecentDirection('All');
+    setRecentRows(null);
+  }, [end, start]);
+
+  const initialParetoRows = useMemo(
+    () => buildParetoRows(upload.pareto, download.pareto),
     [upload.pareto, download.pareto],
   );
-  const recentRows = useMemo(
+
+  const initialRecentRows = useMemo(
     () => mergeRecent(upload.recent, download.recent),
     [upload.recent, download.recent],
   );
 
-  const maxParetoCount =
-    paretoRows && paretoRows.length > 0 ? paretoRows[0].count : 1;
+  const displayedParetoRows = paretoRows ?? initialParetoRows;
+  const displayedRecentRows = recentRows ?? initialRecentRows;
+
+  const fetchPareto = async (direction) => {
+    try {
+      return await reports.getExceptionPareto({
+        direction,
+        end: new Date(end),
+        start: start ? new Date(start) : undefined,
+      });
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
+  };
+
+  const fetchRecent = async (direction) => {
+    try {
+      return await reports.getExceptions({
+        direction,
+        end: new Date(end),
+        limit: RECENT_PAGE_SIZE,
+        start: start ? new Date(start) : undefined,
+      });
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
+  };
+
+  const onParetoDirectionChange = async (d) => {
+    setParetoDirection(d);
+    setParetoLoading(true);
+
+    if (d === 'All') {
+      const [uploadRows, downloadRows] = await Promise.all([
+        fetchPareto('Upload'),
+        fetchPareto('Download'),
+      ]);
+      setParetoRows(buildParetoRows(uploadRows, downloadRows));
+    } else {
+      const rows = await fetchPareto(d);
+      setParetoRows(rows.map((r) => ({ ...r, direction: d })));
+    }
+
+    setParetoLoading(false);
+  };
+
+  const onRecentDirectionChange = async (d) => {
+    setRecentDirection(d);
+    setRecentLoading(true);
+
+    if (d === 'All') {
+      const [uploadRows, downloadRows] = await Promise.all([
+        fetchRecent('Upload'),
+        fetchRecent('Download'),
+      ]);
+      setRecentRows(mergeRecent(uploadRows, downloadRows));
+    } else {
+      const rows = await fetchRecent(d);
+      setRecentRows(rows.map((r) => ({ ...r, direction: d })));
+    }
+
+    setRecentLoading(false);
+  };
 
   return (
     <div>
-      <Header as="h5">Error Count Over Time</Header>
+      <Header size="small">
+        <Icon name="history" /> Errors
+      </Header>
       <Graph
         data={chartData ?? []}
         defaultSeries={DEFAULT_ERRORS_SERIES}
         series={ERRORS_SERIES}
       />
-      <Divider />
-      <Header as="h5">
-        Top Fault Types
-        <span
-          style={{
-            color: '#999',
-            float: 'right',
-            fontSize: '0.8em',
-            fontWeight: 'normal',
-          }}
-        >
-          pareto
-        </span>
-      </Header>
-      <Table
-        className="unstackable"
-        compact="very"
-      >
-        <Table.Header>
-          <Table.Row>
-            <Table.HeaderCell>Exception</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: '120px' }} />
-            <Table.HeaderCell textAlign="right">Count</Table.HeaderCell>
-            <Table.HeaderCell textAlign="right">
-              Distinct Users
-            </Table.HeaderCell>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {(!paretoRows || paretoRows.length === 0) && (
-            <Table.Row>
-              <Table.Cell
-                colSpan={4}
-                style={{ opacity: 0.5, textAlign: 'center' }}
-              >
-                No data to display
-              </Table.Cell>
-            </Table.Row>
-          )}
-          {paretoRows &&
-            paretoRows.map((row) => (
-              <Table.Row key={row.exception ?? ''}>
-                <Table.Cell title={row.exception}>
-                  {truncate(row.exception, 80)}
-                </Table.Cell>
-                <Table.Cell>
-                  <div
-                    style={{
-                      background: isDark ? 'rgba(255,255,255,0.08)' : '#f0f0f0',
-                      borderRadius: '2px',
-                      height: '7px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        background: '#db2828',
-                        borderRadius: '2px',
-                        height: '7px',
-                        width: `${Math.round((row.count / maxParetoCount) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </Table.Cell>
-                <Table.Cell textAlign="right">
-                  <strong>{row.count.toLocaleString()}</strong>
-                </Table.Cell>
-                <Table.Cell textAlign="right">
-                  {row.distinctUsers.toLocaleString()}
-                </Table.Cell>
-              </Table.Row>
-            ))}
-        </Table.Body>
-      </Table>
-      <Divider />
-      <Header as="h5">Recent Errors</Header>
-      <Table
-        className="unstackable"
-        compact="very"
-      >
-        <Table.Header>
-          <Table.Row>
-            <Table.HeaderCell>Time</Table.HeaderCell>
-            <Table.HeaderCell>Direction</Table.HeaderCell>
-            <Table.HeaderCell>Username</Table.HeaderCell>
-            <Table.HeaderCell>Filename</Table.HeaderCell>
-            <Table.HeaderCell>Exception</Table.HeaderCell>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {(!recentRows || recentRows.length === 0) && (
-            <Table.Row>
-              <Table.Cell
-                colSpan={5}
-                style={{ opacity: 0.5, textAlign: 'center' }}
-              >
-                No data to display
-              </Table.Cell>
-            </Table.Row>
-          )}
-          {recentRows &&
-            recentRows.map((row) => (
-              <Table.Row
-                key={`${row.direction}-${row.endedAt}-${row.filename}`}
-              >
-                <Table.Cell style={{ whiteSpace: 'nowrap' }}>
-                  {formatDateTime(row.endedAt)}
-                </Table.Cell>
-                <Table.Cell>{row.direction}</Table.Cell>
-                <Table.Cell>{row.username}</Table.Cell>
-                <Table.Cell title={row.filename}>
-                  {getFilename(row.filename)}
-                </Table.Cell>
-                <Table.Cell title={row.exception}>
-                  {truncate(row.exception, 80)}
-                </Table.Cell>
-              </Table.Row>
-            ))}
-        </Table.Body>
-      </Table>
+      <ExceptionPareto
+        direction={paretoDirection}
+        loading={paretoLoading}
+        onDirectionChange={onParetoDirectionChange}
+        rows={displayedParetoRows}
+      />
+      <ExceptionList
+        direction={recentDirection}
+        loading={recentLoading}
+        onDirectionChange={onRecentDirectionChange}
+        rows={displayedRecentRows}
+      />
     </div>
   );
 };

@@ -129,30 +129,27 @@ const Leaderboard = ({ downloads, end, start, uploads }) => {
     const startDate = start ? new Date(start) : undefined;
     const endDate = end ? new Date(end) : new Date();
 
-    const [newUploads, newDownloads] = await Promise.all([
-      reports
-        .getLeaderboard({
+    let newUploads = state.rows.upload;
+    let newDownloads = state.rows.download;
+
+    try {
+      [newUploads, newDownloads] = await Promise.all([
+        reports.getLeaderboard({
           direction: 'Upload',
           end: endDate,
           sortBy: sort,
           start: startDate,
-        })
-        .catch((error) => {
-          console.error(error);
-          return state.rows.upload;
         }),
-      reports
-        .getLeaderboard({
+        reports.getLeaderboard({
           direction: 'Download',
           end: endDate,
           sortBy: sort,
           start: startDate,
-        })
-        .catch((error) => {
-          console.error(error);
-          return state.rows.download;
         }),
-    ]);
+      ]);
+    } catch (error) {
+      console.error(error);
+    }
 
     setState((previous) => ({
       ...previous,
@@ -167,10 +164,7 @@ const Leaderboard = ({ downloads, end, start, uploads }) => {
       stackable
     >
       <Grid.Column>
-        <Header
-          className="leaderboard-header"
-          size="tiny"
-        >
+        <Header size="small">
           <Icon name="download" /> Downloads
         </Header>
         <LeaderboardTable
@@ -182,10 +176,7 @@ const Leaderboard = ({ downloads, end, start, uploads }) => {
       </Grid.Column>
       <Divider vertical />
       <Grid.Column>
-        <Header
-          className="leaderboard-header"
-          size="tiny"
-        >
+        <Header size="small">
           <Icon name="upload" /> Uploads
         </Header>
         <LeaderboardTable

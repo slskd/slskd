@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table } from 'semantic-ui-react';
+import { Header, Icon, Table } from 'semantic-ui-react';
 
 const getLastTwoSegments = (path) => {
   if (!path) {
@@ -16,56 +16,61 @@ const getLastTwoSegments = (path) => {
 };
 
 const TopDirectories = ({ rows }) => (
-  <Table
-    className="unstackable"
-    compact="very"
-  >
-    <Table.Header>
-      <Table.Row>
-        <Table.HeaderCell
-          style={{ color: '#999', width: '2em' }}
-          textAlign="right"
-        >
-          #
-        </Table.HeaderCell>
-        <Table.HeaderCell>Directory</Table.HeaderCell>
-        <Table.HeaderCell textAlign="right">Downloads</Table.HeaderCell>
-        <Table.HeaderCell textAlign="right">Distinct Users</Table.HeaderCell>
-      </Table.Row>
-    </Table.Header>
-    <Table.Body>
-      {(!rows || rows.length === 0) && (
+  <>
+    <Header size="small">
+      <Icon name="folder open" /> Directories
+    </Header>
+    <Table
+      className="unstackable"
+      compact="very"
+    >
+      <Table.Header>
         <Table.Row>
-          <Table.Cell
-            colSpan={4}
-            style={{ opacity: 0.5, textAlign: 'center' }}
+          <Table.HeaderCell
+            style={{ color: '#999', width: '2em' }}
+            textAlign="right"
           >
-            No data to display
-          </Table.Cell>
+            #
+          </Table.HeaderCell>
+          <Table.HeaderCell>Directory</Table.HeaderCell>
+          <Table.HeaderCell textAlign="right">Downloads</Table.HeaderCell>
+          <Table.HeaderCell textAlign="right">Distinct Users</Table.HeaderCell>
         </Table.Row>
-      )}
-      {rows &&
-        rows.map((row, index) => (
-          <Table.Row key={row.directory}>
+      </Table.Header>
+      <Table.Body>
+        {(!rows || rows.length === 0) && (
+          <Table.Row>
             <Table.Cell
-              style={{ color: '#999' }}
-              textAlign="right"
+              colSpan={4}
+              style={{ opacity: 0.5, textAlign: 'center' }}
             >
-              {index + 1}
-            </Table.Cell>
-            <Table.Cell title={row.directory}>
-              {getLastTwoSegments(row.directory)}
-            </Table.Cell>
-            <Table.Cell textAlign="right">
-              {row.count.toLocaleString()}
-            </Table.Cell>
-            <Table.Cell textAlign="right">
-              {row.distinctUsers.toLocaleString()}
+              No data to display
             </Table.Cell>
           </Table.Row>
-        ))}
-    </Table.Body>
-  </Table>
+        )}
+        {rows &&
+          rows.map((row, index) => (
+            <Table.Row key={row.directory}>
+              <Table.Cell
+                style={{ color: '#999' }}
+                textAlign="right"
+              >
+                {index + 1}
+              </Table.Cell>
+              <Table.Cell title={row.directory}>
+                {getLastTwoSegments(row.directory)}
+              </Table.Cell>
+              <Table.Cell textAlign="right">
+                {row.count.toLocaleString()}
+              </Table.Cell>
+              <Table.Cell textAlign="right">
+                {row.distinctUsers.toLocaleString()}
+              </Table.Cell>
+            </Table.Row>
+          ))}
+      </Table.Body>
+    </Table>
+  </>
 );
 
 export default TopDirectories;
