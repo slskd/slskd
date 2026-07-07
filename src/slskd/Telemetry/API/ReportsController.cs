@@ -164,6 +164,11 @@ public class ReportsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
+        if (end < Program.GenesisDateTime)
+        {
+            return BadRequest($"End time impossibly early (earlier than slskd genesis time {Program.GenesisDateTime})");
+        }
+
         if (buckets.HasValue && interval.HasValue)
         {
             return BadRequest("Specify either interval or buckets, not both");
@@ -174,7 +179,7 @@ public class ReportsController : ControllerBase
             return BadRequest("Buckets must be between 1 and 1000, if specified");
         }
 
-        if (interval.HasValue && interval < 1)
+        if (interval.HasValue && interval <= 1)
         {
             return BadRequest("Interval must be greater than 1");
         }
