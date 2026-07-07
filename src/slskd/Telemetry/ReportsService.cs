@@ -207,7 +207,10 @@ public class ReportsService
         var dict = new Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>();
 
         // fill the dictionary with gapless intervals and empty dictionaries
-        var currentInterval = new DateTime(start.Ticks / effectiveInterval.Ticks * effectiveInterval.Ticks, DateTimeKind.Utc);
+        // snap to Unix epoch to match the SQL bucket formula: strftime('%s', ...) / interval * interval, otherwise
+        // we may end up with an empty/partial first bucket
+        var intervalSeconds = (long)effectiveInterval.TotalSeconds;
+        var currentInterval = DateTime.UnixEpoch.AddSeconds((long)(start - DateTime.UnixEpoch).TotalSeconds / intervalSeconds * intervalSeconds);
 
         while (currentInterval < end)
         {
@@ -267,8 +270,7 @@ public class ReportsService
 
             if (result.Interval.HasValue)
             {
-                // normalize the result interval to match the bucket interval
-                var bucketInterval = new DateTime(result.Interval.Value.Ticks / effectiveInterval.Ticks * effectiveInterval.Ticks, DateTimeKind.Utc);
+                var bucketInterval = DateTime.SpecifyKind(result.Interval.Value, DateTimeKind.Utc);
 
                 if (dict.TryGetValue(bucketInterval, out var intervalDict))
                 {
