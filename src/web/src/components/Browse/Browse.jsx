@@ -220,10 +220,27 @@ class Browse extends Component {
     };
   };
 
-  selectDirectory = (directory) => {
-    this.setState({ selectedDirectory: { ...directory, children: [] } }, () =>
-      this.saveState(),
+  // Recursively walks a directory node and all of its descendant
+  // directories, flattening every file into a single array with
+  // fully-qualified (path-prefixed) filenames. Used to support
+  // "download folder including subfolders".
+  getAllFilesRecursive = (directoryNode) => {
+    const { separator } = this.state;
+
+    const ownFiles = (directoryNode.files || []).map((f) => ({
+      ...f,
+      filename: `${directoryNode.name}${separator}${f.filename}`,
+    }));
+
+    const childFiles = (directoryNode.children || []).flatMap((child) =>
+      this.getAllFilesRecursive(child),
     );
+
+    return [...ownFiles, ...childFiles];
+  };
+
+  selectDirectory = (directory) => {
+    this.setState({ selectedDirectory: directory }, () => this.saveState());
   };
 
   handleDeselectDirectory = () => {
@@ -252,6 +269,11 @@ class Browse extends Component {
       ...f,
       filename: `${name}${separator}${f.filename}`,
     }));
+
+    const hasSubfolders = (selectedDirectory.children || []).length > 0;
+    const allFilesInSubtree = hasSubfolders
+      ? this.getAllFilesRecursive(selectedDirectory)
+      : [];
 
     return (
       <div className="search-container">
@@ -340,7 +362,9 @@ class Browse extends Component {
                 )}
                 {name && (
                   <Directory
+                    allFilesInSubtree={allFilesInSubtree}
                     files={files}
+                    hasSubfolders={hasSubfolders}
                     locked={locked}
                     marginTop={-20}
                     name={name}

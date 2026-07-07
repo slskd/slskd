@@ -56,13 +56,25 @@ class Directory extends Component {
   };
 
   render() {
-    const { locked, marginTop, name, onClose, username } = this.props;
+    const {
+      allFilesInSubtree,
+      hasSubfolders,
+      locked,
+      marginTop,
+      name,
+      onClose,
+      username,
+    } = this.props;
     const { downloadError, downloadRequest, files } = this.state;
 
     const selectedFiles = files.filter((f) => f.selected);
 
     const selectedSize = formatBytes(
       selectedFiles.reduce((total, f) => total + f.size, 0),
+    );
+
+    const subtreeSize = formatBytes(
+      (allFilesInSubtree || []).reduce((total, f) => total + f.size, 0),
     );
 
     return (
@@ -82,22 +94,40 @@ class Directory extends Component {
             />
           </div>
         </Card.Content>
-        {selectedFiles.length > 0 && (
+        {(selectedFiles.length > 0 || hasSubfolders) && (
           <Card.Content extra>
             <span>
-              <Button
-                color="green"
-                content="Download"
-                disabled={downloadRequest === 'inProgress'}
-                icon="download"
-                label={{
-                  as: 'a',
-                  basic: false,
-                  content: `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}, ${selectedSize}`,
-                }}
-                labelPosition="right"
-                onClick={() => this.download(username, selectedFiles)}
-              />
+              {selectedFiles.length > 0 && (
+                <Button
+                  color="green"
+                  content="Download"
+                  disabled={downloadRequest === 'inProgress'}
+                  icon="download"
+                  label={{
+                    as: 'a',
+                    basic: false,
+                    content: `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}, ${selectedSize}`,
+                  }}
+                  labelPosition="right"
+                  onClick={() => this.download(username, selectedFiles)}
+                />
+              )}
+              {hasSubfolders && (
+                <Button
+                  color="blue"
+                  content="Download Folder (+ Subfolders)"
+                  disabled={downloadRequest === 'inProgress'}
+                  icon="folder open"
+                  label={{
+                    as: 'a',
+                    basic: false,
+                    content: `${allFilesInSubtree.length} file${allFilesInSubtree.length === 1 ? '' : 's'}, ${subtreeSize}`,
+                  }}
+                  labelPosition="right"
+                  onClick={() => this.download(username, allFilesInSubtree)}
+                  style={{ marginLeft: selectedFiles.length > 0 ? '8px' : 0 }}
+                />
+              )}
               {downloadRequest === 'inProgress' && (
                 <Icon
                   loading
