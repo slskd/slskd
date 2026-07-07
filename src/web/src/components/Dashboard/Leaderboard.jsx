@@ -1,18 +1,7 @@
 import * as reports from '../../lib/reports';
+import { formatBytes, formatSpeed } from '../../lib/util';
 import React, { useEffect, useState } from 'react';
 import { Divider, Grid, Header, Icon, Loader, Table } from 'semantic-ui-react';
-
-const formatBytes = (bytes) => {
-  if (!bytes || bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-  const index = Math.floor(Math.log(bytes) / Math.log(1_024));
-  return `${(bytes / 1_024 ** index).toFixed(1)} ${units[index]}`;
-};
-
-const formatSpeed = (bytesPerSecond) => {
-  if (!bytesPerSecond || bytesPerSecond === 0) return '0 B/s';
-  return `${formatBytes(bytesPerSecond)}/s`;
-};
 
 const SORT_FIELDS = [
   { label: 'Count', sort: 'Count' },

@@ -39,8 +39,19 @@ export const formatBytes = (
   return padded + ' ' + sizes[index];
 };
 
+export const formatSpeed = (bytesPerSecond, decimals = 1) => {
+  if (!bytesPerSecond || bytesPerSecond === 0) return '0 B/s';
+  return `${formatBytes(bytesPerSecond, decimals)}/s`;
+};
+
 export const formatDate = (date) => {
   return new Date(date).toLocaleString();
+};
+
+export const truncate = (text, maxLength) => {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
 };
 
 export const getFileName = (fullPath) => {

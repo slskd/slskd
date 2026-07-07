@@ -1,35 +1,9 @@
-import { Graph, useDarkMode } from '../Shared';
-import React, { useMemo } from 'react';
-import { Divider, Header, Table } from 'semantic-ui-react';
-
-const truncate = (text, maxLength) => {
-  if (!text) {
-    return '';
-  }
-
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  return `${text.slice(0, maxLength)}…`;
-};
-
-const getFilename = (path) => {
-  if (!path) {
-    return '';
-  }
-
-  const parts = path.replaceAll('\\', '/').split('/');
-  return parts[parts.length - 1] || path;
-};
-
-const formatDateTime = (isoString) => {
-  if (!isoString) {
-    return '';
-  }
-
-  return new Date(isoString).toLocaleString();
-};
+import * as reports from '../../lib/reports';
+import { Graph } from '../Shared';
+import ExceptionList from './ExceptionList';
+import ExceptionPareto from './ExceptionPareto';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Header, Icon } from 'semantic-ui-react';
 
 const mergePareto = (uploadRows, downloadRows) => {
   const combined = {};

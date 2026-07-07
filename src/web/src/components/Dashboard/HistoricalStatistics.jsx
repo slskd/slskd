@@ -1,3 +1,4 @@
+import { formatBytes, formatSpeed } from '../../lib/util';
 import { Graph, LoaderSegment } from '../Shared';
 import Leaderboard from './Leaderboard';
 import TopDirectories from './TopDirectories';
@@ -6,25 +7,12 @@ import React, { useMemo } from 'react';
 import {
   Button,
   ButtonGroup,
-  Divider,
   Header,
   Icon,
   Segment,
   Statistic,
   Tab,
 } from 'semantic-ui-react';
-
-const formatBytes = (bytes) => {
-  if (!bytes || bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-  const index = Math.floor(Math.log(bytes) / Math.log(1_024));
-  return `${(bytes / 1_024 ** index).toFixed(1)} ${units[index]}`;
-};
-
-const formatSpeed = (bytesPerSecond) => {
-  if (!bytesPerSecond || bytesPerSecond === 0) return '0 B/s';
-  return `${formatBytes(bytesPerSecond)}/s`;
-};
 
 const formatBytesParts = (bytes) => {
   if (!bytes || bytes === 0) return { unit: 'B', value: '0' };
@@ -82,14 +70,14 @@ const buildChartData = (histogram) =>
 const HISTORY_SERIES = [
   {
     color: '#21ba45',
-    format: formatBytes,
+    format: (v) => formatBytes(v, 1),
     key: 'uploadBytes',
     name: 'Upload Size',
     unit: 'bytes',
   },
   {
     color: '#2185d0',
-    format: formatBytes,
+    format: (v) => formatBytes(v, 1),
     key: 'downloadBytes',
     name: 'Download Size',
     unit: 'bytes',
@@ -226,6 +214,8 @@ const HistoricalStatistics = ({
           <TransferErrors
             chartData={chartData}
             download={exceptions.download}
+            end={historyEnd}
+            start={historyStart}
             upload={exceptions.upload}
           />
         </Tab.Pane>
@@ -336,7 +326,6 @@ const HistoricalStatistics = ({
               series={HISTORY_SERIES}
             />
           </div>
-          <Divider />
           <Tab
             activeIndex={activeTab}
             onTabChange={(_, { activeIndex }) => onTabChange(activeIndex)}
