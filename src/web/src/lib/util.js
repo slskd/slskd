@@ -44,6 +44,12 @@ export const formatSpeed = (bytesPerSecond, decimals = 1) => {
   return `${formatBytes(bytesPerSecond, decimals)}/s`;
 };
 
+export const formatWait = (seconds) => {
+  if (!seconds || seconds === 0) return '0s';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  return `${(seconds / 60).toFixed(1)}m`;
+};
+
 export const formatDate = (date) => {
   return new Date(date).toLocaleString();
 };

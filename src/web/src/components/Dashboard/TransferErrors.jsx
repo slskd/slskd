@@ -102,36 +102,40 @@ const TransferErrors = ({ chartData, download, end, start, upload }) => {
     setParetoDirection(d);
     setParetoLoading(true);
 
-    if (d === 'All') {
-      const [uploadRows, downloadRows] = await Promise.all([
-        fetchPareto('Upload'),
-        fetchPareto('Download'),
-      ]);
-      setParetoRows(buildParetoRows(uploadRows, downloadRows));
-    } else {
-      const rows = await fetchPareto(d);
-      setParetoRows(rows.map((r) => ({ ...r, direction: d })));
+    try {
+      if (d === 'All') {
+        const [uploadRows, downloadRows] = await Promise.all([
+          fetchPareto('Upload'),
+          fetchPareto('Download'),
+        ]);
+        setParetoRows(buildParetoRows(uploadRows, downloadRows));
+      } else {
+        const rows = await fetchPareto(d);
+        setParetoRows(rows.map((r) => ({ ...r, direction: d })));
+      }
+    } finally {
+      setParetoLoading(false);
     }
-
-    setParetoLoading(false);
   };
 
   const onRecentDirectionChange = async (d) => {
     setRecentDirection(d);
     setRecentLoading(true);
 
-    if (d === 'All') {
-      const [uploadRows, downloadRows] = await Promise.all([
-        fetchRecent('Upload'),
-        fetchRecent('Download'),
-      ]);
-      setRecentRows(mergeRecent(uploadRows, downloadRows));
-    } else {
-      const rows = await fetchRecent(d);
-      setRecentRows(rows.map((r) => ({ ...r, direction: d })));
+    try {
+      if (d === 'All') {
+        const [uploadRows, downloadRows] = await Promise.all([
+          fetchRecent('Upload'),
+          fetchRecent('Download'),
+        ]);
+        setRecentRows(mergeRecent(uploadRows, downloadRows));
+      } else {
+        const rows = await fetchRecent(d);
+        setRecentRows(rows.map((r) => ({ ...r, direction: d })));
+      }
+    } finally {
+      setRecentLoading(false);
     }
-
-    setRecentLoading(false);
   };
 
   return (

@@ -1,7 +1,7 @@
 import '../Search/Search.css';
 import { urlBase } from '../../config';
 import * as library from '../../lib/searches';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useHistory } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Button, Icon, Input, Segment } from 'semantic-ui-react';
@@ -48,7 +48,9 @@ const SearchBar = ({ server } = {}) => {
     }
   };
 
-  inputRef?.current?.inputRef?.current?.focus();
+  useEffect(() => {
+    inputRef?.current?.inputRef?.current?.focus();
+  }, []);
 
   return (
     <Segment

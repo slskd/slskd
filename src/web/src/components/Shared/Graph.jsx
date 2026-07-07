@@ -1,3 +1,4 @@
+import { formatBytes, formatSpeed, formatWait } from '../../lib/util';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Area,
@@ -24,24 +25,6 @@ export const useDarkMode = () => {
   }, []);
 
   return isDark;
-};
-
-const formatBytes = (bytes) => {
-  if (!bytes || bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-  const index = Math.floor(Math.log(bytes) / Math.log(1_024));
-  return `${(bytes / 1_024 ** index).toFixed(1)} ${units[index]}`;
-};
-
-const formatSpeed = (bytesPerSecond) => {
-  if (!bytesPerSecond || bytesPerSecond === 0) return '0 B/s';
-  return `${formatBytes(bytesPerSecond)}/s`;
-};
-
-const formatWait = (seconds) => {
-  if (!seconds || seconds === 0) return '0s';
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  return `${(seconds / 60).toFixed(1)}m`;
 };
 
 const UNIT_FORMATTERS = {

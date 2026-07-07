@@ -1,4 +1,4 @@
-import { formatBytes, formatSpeed } from '../../lib/util';
+import { formatBytes, formatSpeed, formatWait } from '../../lib/util';
 import { Graph, LoaderSegment } from '../Shared';
 import Leaderboard from './Leaderboard';
 import TopDirectories from './TopDirectories';
@@ -31,12 +31,6 @@ const errorCount = (directionData = {}) =>
   (directionData.Errored?.count ?? 0) +
   (directionData.Cancelled?.count ?? 0) +
   (directionData.TimedOut?.count ?? 0);
-
-const formatWait = (seconds) => {
-  if (!seconds || seconds === 0) return '0s';
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  return `${(seconds / 60).toFixed(1)}m`;
-};
 
 const buildChartData = (histogram) =>
   Object.entries(histogram)

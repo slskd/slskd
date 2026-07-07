@@ -1,6 +1,6 @@
 import * as reports from '../../lib/reports';
 import { formatBytes, formatSpeed } from '../../lib/util';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Divider, Grid, Header, Icon, Loader, Table } from 'semantic-ui-react';
 
 const SORT_FIELDS = [
@@ -108,6 +108,7 @@ const initialState = {
 
 const Leaderboard = ({ downloads, end, start, uploads }) => {
   const [state, setState] = useState(initialState);
+  const sortRef = useRef(null);
 
   useEffect(() => {
     setState((previous) => ({
@@ -119,6 +120,8 @@ const Leaderboard = ({ downloads, end, start, uploads }) => {
 
   const onSort = async (sort) => {
     if (sort === state.sortBy) return;
+
+    sortRef.current = sort;
 
     setState((previous) => ({
       ...previous,
@@ -150,6 +153,8 @@ const Leaderboard = ({ downloads, end, start, uploads }) => {
     } catch (error) {
       console.error(error);
     }
+
+    if (sortRef.current !== sort) return;
 
     setState((previous) => ({
       ...previous,
