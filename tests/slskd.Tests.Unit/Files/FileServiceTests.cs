@@ -381,6 +381,37 @@ namespace slskd.Tests.Unit.Files
         }
 
         [Fact]
+        public void MoveFile_Deletes_Empty_Source_Directories_Until_Incomplete_Root_When_Configured()
+        {
+            var incompleteDir = Path.Combine(Temp, "incomplete");
+
+            OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
+            {
+                Directories = new Options.DirectoriesOptions
+                {
+                    Downloads = Path.Combine(Temp, "downloads"),
+                    Incomplete = incompleteDir,
+                }
+            });
+
+            var sourceDir = Path.Combine(incompleteDir, "user", "Artist", "Album");
+            Directory.CreateDirectory(sourceDir);
+
+            var sourceFile = Path.Combine(sourceDir, "file.txt");
+            File.WriteAllText(sourceFile, "test");
+
+            var destDir = Path.Combine(Temp, "dest");
+
+            FileService.MoveFile(sourceFile, destDir, deleteSourceDirectoryIfEmptyAfterMove: true);
+
+            Assert.True(File.Exists(Path.Combine(destDir, "file.txt")));
+            Assert.False(Directory.Exists(sourceDir));
+            Assert.False(Directory.Exists(Path.Combine(incompleteDir, "user", "Artist")));
+            Assert.False(Directory.Exists(Path.Combine(incompleteDir, "user")));
+            Assert.True(Directory.Exists(incompleteDir));
+        }
+
+        [Fact]
         public void MoveFile_Prefers_Parameter_Unix_File_Mode_Over_Options()
         {
             if (OperatingSystem.IsWindows()) return;
@@ -462,4 +493,3 @@ namespace slskd.Tests.Unit.Files
         }
     }
 }
-

@@ -518,10 +518,9 @@ namespace slskd.Files
                     Log.Debug("Successfully set Unix file mode to {Mode}", unixCreateMode);
                 }
 
-                // if the parent directory is empty after the move, delete it
-                if (deleteSourceDirectoryIfEmptyAfterMove && !Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
+                if (deleteSourceDirectoryIfEmptyAfterMove)
                 {
-                    Directory.Delete(Path.GetDirectoryName(sourceFilename));
+                    DeleteEmptySourceDirectories(sourceFilename);
                 }
 
                 return destinationFilename;
@@ -532,6 +531,68 @@ namespace slskd.Files
                 // IOException. to make handling downstream easier, wrap them all up and re-throw.
                 throw new IOException($"Failed to move file {Path.GetFileName(sourceFilename)}: {ex.Message}", ex);
             }
+        }
+
+        private void DeleteEmptySourceDirectories(string sourceFilename)
+        {
+            var sourceDirectory = Path.GetDirectoryName(sourceFilename);
+
+            if (string.IsNullOrWhiteSpace(sourceDirectory))
+            {
+                return;
+            }
+
+            sourceDirectory = Path.GetFullPath(sourceDirectory);
+
+            var incompleteDirectory = Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Incomplete);
+
+            if (!IsDescendantPath(sourceDirectory, incompleteDirectory))
+            {
+                DeleteDirectoryIfEmpty(sourceDirectory);
+                return;
+            }
+
+            var currentDirectory = sourceDirectory;
+
+            while (IsDescendantPath(currentDirectory, incompleteDirectory))
+            {
+                if (!DeleteDirectoryIfEmpty(currentDirectory))
+                {
+                    return;
+                }
+
+                currentDirectory = Path.GetDirectoryName(currentDirectory);
+
+                if (string.IsNullOrWhiteSpace(currentDirectory))
+                {
+                    return;
+                }
+
+                currentDirectory = Path.GetFullPath(currentDirectory);
+            }
+        }
+
+        private bool DeleteDirectoryIfEmpty(string directory)
+        {
+            if (!Directory.Exists(directory) || Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                return false;
+            }
+
+            Directory.Delete(directory);
+            return true;
+        }
+
+        private bool IsDescendantPath(string path, string parentPath)
+        {
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            var normalizedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            var normalizedParentPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(parentPath));
+
+            return normalizedPath.StartsWith(normalizedParentPath + Path.DirectorySeparatorChar, comparison);
         }
     }
 }
