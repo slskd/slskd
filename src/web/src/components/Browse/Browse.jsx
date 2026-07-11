@@ -2,8 +2,8 @@
 import './Browse.css';
 import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
-import Directory from './Directory';
 import DirectoryTree from './DirectoryTree';
+import Selection from './Selection';
 import * as lzString from 'lz-string';
 import React, { Component } from 'react';
 import { withRouter } from 'react-router-dom';
@@ -20,8 +20,7 @@ const initialState = {
     lockedFiles: 0,
   },
   interval: undefined,
-  selectedDirectory: {},
-  selectedFiles: [],
+  selected: null,
   separator: '\\',
   tree: [],
   username: '',
@@ -107,6 +106,7 @@ class Browse extends Component {
             this.setState(
               { browseError: undefined, browseState: 'complete' },
               () => {
+                this.saveTree();
                 this.saveState();
               },
             ),
@@ -120,6 +120,7 @@ class Browse extends Component {
 
   clear = () => {
     this.setState(initialState, () => {
+      this.saveTree();
       this.saveState();
       this.inputtext.focus();
     });
@@ -127,41 +128,67 @@ class Browse extends Component {
 
   keyUp = (event) => (event.key === 'Escape' ? this.clear() : '');
 
+  saveTree = () => {
+    try {
+      localStorage.setItem(
+        'slskd-browse-tree',
+        lzString.compress(JSON.stringify(this.state.tree)),
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   saveState = () => {
     this.inputtext.inputRef.current.value = this.state.username;
     this.inputtext.inputRef.current.disabled =
       this.state.browseState !== 'idle';
 
-    const storeToLocalStorage = () => {
-      try {
-        localStorage.setItem(
-          'soulseek-example-browse-state',
-          lzString.compress(JSON.stringify(this.state)),
-        );
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    // Shifting the compression and safe out of the current render loop to speed up responsiveness
-    // requestIdleCallback is not supported in Safari hence we push to next tick using Promise.resolve
-    if (window.requestIdleCallback) {
-      window.requestIdleCallback(storeToLocalStorage);
-    } else {
-      Promise.resolve().then(storeToLocalStorage);
+    try {
+      const { browseError, browseState, info, selected, separator, username } =
+        this.state;
+      localStorage.setItem(
+        'slskd-browse-state',
+        lzString.compress(
+          JSON.stringify({
+            browseError,
+            browseState,
+            info,
+            selected,
+            separator,
+            username,
+          }),
+        ),
+      );
+    } catch (error) {
+      console.error(error);
     }
   };
 
   loadState = () => {
-    this.setState(
-      (!this.props.location.state?.user &&
-        JSON.parse(
-          lzString.decompress(
-            localStorage.getItem('soulseek-example-browse-state') || '',
-          ),
-        )) ||
-        initialState,
-    );
+    if (this.props.location.state?.user) {
+      return;
+    }
+
+    const treeStr = localStorage.getItem('slskd-browse-tree');
+    const metaStr = localStorage.getItem('slskd-browse-state');
+
+    let savedState = null;
+    if (treeStr || metaStr) {
+      const tree = treeStr
+        ? JSON.parse(lzString.decompress(treeStr) || 'null')
+        : null;
+      const meta = metaStr
+        ? JSON.parse(lzString.decompress(metaStr) || 'null')
+        : null;
+      savedState = { ...meta, tree: tree || [] };
+    }
+
+    if (savedState?.tree) {
+      savedState.tree = savedState.tree.map(this.annotateWithCounts);
+    }
+
+    this.setState(savedState || initialState);
   };
 
   fetchStatus = () => {
@@ -173,6 +200,20 @@ class Browse extends Component {
         }),
       );
     }
+  };
+
+  annotateWithCounts = (node) => {
+    const children = (node.children || []).map(this.annotateWithCounts);
+    return {
+      ...node,
+      children,
+      totalDirectoryCount:
+        children.length +
+        children.reduce((sum, c) => sum + c.totalDirectoryCount, 0),
+      totalFileCount:
+        (node.files || []).length +
+        children.reduce((sum, c) => sum + c.totalFileCount, 0),
+    };
   };
 
   getDirectoryTree = ({ directories, separator }) => {
@@ -199,7 +240,9 @@ class Browse extends Component {
     return depthMap
       .get(depth)
       .map((directory) =>
-        this.getChildDirectories(depthMap, directory, separator, depth + 1),
+        this.annotateWithCounts(
+          this.getChildDirectories(depthMap, directory, separator, depth + 1),
+        ),
       );
   };
 
@@ -220,16 +263,63 @@ class Browse extends Component {
     };
   };
 
+  findDirectoryByPath = (path, nodes) => {
+    for (const node of nodes) {
+      if (node.name === path) {
+        return node;
+      }
+
+      const found = this.findDirectoryByPath(path, node.children || []);
+
+      if (found) {
+        return found;
+      }
+    }
+
+    return null;
+  };
+
   selectDirectory = (directory) => {
-    this.setState({ selectedDirectory: { ...directory, children: [] } }, () =>
-      this.saveState(),
+    this.setState(
+      {
+        selected: {
+          directoryName: directory.name,
+          files: [],
+          subdirectory: directory.children?.[0]?.name ?? null,
+        },
+      },
+      () => this.saveState(),
     );
   };
 
-  handleDeselectDirectory = () => {
-    this.setState({ selectedDirectory: initialState.selectedDirectory }, () =>
-      this.saveState(),
+  handleStateChange = ({ files, subdirectory }) => {
+    this.setState(
+      (prevState) => ({
+        selected: { ...prevState.selected, files, subdirectory },
+      }),
+      () => this.saveState(),
     );
+  };
+
+  handleDirectoryNavigate = (path) => {
+    const directory = this.findDirectoryByPath(path, this.state.tree);
+
+    if (directory) {
+      this.selectDirectory(directory);
+    }
+  };
+
+  renderDirectoryAction = (dir) => (
+    <Icon
+      link
+      name="share"
+      onClick={() => this.handleDirectoryNavigate(dir.name)}
+      title="Navigate to this directory"
+    />
+  );
+
+  handleDeselectDirectory = () => {
+    this.setState({ selected: null }, () => this.saveState());
   };
 
   render() {
@@ -238,20 +328,18 @@ class Browse extends Component {
       browseState,
       browseStatus,
       info,
-      selectedDirectory,
+      selected,
       separator,
       tree,
       username,
     } = this.state;
-    const { locked, name } = selectedDirectory;
+    const selectedDirectory = selected
+      ? this.findDirectoryByPath(selected.directoryName, tree)
+      : null;
+    const locked = selectedDirectory?.locked;
     const pending = browseState === 'pending';
 
     const emptyTree = !(tree && tree.length > 0);
-
-    const files = (selectedDirectory.files || []).map((f) => ({
-      ...f,
-      filename: `${name}${separator}${f.filename}`,
-    }));
 
     return (
       <div className="search-container">
@@ -331,20 +419,25 @@ class Browse extends Component {
                       <Segment className="browse-folderlist">
                         <DirectoryTree
                           onSelect={(_, value) => this.selectDirectory(value)}
-                          selectedDirectoryName={name}
+                          selectedDirectoryName={selected?.directoryName}
                           tree={tree}
                         />
                       </Segment>
                     </Card.Content>
                   </Card>
                 )}
-                {name && (
-                  <Directory
-                    files={files}
+                {selectedDirectory && (
+                  <Selection
+                    defaultSelectedFiles={selected.files}
+                    defaultSubdirectory={selected.subdirectory}
+                    directorySuffix={this.renderDirectoryAction}
                     locked={locked}
                     marginTop={-20}
-                    name={name}
+                    name={selected.directoryName}
+                    node={selectedDirectory}
                     onClose={this.handleDeselectDirectory}
+                    onStateChange={this.handleStateChange}
+                    separator={separator}
                     username={username}
                   />
                 )}
