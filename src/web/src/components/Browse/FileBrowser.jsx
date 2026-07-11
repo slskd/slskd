@@ -136,11 +136,7 @@ const DirectoryRow = ({
             checked={allChildSelected}
             disabled={disabled}
             fitted
-            onChange={(_, data) => {
-              for (const f of childFiles) {
-                onSelectionChange(f, data.checked);
-              }
-            }}
+            onChange={(_, data) => onSelectionChange(childFiles, data.checked)}
           />
         )}
       </Table.Cell>
@@ -259,6 +255,8 @@ const FileBrowser = ({
 }) => {
   const [folded, setFolded] = useState(false);
 
+  // flatten the list of files that we've been given and turn it into a map
+  // keyed on the fully qualified name of the file and with a value of the file object
   const fileMap = useMemo(() => {
     const map = new Map();
     for (const f of files || []) {
@@ -271,7 +269,7 @@ const FileBrowser = ({
   const directoryName = rootDirectory?.name || '';
   const sep = separator || '\\';
 
-  const directFiles = useMemo(
+  const filesInRoot = useMemo(
     () =>
       (rootDirectory?.files || [])
         .map((f) => ({
@@ -318,16 +316,34 @@ const FileBrowser = ({
     (files?.length ?? 0) > 0 && files.every((f) => f.selected);
 
   const handleSelectAll = (_, data) => {
+    onSelectionChange(data.checked ? (files || []).map((f) => f.filename) : []);
+  };
+
+  const handleFileToggle = (file, checked) => {
+    const result = [];
     for (const f of files || []) {
-      onSelectionChange(f, data.checked);
+      if (f === file ? checked : f.selected) result.push(f.filename);
     }
+
+    onSelectionChange(result);
+  };
+
+  const handleDirToggle = (childFiles, checked) => {
+    const childSet = new Set(childFiles.map((f) => f.filename));
+    const result = [];
+    for (const f of files || []) {
+      if (childSet.has(f.filename) ? checked : f.selected)
+        result.push(f.filename);
+    }
+
+    onSelectionChange(result);
   };
 
   const handleExpandDirectory = (name) => {
     onExpandedDirectoryChange(expandedDirectory === name ? null : name);
   };
 
-  const hasContent = directFiles.length > 0 || childDirs.length > 0;
+  const hasContent = filesInRoot.length > 0 || childDirs.length > 0;
 
   return (
     <div style={{ opacity: locked ? 0.5 : 1 }}>
@@ -390,11 +406,11 @@ const FileBrowser = ({
                 isExpanded={expandedDirectory === child.name}
                 key={child.name}
                 onExpand={handleExpandDirectory}
-                onSelectionChange={onSelectionChange}
+                onSelectionChange={handleDirToggle}
                 sep={sep}
               />
             ))}
-            {directFiles.map((f) => {
+            {filesInRoot.map((f) => {
               const flatFile = fileMap.get(f.fullFilename);
               return (
                 <File
@@ -402,7 +418,7 @@ const FileBrowser = ({
                   file={flatFile || f}
                   key={f.fullFilename}
                   locked={locked}
-                  onSelectionChange={flatFile ? onSelectionChange : undefined}
+                  onSelectionChange={flatFile ? handleFileToggle : undefined}
                 />
               );
             })}

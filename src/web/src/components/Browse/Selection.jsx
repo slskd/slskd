@@ -7,6 +7,7 @@ import { Button, Card, Icon, Label } from 'semantic-ui-react';
 const initialState = {
   downloadError: '',
   downloadRequest: undefined,
+  files: [],
 };
 
 const getAllFilesFromNode = (node, separator) => {
@@ -48,20 +49,20 @@ class Selection extends Component {
     }
   }
 
-  handleSelectionChange = (file, selected) => {
+  handleSelectionChange = (selectedFilenames) => {
+    const selectedSet = new Set(selectedFilenames);
     this.setState(
       (prevState) => ({
         downloadError: '',
         downloadRequest: undefined,
-        files: prevState.files.map((f) =>
-          f === file ? { ...f, selected } : f,
-        ),
+        files: prevState.files.map((f) => ({
+          ...f,
+          selected: selectedSet.has(f.filename),
+        })),
       }),
       () =>
         this.props.onStateChange?.({
-          files: this.state.files
-            .filter((f) => f.selected)
-            .map((f) => f.filename),
+          files: selectedFilenames,
           subdirectory: this.state.expandedDirectory,
         }),
     );
