@@ -1089,7 +1089,7 @@ namespace slskd
                 {
                     OnPrepareResponse = ctx =>
                     {
-                        if (ctx.File.Name == "index.html")
+                        if (ctx.File.Name == "index.html" || ctx.File.Name == "default.html")
                         {
                             ctx.Context.Response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue { NoCache = true };
                         }
