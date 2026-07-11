@@ -63,6 +63,7 @@ namespace slskd
     using Microsoft.Extensions.FileProviders;
     using Microsoft.Extensions.FileProviders.Physical;
     using Microsoft.IdentityModel.Tokens;
+    using Microsoft.Net.Http.Headers;
     using Microsoft.OpenApi;
     using Prometheus;
     using Prometheus.DotNetRuntime;
@@ -1084,6 +1085,16 @@ namespace slskd
                 RequestPath = string.Empty,
                 EnableDirectoryBrowsing = false,
                 EnableDefaultFiles = true,
+                StaticFileOptions =
+                {
+                    OnPrepareResponse = ctx =>
+                    {
+                        if (ctx.File.Name == "index.html")
+                        {
+                            ctx.Context.Response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue { NoCache = true };
+                        }
+                    },
+                },
             };
 
             if (!OptionsAtStartup.Headless)
