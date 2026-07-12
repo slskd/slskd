@@ -4,15 +4,43 @@ import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import DirectoryTree from './DirectoryTree';
 import Selection from './Selection';
-import * as lzString from 'lz-string';
 import React, { Component } from 'react';
 import { withRouter } from 'react-router-dom';
 import { Card, Icon, Input, Loader, Segment } from 'semantic-ui-react';
 
+const openBrowseDb = () =>
+  new Promise((resolve, reject) => {
+    const req = indexedDB.open('slskd-browse', 1);
+    req.onupgradeneeded = ({ target }) => target.result.createObjectStore('browse');
+    req.onsuccess = ({ target }) => resolve(target.result);
+    req.onerror = ({ target }) => reject(target.error);
+  });
+
+const idbPut = async (key, value) => {
+  const db = await openBrowseDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction('browse', 'readwrite');
+    tx.objectStore('browse').put(value, key);
+    tx.oncomplete = resolve;
+    tx.onerror = ({ target }) => reject(target.error);
+  });
+};
+
+const idbGet = async (key) => {
+  const db = await openBrowseDb();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction('browse').objectStore('browse').get(key);
+    req.onsuccess = ({ target }) => resolve(target.result ?? null);
+    req.onerror = ({ target }) => reject(target.error);
+  });
+};
+
 const initialState = {
   browseError: undefined,
+  browseLoading: false,
   browseState: 'idle',
   browseStatus: 0,
+  directories: [],
   info: {
     directories: 0,
     files: 0,
@@ -35,13 +63,13 @@ class Browse extends Component {
 
   componentDidMount() {
     this.fetchStatus();
-    this.loadState();
-    this.setState(
-      {
-        interval: window.setInterval(this.fetchStatus, 500),
-      },
-      () => this.saveState(),
-    );
+    (async () => {
+      await this.loadState();
+      this.setState(
+        { interval: window.setInterval(this.fetchStatus, 500) },
+        () => this.saveState(),
+      );
+    })();
     if (this.props.location.state?.user) {
       this.setState({ username: this.props.location.state.user }, this.browse);
     }
@@ -92,6 +120,7 @@ class Browse extends Component {
             );
 
             this.setState({
+              directories,
               info: {
                 directories: directoryCount,
                 files: fileCount,
@@ -106,8 +135,8 @@ class Browse extends Component {
             this.setState(
               { browseError: undefined, browseState: 'complete' },
               () => {
-                this.saveTree();
                 this.saveState();
+                setTimeout(() => this.saveTree(), 0);
               },
             ),
           )
@@ -128,12 +157,10 @@ class Browse extends Component {
 
   keyUp = (event) => (event.key === 'Escape' ? this.clear() : '');
 
-  saveTree = () => {
+  saveTree = async () => {
     try {
-      localStorage.setItem(
-        'slskd-browse-tree',
-        lzString.compress(JSON.stringify(this.state.tree)),
-      );
+      const { directories, info, separator, username } = this.state;
+      await idbPut('current', { directories, info, separator, username });
     } catch (error) {
       console.error(error);
     }
@@ -149,46 +176,52 @@ class Browse extends Component {
         this.state;
       localStorage.setItem(
         'slskd-browse-state',
-        lzString.compress(
-          JSON.stringify({
-            browseError,
-            browseState,
-            info,
-            selected,
-            separator,
-            username,
-          }),
-        ),
+        JSON.stringify({ browseError, browseState, info, selected, separator, username }),
       );
     } catch (error) {
       console.error(error);
     }
   };
 
-  loadState = () => {
+  loadState = async () => {
     if (this.props.location.state?.user) {
       return;
     }
 
-    const treeStr = localStorage.getItem('slskd-browse-tree');
-    const metaStr = localStorage.getItem('slskd-browse-state');
+    try {
+      const metaStr = localStorage.getItem('slskd-browse-state');
+      const meta = metaStr ? JSON.parse(metaStr) : null;
 
-    let savedState = null;
-    if (treeStr || metaStr) {
-      const tree = treeStr
-        ? JSON.parse(lzString.decompress(treeStr) || 'null')
-        : null;
-      const meta = metaStr
-        ? JSON.parse(lzString.decompress(metaStr) || 'null')
-        : null;
-      savedState = { ...meta, tree: tree || [] };
+      if (meta?.username) {
+        this.setState({ browseLoading: true, username: meta.username }, () => {
+          this.inputtext.inputRef.current.value = meta.username;
+        });
+      }
+
+      const saved = await idbGet('current');
+
+      if (!saved && !meta) {
+        this.setState({ browseLoading: false });
+        return;
+      }
+
+      const directories = saved?.directories ?? [];
+      const separator = saved?.separator ?? meta?.separator ?? '\\';
+      const tree = directories.length
+        ? this.getDirectoryTree({ directories, separator })
+        : [];
+
+      this.setState({
+        ...(meta ?? {}),
+        ...(saved ? { info: saved.info, separator, username: saved.username } : {}),
+        browseLoading: false,
+        directories,
+        tree,
+      });
+    } catch (error) {
+      console.error(error);
+      this.setState({ browseLoading: false });
     }
-
-    if (savedState?.tree) {
-      savedState.tree = savedState.tree.map(this.annotateWithCounts);
-    }
-
-    this.setState(savedState || initialState);
   };
 
   fetchStatus = () => {
@@ -217,50 +250,48 @@ class Browse extends Component {
   };
 
   getDirectoryTree = ({ directories, separator }) => {
-    if (directories.length === 0 || directories[0].name === undefined) {
+    if (!directories.length || directories[0].name === undefined) {
       return [];
     }
 
-    // Optimise this process so we only:
-    // - loop through all directories once
-    // - do the split once
-    // - future look ups are done from the Map
-    const depthMap = new Map();
+    // Single O(N) pass: group each directory under its parent path.
+    // The previous depth-map + startsWith approach was O(N × N/depth_levels)
+    // because every parent scanned all entries at the next level.
+    const byParent = new Map();
+    const nameSet  = new Set();
+
     for (const d of directories) {
-      const directoryDepth = d.name.split(separator).length;
-      if (!depthMap.has(directoryDepth)) {
-        depthMap.set(directoryDepth, []);
-      }
-
-      depthMap.get(directoryDepth).push(d);
+      nameSet.add(d.name);
+      const lastSep   = d.name.lastIndexOf(separator);
+      const parentKey = lastSep === -1 ? '' : d.name.slice(0, lastSep);
+      let bucket = byParent.get(parentKey);
+      if (!bucket) { bucket = []; byParent.set(parentKey, bucket); }
+      bucket.push(d);
     }
 
-    const depth = Math.min(...Array.from(depthMap.keys()));
+    // Roots: directories whose parent path is not itself a directory in the list.
+    const roots = directories.filter((d) => {
+      const lastSep   = d.name.lastIndexOf(separator);
+      const parentKey = lastSep === -1 ? '' : d.name.slice(0, lastSep);
+      return !nameSet.has(parentKey);
+    });
 
-    return depthMap
-      .get(depth)
-      .map((directory) =>
-        this.annotateWithCounts(
-          this.getChildDirectories(depthMap, directory, separator, depth + 1),
-        ),
-      );
-  };
-
-  getChildDirectories = (depthMap, root, separator, depth) => {
-    if (!depthMap.has(depth)) {
-      return { ...root, children: [] };
-    }
-
-    const children = depthMap
-      .get(depth)
-      .filter((d) => d.name.startsWith(root.name));
-
-    return {
-      ...root,
-      children: children.map((c) =>
-        this.getChildDirectories(depthMap, c, separator, depth + 1),
-      ),
+    // Build tree nodes recursively, annotating counts in the same pass.
+    const buildNode = (dir) => {
+      const children = (byParent.get(dir.name) || []).map(buildNode);
+      return {
+        ...dir,
+        children,
+        totalDirectoryCount:
+          children.length +
+          children.reduce((s, c) => s + c.totalDirectoryCount, 0),
+        totalFileCount:
+          (dir.files?.length ?? 0) +
+          children.reduce((s, c) => s + c.totalFileCount, 0),
+      };
     };
+
+    return roots.map(buildNode);
   };
 
   findDirectoryByPath = (path, nodes) => {
@@ -325,6 +356,7 @@ class Browse extends Component {
   render() {
     const {
       browseError,
+      browseLoading,
       browseState,
       browseStatus,
       info,
@@ -393,10 +425,21 @@ class Browse extends Component {
             ) : (
               <div className="browse-container">
                 {emptyTree ? (
-                  <PlaceholderSegment
-                    caption="User is not sharing any files"
-                    icon="folder open"
-                  />
+                  browseLoading ? (
+                    <Loader
+                      active
+                      className="search-loader"
+                      inline="centered"
+                      size="big"
+                    >
+                      Loading saved results
+                    </Loader>
+                  ) : (
+                    <PlaceholderSegment
+                      caption="User is not sharing any files"
+                      icon="folder open"
+                    />
+                  )
                 ) : (
                   <Card
                     className="browse-tree-card"
@@ -416,13 +459,13 @@ class Browse extends Component {
                           {/* eslint-disable-line max-len */}
                         </span>
                       </Card.Meta>
-                      <Segment className="browse-folderlist">
+                      <div style={{ marginTop: '0.5em' }}>
                         <DirectoryTree
                           onSelect={(_, value) => this.selectDirectory(value)}
                           selectedDirectoryName={selected?.directoryName}
                           tree={tree}
                         />
-                      </Segment>
+                      </div>
                     </Card.Content>
                   </Card>
                 )}

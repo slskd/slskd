@@ -30,9 +30,7 @@
 
 .browse-folderlist {
   width: 100% !important;
-  white-space: pre;
-  overflow: auto !important;
-  max-height: 400px;
+  overflow: hidden !important;
   padding: 1em !important;
   box-shadow: unset !important;
 }
@@ -76,6 +74,10 @@
 
 .browse-meta {
   margin-top: 5px;
+}
+
+.browse-folderlist-controls {
+  margin-top: 20px;
 }
 
 .browse-folderlist-header {
