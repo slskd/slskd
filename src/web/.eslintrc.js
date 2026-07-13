@@ -8,6 +8,7 @@ const overrides = {
   'react/prop-types': 'off', // noisy
   'canonical/sort-keys': 'off', // noisy
   'unicorn/no-array-reduce': 'off', // noisy
+  'unicorn/prevent-abbreviations': 'off',
 };
 
 /** @type {import('eslint').Linter.Config} */
