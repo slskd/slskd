@@ -146,28 +146,19 @@ const DirectoryRow = ({
       >
         <Icon name={folderIcon} />
         {dirName}
-        <span
-          style={{
-            fontSize: '0.8em',
-            marginLeft: '0.5em',
-            opacity: 0.5,
-          }}
-        >
+        <span className="browse-folderlist-caption">
           {formatDirCaption(dir.totalFileCount, dir.totalDirectoryCount)}
         </span>
-        {directorySuffix &&
-          (interactive ? (
-            <span
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
-              role="presentation"
-              style={{ float: 'right' }}
-            >
-              {directorySuffix(dir)}
-            </span>
-          ) : (
-            <span style={{ float: 'right' }}>{directorySuffix(dir)}</span>
-          ))}
+        {directorySuffix && (
+          <span
+            className="browse-folderlist-suffix"
+            onClick={interactive ? (e) => e.stopPropagation() : undefined}
+            onKeyDown={interactive ? (e) => e.stopPropagation() : undefined}
+            role={interactive ? 'presentation' : undefined}
+          >
+            {directorySuffix(dir)}
+          </span>
+        )}
       </Table.Cell>
       <Table.Cell className="filelist-size">
         {formatBytes(totalSize)}

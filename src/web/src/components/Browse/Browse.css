@@ -78,6 +78,11 @@
 
 .browse-folderlist-controls {
   margin-top: 20px;
+.browse-folderlist-caption {
+  font-size: 0.8em;
+  margin-left: 0.5em;
+  opacity: 0.5;
+}
 }
 
 .browse-folderlist-header {
