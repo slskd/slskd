@@ -124,8 +124,8 @@ const DirectoryRow = ({
 
   return (
     <Table.Row
+      className={interactive ? 'browse-folderlist-row' : undefined}
       onClick={interactive ? () => onExpand(dir.name) : undefined}
-      style={interactive ? { cursor: 'pointer' } : undefined}
     >
       <Table.Cell
         className="filelist-selector"
@@ -141,33 +141,25 @@ const DirectoryRow = ({
         )}
       </Table.Cell>
       <Table.Cell
-        className="filelist-filename"
-        style={indent ? { paddingLeft: '2em' } : undefined}
+        className={
+          indent ? 'filelist-filename filelist-indent' : 'filelist-filename'
+        }
       >
         <Icon name={folderIcon} />
         {dirName}
-        <span
-          style={{
-            fontSize: '0.8em',
-            marginLeft: '0.5em',
-            opacity: 0.5,
-          }}
-        >
+        <span className="browse-folderlist-caption">
           {formatDirCaption(dir.totalFileCount, dir.totalDirectoryCount)}
         </span>
-        {directorySuffix &&
-          (interactive ? (
-            <span
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
-              role="presentation"
-              style={{ float: 'right' }}
-            >
-              {directorySuffix(dir)}
-            </span>
-          ) : (
-            <span style={{ float: 'right' }}>{directorySuffix(dir)}</span>
-          ))}
+        {directorySuffix && (
+          <span
+            className="browse-folderlist-suffix"
+            onClick={interactive ? (e) => e.stopPropagation() : undefined}
+            onKeyDown={interactive ? (e) => e.stopPropagation() : undefined}
+            role={interactive ? 'presentation' : undefined}
+          >
+            {directorySuffix(dir)}
+          </span>
+        )}
       </Table.Cell>
       <Table.Cell className="filelist-size">
         {formatBytes(totalSize)}
@@ -245,7 +237,6 @@ const FileBrowser = ({
   disabled,
   expandedDirectory,
   files,
-  footer,
   locked,
   onClose,
   onExpandedDirectoryChange,
@@ -346,7 +337,7 @@ const FileBrowser = ({
   const hasContent = filesInRoot.length > 0 || childDirs.length > 0;
 
   return (
-    <div style={{ opacity: locked ? 0.5 : 1 }}>
+    <div className={locked ? 'filebrowser-locked' : undefined}>
       <Header
         className="filelist-header"
         size="small"
@@ -423,15 +414,6 @@ const FileBrowser = ({
               );
             })}
           </Table.Body>
-          {footer && (
-            <Table.Footer fullWidth>
-              <Table.Row>
-                <Table.HeaderCell colSpan="5">
-                  {footer(files || [])}
-                </Table.HeaderCell>
-              </Table.Row>
-            </Table.Footer>
-          )}
         </Table>
       )}
     </div>

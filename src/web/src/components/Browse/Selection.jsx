@@ -2,7 +2,14 @@ import * as transfers from '../../lib/transfers';
 import { formatBytes } from '../../lib/util';
 import FileBrowser from './FileBrowser';
 import React, { Component } from 'react';
+import { toast } from 'react-toastify';
 import { Button, Card, Icon, Label } from 'semantic-ui-react';
+
+// because the entire browse response is stored in indexeddb, it is possible for us
+// to display more files than can be saved in the (much faster) local storage state
+// limit the number of selected files to 5k to avoid overrunning this limit
+// 5k files is also a LOT to enqueue at once
+const MAX_SELECTED_FILES = 5_000;
 
 const initialState = {
   downloadError: '',
@@ -50,6 +57,13 @@ class Selection extends Component {
   }
 
   handleSelectionChange = (selectedFilenames) => {
+    if (selectedFilenames.length > MAX_SELECTED_FILES) {
+      toast.error(
+        `Maximum number of selected files is limited to ${MAX_SELECTED_FILES.toLocaleString()}. Narrow your selection.`,
+      );
+      return;
+    }
+
     const selectedSet = new Set(selectedFilenames);
     this.setState(
       (prevState) => ({
@@ -136,8 +150,7 @@ class Selection extends Component {
   };
 
   render() {
-    const { directorySuffix, locked, marginTop, node, onClose, separator } =
-      this.props;
+    const { directorySuffix, locked, node, onClose, separator } = this.props;
     const { downloadError, downloadRequest, expandedDirectory, files } =
       this.state;
 
@@ -152,7 +165,7 @@ class Selection extends Component {
         raised
       >
         <Card.Content>
-          <div style={{ marginTop: marginTop || 0 }}>
+          <div className="browse-selection-content">
             <FileBrowser
               directorySuffix={directorySuffix}
               disabled={downloadRequest === 'inProgress'}
