@@ -1,4 +1,3 @@
-/* eslint-disable promise/prefer-await-to-then */
 import './Browse.css';
 import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
@@ -6,12 +5,14 @@ import DirectoryTree from './DirectoryTree';
 import Selection from './Selection';
 import React, { Component } from 'react';
 import { withRouter } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { Card, Icon, Input, Loader, Segment } from 'semantic-ui-react';
 
 const openBrowseDb = () =>
   new Promise((resolve, reject) => {
     const req = indexedDB.open('slskd-browse', 1);
-    req.onupgradeneeded = ({ target }) => target.result.createObjectStore('browse');
+    req.onupgradeneeded = ({ target }) =>
+      target.result.createObjectStore('browse');
     req.onsuccess = ({ target }) => resolve(target.result);
     req.onerror = ({ target }) => reject(target.error);
   });
@@ -34,6 +35,15 @@ const idbGet = async (key) => {
     req.onerror = ({ target }) => reject(target.error);
   });
 };
+
+const formatBrowseSummary = ({
+  directories,
+  files,
+  lockedDirectories,
+  lockedFiles,
+}) =>
+  `${files + lockedFiles} files in ${directories + lockedDirectories} ` +
+  `directories (including ${lockedFiles} files in ${lockedDirectories} locked directories)`;
 
 const initialState = {
   browseError: undefined,
@@ -59,6 +69,7 @@ class Browse extends Component {
     super(props);
 
     this.state = initialState;
+    this.directoryTreeRef = React.createRef();
   }
 
   componentDidMount() {
@@ -70,6 +81,7 @@ class Browse extends Component {
         () => this.saveState(),
       );
     })();
+
     if (this.props.location.state?.user) {
       this.setState({ username: this.props.location.state.user }, this.browse);
     }
@@ -83,68 +95,56 @@ class Browse extends Component {
     document.removeEventListener('keyup', this.keyUp, false);
   }
 
-  browse = () => {
+  browse = async () => {
     const username = this.inputtext.inputRef.current.value;
+    this.setState({ browseError: undefined, browseState: 'pending', username });
 
-    this.setState(
-      { browseError: undefined, browseState: 'pending', username },
-      () => {
-        users
-          .browse({ username })
-          .then((response) => {
-            let { directories } = response;
-            const { lockedDirectories } = response;
+    try {
+      const response = await users.browse({ username });
+      let { directories } = response;
+      const { lockedDirectories } = response;
 
-            // we need to know the directory separator. assume it is \ to start
-            let separator;
+      // detect the path separator from the first directory name we see
+      let separator;
+      const directoryCount = directories.length;
+      const fileCount = directories.reduce((accumulator, directory) => {
+        if (!separator) {
+          if (directory.name.includes('\\')) separator = '\\';
+          else if (directory.name.includes('/')) separator = '/';
+        }
 
-            const directoryCount = directories.length;
-            const fileCount = directories.reduce((accumulator, directory) => {
-              // examine each directory as we process it to see if it contains \ or /, and set separator accordingly
-              if (!separator) {
-                if (directory.name.includes('\\')) separator = '\\';
-                else if (directory.name.includes('/')) separator = '/';
-              }
+        return accumulator + directory.fileCount;
+      }, 0);
 
-              return accumulator + directory.fileCount;
-            }, 0);
+      const lockedDirectoryCount = lockedDirectories.length;
+      const lockedFileCount = lockedDirectories.reduce(
+        (accumulator, directory) => accumulator + directory.fileCount,
+        0,
+      );
 
-            const lockedDirectoryCount = lockedDirectories.length;
-            const lockedFileCount = lockedDirectories.reduce(
-              (accumulator, directory) => accumulator + directory.fileCount,
-              0,
-            );
+      directories = directories.concat(
+        lockedDirectories.map((d) => ({ ...d, locked: true })),
+      );
 
-            directories = directories.concat(
-              lockedDirectories.map((d) => ({ ...d, locked: true })),
-            );
+      this.setState({
+        directories,
+        info: {
+          directories: directoryCount,
+          files: fileCount,
+          lockedDirectories: lockedDirectoryCount,
+          lockedFiles: lockedFileCount,
+        },
+        separator,
+        tree: this.getDirectoryTree({ directories, separator }),
+      });
 
-            this.setState({
-              directories,
-              info: {
-                directories: directoryCount,
-                files: fileCount,
-                lockedDirectories: lockedDirectoryCount,
-                lockedFiles: lockedFileCount,
-              },
-              separator,
-              tree: this.getDirectoryTree({ directories, separator }),
-            });
-          })
-          .then(() =>
-            this.setState(
-              { browseError: undefined, browseState: 'complete' },
-              () => {
-                this.saveState();
-                setTimeout(() => this.saveTree(), 0);
-              },
-            ),
-          )
-          .catch((error) =>
-            this.setState({ browseError: error, browseState: 'error' }),
-          );
-      },
-    );
+      this.setState({ browseError: undefined, browseState: 'complete' }, () => {
+        this.saveState();
+        setTimeout(() => this.saveTree(), 0);
+      });
+    } catch (error) {
+      this.setState({ browseError: error, browseState: 'error' });
+    }
   };
 
   clear = () => {
@@ -176,10 +176,29 @@ class Browse extends Component {
         this.state;
       localStorage.setItem(
         'slskd-browse-state',
-        JSON.stringify({ browseError, browseState, info, selected, separator, username }),
+        JSON.stringify({
+          browseError,
+          browseState,
+          info,
+          selected,
+          separator,
+          username,
+        }),
       );
     } catch (error) {
       console.error(error);
+
+      // most likely cause is a huge file selection blowing past
+      // localStorage's per-origin quota; the MAX_SELECTED_FILES cap in
+      // Selection.jsx should prevent this in practice, but fall back to a
+      // clear message rather than silently failing to save
+      const isQuotaError =
+        error.name === 'QuotaExceededError' || error.code === 22;
+      if (isQuotaError) {
+        toast.error(
+          'Selection is too large to save — try selecting fewer files.',
+        );
+      }
     }
   };
 
@@ -212,8 +231,10 @@ class Browse extends Component {
         : [];
 
       this.setState({
-        ...(meta ?? {}),
-        ...(saved ? { info: saved.info, separator, username: saved.username } : {}),
+        ...meta,
+        ...(saved
+          ? { info: saved.info, separator, username: saved.username }
+          : {}),
         browseLoading: false,
         directories,
         tree,
@@ -224,29 +245,14 @@ class Browse extends Component {
     }
   };
 
-  fetchStatus = () => {
+  fetchStatus = async () => {
     const { browseState, username } = this.state;
-    if (browseState === 'pending') {
-      users.getBrowseStatus({ username }).then((response) =>
-        this.setState({
-          browseStatus: response.data,
-        }),
-      );
+    if (browseState !== 'pending') {
+      return;
     }
-  };
 
-  annotateWithCounts = (node) => {
-    const children = (node.children || []).map(this.annotateWithCounts);
-    return {
-      ...node,
-      children,
-      totalDirectoryCount:
-        children.length +
-        children.reduce((sum, c) => sum + c.totalDirectoryCount, 0),
-      totalFileCount:
-        (node.files || []).length +
-        children.reduce((sum, c) => sum + c.totalFileCount, 0),
-    };
+    const response = await users.getBrowseStatus({ username });
+    this.setState({ browseStatus: response.data });
   };
 
   getDirectoryTree = ({ directories, separator }) => {
@@ -254,29 +260,31 @@ class Browse extends Component {
       return [];
     }
 
-    // Single O(N) pass: group each directory under its parent path.
-    // The previous depth-map + startsWith approach was O(N × N/depth_levels)
-    // because every parent scanned all entries at the next level.
+    // group each directory under its parent path in a single O(N) pass
     const byParent = new Map();
-    const nameSet  = new Set();
+    const nameSet = new Set();
 
     for (const d of directories) {
       nameSet.add(d.name);
-      const lastSep   = d.name.lastIndexOf(separator);
+      const lastSep = d.name.lastIndexOf(separator);
       const parentKey = lastSep === -1 ? '' : d.name.slice(0, lastSep);
       let bucket = byParent.get(parentKey);
-      if (!bucket) { bucket = []; byParent.set(parentKey, bucket); }
+      if (!bucket) {
+        bucket = [];
+        byParent.set(parentKey, bucket);
+      }
+
       bucket.push(d);
     }
 
-    // Roots: directories whose parent path is not itself a directory in the list.
+    // roots are directories whose parent path isn't itself in the list
     const roots = directories.filter((d) => {
-      const lastSep   = d.name.lastIndexOf(separator);
+      const lastSep = d.name.lastIndexOf(separator);
       const parentKey = lastSep === -1 ? '' : d.name.slice(0, lastSep);
       return !nameSet.has(parentKey);
     });
 
-    // Build tree nodes recursively, annotating counts in the same pass.
+    // recursively build the tree, computing file/directory counts along the way
     const buildNode = (dir) => {
       const children = (byParent.get(dir.name) || []).map(buildNode);
       return {
@@ -333,11 +341,7 @@ class Browse extends Component {
   };
 
   handleDirectoryNavigate = (path) => {
-    const directory = this.findDirectoryByPath(path, this.state.tree);
-
-    if (directory) {
-      this.selectDirectory(directory);
-    }
+    this.directoryTreeRef.current?.navigateToDirectory(path);
   };
 
   renderDirectoryAction = (dir) => (
@@ -353,61 +357,134 @@ class Browse extends Component {
     this.setState({ selected: null }, () => this.saveState());
   };
 
+  renderUsernameBar() {
+    const { browseState } = this.state;
+    const pending = browseState === 'pending';
+
+    return (
+      <Segment
+        className="browse-segment"
+        raised
+      >
+        <div className="browse-segment-icon">
+          <Icon
+            name="folder open"
+            size="big"
+          />
+        </div>
+        <Input
+          action={
+            !pending &&
+            (browseState === 'idle'
+              ? { icon: 'search', onClick: this.browse }
+              : { color: 'red', icon: 'x', onClick: this.clear })
+          }
+          className="search-input"
+          disabled={pending}
+          input={
+            <input
+              data-lpignore="true"
+              placeholder="Username"
+              type="search"
+            />
+          }
+          loading={pending}
+          onKeyUp={(event) => (event.key === 'Enter' ? this.browse() : '')}
+          placeholder="Username"
+          ref={(input) => (this.inputtext = input)}
+          size="big"
+        />
+      </Segment>
+    );
+  }
+
+  renderTreeAndSelection(selectedDirectory) {
+    const { info, selected, separator, tree, username } = this.state;
+
+    return (
+      <div className="browse-container">
+        <Card
+          className="browse-tree-card"
+          raised
+        >
+          <Card.Content>
+            <Card.Header>
+              <Icon
+                color="green"
+                name="circle"
+              />
+              {username}
+            </Card.Header>
+            <Card.Meta className="browse-meta">
+              <span>{formatBrowseSummary(info)}</span>
+            </Card.Meta>
+            <div className="browse-tree-wrapper">
+              <DirectoryTree
+                onSelect={(_, value) => this.selectDirectory(value)}
+                ref={this.directoryTreeRef}
+                selectedDirectoryName={selected?.directoryName}
+                tree={tree}
+              />
+            </div>
+          </Card.Content>
+        </Card>
+        {selectedDirectory && (
+          <Selection
+            defaultSelectedFiles={selected.files}
+            defaultSubdirectory={selected.subdirectory}
+            directorySuffix={this.renderDirectoryAction}
+            locked={selectedDirectory.locked}
+            name={selected.directoryName}
+            node={selectedDirectory}
+            onClose={this.handleDeselectDirectory}
+            onStateChange={this.handleStateChange}
+            separator={separator}
+            username={username}
+          />
+        )}
+      </div>
+    );
+  }
+
+  renderResults(selectedDirectory) {
+    const { browseError, browseLoading, tree, username } = this.state;
+
+    if (browseError) {
+      return <span className="browse-error">Failed to browse {username}</span>;
+    }
+
+    const emptyTree = !(tree && tree.length > 0);
+    if (emptyTree) {
+      return browseLoading ? (
+        <Loader
+          active
+          className="search-loader"
+          inline="centered"
+          size="big"
+        >
+          Loading saved results
+        </Loader>
+      ) : (
+        <PlaceholderSegment
+          caption="User is not sharing any files"
+          icon="folder open"
+        />
+      );
+    }
+
+    return this.renderTreeAndSelection(selectedDirectory);
+  }
+
   render() {
-    const {
-      browseError,
-      browseLoading,
-      browseState,
-      browseStatus,
-      info,
-      selected,
-      separator,
-      tree,
-      username,
-    } = this.state;
+    const { browseState, browseStatus, selected, tree } = this.state;
     const selectedDirectory = selected
       ? this.findDirectoryByPath(selected.directoryName, tree)
       : null;
-    const locked = selectedDirectory?.locked;
     const pending = browseState === 'pending';
-
-    const emptyTree = !(tree && tree.length > 0);
 
     return (
       <div className="search-container">
-        <Segment
-          className="browse-segment"
-          raised
-        >
-          <div className="browse-segment-icon">
-            <Icon
-              name="folder open"
-              size="big"
-            />
-          </div>
-          <Input
-            action={
-              !pending &&
-              (browseState === 'idle'
-                ? { icon: 'search', onClick: this.browse }
-                : { color: 'red', icon: 'x', onClick: this.clear })
-            }
-            className="search-input"
-            disabled={pending}
-            input={
-              <input
-                data-lpignore="true"
-                placeholder="Username"
-                type="search"
-              />
-            }
-            loading={pending}
-            onKeyUp={(event) => (event.key === 'Enter' ? this.browse() : '')}
-            placeholder="Username"
-            ref={(input) => (this.inputtext = input)}
-            size="big"
-          />
-        </Segment>
+        {this.renderUsernameBar()}
         {pending ? (
           <Loader
             active
@@ -419,74 +496,7 @@ class Browse extends Component {
             Response
           </Loader>
         ) : (
-          <div>
-            {browseError ? (
-              <span className="browse-error">Failed to browse {username}</span>
-            ) : (
-              <div className="browse-container">
-                {emptyTree ? (
-                  browseLoading ? (
-                    <Loader
-                      active
-                      className="search-loader"
-                      inline="centered"
-                      size="big"
-                    >
-                      Loading saved results
-                    </Loader>
-                  ) : (
-                    <PlaceholderSegment
-                      caption="User is not sharing any files"
-                      icon="folder open"
-                    />
-                  )
-                ) : (
-                  <Card
-                    className="browse-tree-card"
-                    raised
-                  >
-                    <Card.Content>
-                      <Card.Header>
-                        <Icon
-                          color="green"
-                          name="circle"
-                        />
-                        {username}
-                      </Card.Header>
-                      <Card.Meta className="browse-meta">
-                        <span>
-                          {`${info.files + info.lockedFiles} files in ${info.directories + info.lockedDirectories} directories (including ${info.lockedFiles} files in ${info.lockedDirectories} locked directories)`}{' '}
-                          {/* eslint-disable-line max-len */}
-                        </span>
-                      </Card.Meta>
-                      <div style={{ marginTop: '0.5em' }}>
-                        <DirectoryTree
-                          onSelect={(_, value) => this.selectDirectory(value)}
-                          selectedDirectoryName={selected?.directoryName}
-                          tree={tree}
-                        />
-                      </div>
-                    </Card.Content>
-                  </Card>
-                )}
-                {selectedDirectory && (
-                  <Selection
-                    defaultSelectedFiles={selected.files}
-                    defaultSubdirectory={selected.subdirectory}
-                    directorySuffix={this.renderDirectoryAction}
-                    locked={locked}
-                    marginTop={-20}
-                    name={selected.directoryName}
-                    node={selectedDirectory}
-                    onClose={this.handleDeselectDirectory}
-                    onStateChange={this.handleStateChange}
-                    separator={separator}
-                    username={username}
-                  />
-                )}
-              </div>
-            )}
-          </div>
+          <div>{this.renderResults(selectedDirectory)}</div>
         )}
       </div>
     );
