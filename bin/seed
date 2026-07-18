@@ -1,0 +1,344 @@
+#!/usr/bin/env bash
+set -e
+
+database=""
+from_date=""
+db_path="$HOME/.local/share/slskd/data"
+dry_run=false
+clear_db=false
+backup=false
+
+while test $# -gt 0; do
+  case "$1" in
+    -h|--help)
+      echo ''
+      echo 'usage: seed --database <name> --from <date> [options]'
+      echo ''
+      echo 'options:'
+      echo '-h, --help          show help'
+      echo '--database NAME     database to seed; supported: transfers'
+      echo '--from DATE         seed records starting from this date (YYYY-MM-DD)'
+      echo '--db-path PATH      path to database directory'
+      echo "                    default: \$HOME/.local/share/slskd/data"
+      echo '--backup            back up the database before making any changes'
+      echo '--clear             delete all existing records before seeding'
+      echo '--dry-run           show what would be seeded without writing'
+      echo ''
+      exit 0
+      ;;
+    --database)
+      shift
+      database=$1
+      shift
+      ;;
+    --from)
+      shift
+      from_date=$1
+      shift
+      ;;
+    --db-path)
+      shift
+      db_path=$1
+      shift
+      ;;
+    --backup)
+      backup=true
+      shift
+      ;;
+    --clear)
+      clear_db=true
+      shift
+      ;;
+    --dry-run)
+      dry_run=true
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [ -z "$database" ]; then
+  echo 'error: --database is required'
+  exit 1
+fi
+
+if [ -z "$from_date" ]; then
+  echo 'error: --from is required'
+  exit 1
+fi
+
+case "$database" in
+  transfers)
+    echo $'\n\t🌱  seeding transfers database\n'
+
+    if [ "$backup" == true ] && [ "$dry_run" == false ]; then
+      ts=$(date -u '+%m%d%y_%H%M%S')
+      backup_file="$db_path/backups/transfers.pre-seed-backup.$ts.db"
+      cp "$db_path/transfers.db" "$backup_file"
+      echo $'\t💾  backed up to '$(basename "$backup_file")$'\n'
+    fi
+
+    FROM_DATE="$from_date" DB_PATH="$db_path" DRY_RUN="$dry_run" CLEAR_DB="$clear_db" node --no-warnings << 'JS'
+'use strict';
+const { DatabaseSync } = require('node:sqlite');
+const { randomUUID }   = require('node:crypto');
+const path             = require('node:path');
+
+const fromDate = new Date(process.env.FROM_DATE);
+const dbPath   = process.env.DB_PATH;
+const dryRun   = process.env.DRY_RUN  === 'true';
+const clearDb  = process.env.CLEAR_DB === 'true';
+const dbFile   = path.join(dbPath, 'transfers.db');
+
+// ── random helpers ────────────────────────────────────────────────────────────
+
+const rand      = (lo, hi) => Math.random() * (hi - lo) + lo;
+const randInt   = (lo, hi) => Math.floor(rand(lo, hi + 1));
+const choice    = (arr) => arr[randInt(0, arr.length - 1)];
+const sample    = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
+
+const weightedChoice = (choices, weights) => {
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < choices.length; i++) { r -= weights[i]; if (r <= 0) return choices[i]; }
+  return choices[choices.length - 1];
+};
+
+// ── name generation ───────────────────────────────────────────────────────────
+
+const SYLLABLES = [
+  'al','an','ar','ax','az','ber','bor','cal','cor','dal','dar','dex',
+  'dor','dral','ech','el','en','er','eth','ex','fal','fen','fer','fir',
+  'for','gal','gar','gel','gen','gor','hal','har','hel','hor','il','in',
+  'ir','ix','kel','ker','kor','kral','lan','lar','lel','len','ler','lir',
+  'lor','mal','mar','mel','mir','mor','nal','nar','nel','ner','nir','nor',
+  'ol','on','or','pal','par','pel','per','pir','por','qal','ral','ran',
+  'rel','ren','rer','rir','ror','sal','sar','sel','ser','sir','sor','tal',
+  'tar','tel','ter','tir','tor','ul','un','ur','val','var','vel','ver',
+  'vir','vor','wal','war','wel','wer','xal','xar','xel','yer','yor','zel',
+  'zen','zer','zir','zor',
+];
+
+const ADJECTIVES = [
+  'amber','ancient','ashen','black','blank','blind','broken','burnt',
+  'calm','cold','coral','dark','dead','deep','dim','distant','dull',
+  'dust','empty','errant','fallen','false','far','feral','flat','fold',
+  'grey','grim','hollow','idle','inner','inverted','iron','jade','last',
+  'late','lean','light','lone','lost','low','muted','narrow','near',
+  'neon','numb','obscure','old','pale','phantom','quiet','raw','remote',
+  'rigid','rusted','salt','shallow','sharp','sheer','silent','slow',
+  'soft','still','strange','thin','tired','twin','twilight','void',
+  'wandering','warm','weathered','white','wide','winter','worn',
+];
+
+const NOUNS = [
+  'arc','ash','beacon','bone','breach','cable','canal','carbon','carrier',
+  'cell','chamber','chord','circuit','coast','code','coil','core','crest',
+  'current','curve','decay','delta','depth','desert','digit','dome','door',
+  'drift','echo','edge','epoch','field','filament','floor','flow','fold',
+  'form','frame','gap','gate','glass','gradient','grain','grid','haze',
+  'helix','hollow','horizon','hull','index','inlet','iris','junction',
+  'kelp','layer','ledge','lens','light','line','loop','margin','membrane',
+  'mesh','mirror','mode','motion','mount','node','null','orbit','origin',
+  'oxide','peak','phase','pillar','plane','plate','point','pool','portal',
+  'prism','pulse','radius','rail','range','reef','relay','ridge','ring',
+  'root','route','ruin','shelf','shell','shore','signal','sink','slope',
+  'span','sphere','spiral','stack','static','stem','stone','strand','stratum',
+  'stream','surface','surge','terminal','terrain','tide','tower','trace',
+  'tract','transit','trench','tunnel','valley','vector','vertex','void',
+  'voltage','wave','wire','zone',
+];
+
+const cap       = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const sylWord   = (n = 2) => Array.from({ length: n }, () => choice(SYLLABLES)).join('');
+
+const makeUsername = () => {
+  const sep = choice(['-', '_']);
+  switch (randInt(0, 3)) {
+    case 0: return `${choice(ADJECTIVES)}${sep}${choice(NOUNS)}`;
+    case 1: return `${choice(ADJECTIVES)}${sep}${choice(NOUNS)}${randInt(2, 99)}`;
+    case 2: return `${sylWord(2)}${randInt(10, 999)}`;
+    default: return `${sylWord(2)}${choice(['-', '_', ''])}${sylWord(2)}`;
+  }
+};
+
+const makeArtist = () => {
+  switch (randInt(0, 3)) {
+    case 0: return `${cap(sylWord(2))} ${cap(sylWord(2))}`;
+    case 1: return `The ${cap(sylWord(2))}s`;
+    case 2: return cap(sylWord(randInt(3, 5)));
+    default: return `${cap(sylWord(2))} & ${cap(sylWord(2))}`;
+  }
+};
+
+const makeAlbumName = () => {
+  switch (randInt(0, 4)) {
+    case 0: return `${cap(choice(ADJECTIVES))} ${cap(choice(NOUNS))}`;
+    case 1: return cap(choice(NOUNS));
+    case 2: return `${cap(choice(ADJECTIVES))} ${cap(choice(ADJECTIVES))}`;
+    case 3: return cap(sylWord(3));
+    default: return `${cap(choice(NOUNS))} ${randInt(1, 9)}`;
+  }
+};
+
+const makeTrackName = (n) => {
+  const num = String(n).padStart(2, '0');
+  switch (randInt(0, 3)) {
+    case 0: return `${num} - ${cap(choice(ADJECTIVES))} ${cap(choice(NOUNS))}.flac`;
+    case 1: return `${num} - ${cap(sylWord(randInt(2, 4)))}.flac`;
+    case 2: return `${num} - ${cap(choice(NOUNS))} ${randInt(1, 9)}.flac`;
+    default: return `${num} - ${cap(choice(ADJECTIVES))}.flac`;
+  }
+};
+
+const makeAlbum = (artist) => {
+  const nTracks = randInt(5, 16);
+  const tracks  = Array.from({ length: nTracks }, (_, i) => [makeTrackName(i + 1), randInt(8_000_000, 55_000_000)]);
+  if (Math.random() < 0.85) tracks.push(['folder.jpg', randInt(28_000, 90_000)]);
+  return { artist, album: makeAlbumName(), tracks };
+};
+
+// ── constants ─────────────────────────────────────────────────────────────────
+
+const EXCEPTIONS = [
+  'A validation error has occurred.',
+  'Transfer timed out.',
+  "The remote user's connection was reset.",
+  'The remote user disconnected.',
+  "The remote user's queue is full.",
+];
+
+const STATE_SUCCEEDED = 48;   // Completed | Succeeded  (16 | 32)
+const STATE_ERRORED   = 272;  // Completed | Errored    (16 | 256)
+
+const HOUR_WEIGHTS = [
+  3, 4, 4, 3, 2, 1,   // 00-05  late night
+  1, 1, 1, 1, 1, 2,   // 06-11  morning
+  2, 2, 2, 2, 2, 3,   // 12-17  afternoon
+  4, 5, 5, 5, 4, 3,   // 18-23  evening
+];
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+const uid = () => randomUUID().toUpperCase();
+
+const ts = (ms) => {
+  const d   = new Date(ms);
+  const pad = (n, len = 2) => String(n).padStart(len, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ` +
+         `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}.` +
+         `${pad(d.getUTCMilliseconds(), 3)}0000`;
+};
+
+// ── seed ──────────────────────────────────────────────────────────────────────
+
+const artistPool = Array.from({ length: randInt(12, 20) }, makeArtist);
+const albumPool  = Array.from({ length: randInt(30, 60) }, () => makeAlbum(choice(artistPool)));
+const userPool   = Array.from({ length: randInt(10, 20) }, makeUsername);
+
+const now     = Date.now();
+const records = [];
+
+const addSession = (direction, album, peer, sessionStart) => {
+  let cursor = sessionStart + rand(8_000, 60_000);
+
+  for (const [trackName, size] of album.tracks) {
+    const filename    = `${album.artist}\\${album.album}\\${trackName}`;
+    const requestedAt = sessionStart + rand(0, 2_500);
+    const enqueuedAt  = requestedAt  + rand(100, 500);
+
+    if (Math.random() < 0.05) {
+      const endedAt = requestedAt + rand(40, 300);
+      if (endedAt >= now) return;
+      records.push([
+        uid(), peer, direction, filename, size,
+        STATE_ERRORED, 'Completed, Errored',
+        ts(requestedAt), null, null, ts(endedAt),
+        0, 0.0, null, choice(EXCEPTIONS),
+        0, null, 0, null,
+      ]);
+    } else {
+      const isCover   = trackName.endsWith('.jpg') || trackName.endsWith('.png');
+      const speed     = isCover ? rand(200_000, 600_000) : rand(3_500_000, 9_500_000);
+      const startedAt = cursor + rand(50, 300);
+      const endedAt   = startedAt + (size / speed) * 1_000;
+      if (endedAt >= now) return;
+      records.push([
+        uid(), peer, direction, filename, size,
+        STATE_SUCCEEDED, 'Completed, Succeeded',
+        ts(requestedAt), ts(enqueuedAt), ts(startedAt), ts(endedAt),
+        size, speed, null, null,
+        0, null, 1, null,
+      ]);
+      cursor = endedAt;
+    }
+  }
+};
+
+let current = new Date(fromDate);
+current.setUTCHours(0, 0, 0, 0);
+
+while (current.getTime() < now) {
+  const nDownloads = weightedChoice([0, 1, 2, 3, 4], [0.10, 0.25, 0.35, 0.20, 0.10]);
+  const nUploads   = weightedChoice([0, 1, 2, 3, 4], [0.15, 0.30, 0.30, 0.20, 0.05]);
+
+  for (const [direction, nSessions] of [['Download', nDownloads], ['Upload', nUploads]]) {
+    for (let i = 0; i < nSessions; i++) {
+      const hour         = weightedChoice([...Array(24).keys()], HOUR_WEIGHTS);
+      const sessionStart = current.getTime()
+        + hour * 3_600_000 + randInt(0, 59) * 60_000 + randInt(0, 59) * 1_000 + randInt(0, 999);
+
+      if (sessionStart >= now) continue;
+
+      const album = choice(albumPool);
+      const peer  = choice(userPool);
+
+      let tracks = album.tracks;
+      if (direction === 'Upload' && Math.random() < 0.6) {
+        tracks = sample(tracks, randInt(1, Math.max(1, tracks.length - 1)));
+      }
+
+      addSession(direction, { ...album, tracks }, peer, sessionStart);
+    }
+  }
+
+  current.setUTCDate(current.getUTCDate() + 1);
+}
+
+process.stdout.write(`\n\t📊  ${records.length} records from ${fromDate.toISOString().slice(0, 10)} to ${new Date(now).toISOString().slice(0, 10)}\n`);
+
+if (dryRun) {
+  process.stdout.write('\n\t⏩  dry run; nothing written\n\n');
+  process.exit(0);
+}
+
+const db   = new DatabaseSync(dbFile);
+const stmt = db.prepare(`
+  INSERT INTO Transfers (
+    Id, Username, Direction, Filename, Size,
+    State, StateDescription,
+    RequestedAt, EnqueuedAt, StartedAt, EndedAt,
+    BytesTransferred, AverageSpeed, PlaceInQueue, Exception,
+    Removed, BatchId, Attempts, NextAttemptAt
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+
+if (clearDb) {
+  db.exec('DELETE FROM Transfers; DELETE FROM Batches;');
+  process.stdout.write('\n\t🗑️   cleared existing records\n');
+}
+
+db.exec('BEGIN');
+for (const r of records) stmt.run(...r);
+db.exec('COMMIT');
+db.close();
+
+process.stdout.write(`\n\t🎉  seeded ${records.length} records into ${dbFile}\n\n`);
+JS
+    ;;
+  *)
+    echo "error: unknown database '$database'; supported: transfers"
+    exit 1
+    ;;
+esac

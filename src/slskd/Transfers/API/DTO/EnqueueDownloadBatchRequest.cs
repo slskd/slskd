@@ -40,7 +40,7 @@ namespace slskd.Transfers.API;
 /// <summary>
 ///     Enqueue a batch of downloads.
 /// </summary>
-public record QueueDownloadBatchRequest
+public record EnqueueDownloadBatchRequest
 {
     /// <summary>
     ///     The ID of the Batch.
