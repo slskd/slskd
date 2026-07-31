@@ -1300,7 +1300,7 @@ Notification API calls are made up to the maximum configured retry count and the
 | ------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `--pushbullet`                        | `SLSKD_PUSHBULLET`                           | Determines whether Pushbullet integration is enabled                                               |
 | `--pushbullet-token`                  | `SLSKD_PUSHBULLET_ACCESS_TOKEN`              | The Pushbullet API access token                                                                    |
-| `--pushbullet-prefix`                 | `SLSKD_PUSHBULLET_PREFIX`                    | The prefix for notification titles                                                                 |
+| `--pushbullet-prefix`                 | `PUSHBULLET_NOTIFICATION_PREFIX`             | The prefix for notification titles                                                                 |
 | `--pushbullet-notify-on-pm`           | `SLSKD_PUSHBULLET_NOTIFY_ON_PRIVATE_MESSAGE` | Determines whether to send a notification when a private message is received                       |
 | `--pushbullet-notify-on-room-mention` | `SLSKD_PUSHBULLET_NOTIFY_ON_ROOM_MENTION`    | Determines whether to send a notification when the current user's name is mentioned in a chat room |
 | `--pushbullet-retry-attempts`         | `SLSKD_PUSHBULLET_RETRY_ATTEMPTS`            | The number of times failing API calls will be retried                                              |
