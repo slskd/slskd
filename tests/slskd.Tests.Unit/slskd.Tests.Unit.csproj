@@ -5,9 +5,16 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <Target Name="EnforceMoqVersion" BeforeTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <_MoqRef Include="@(PackageReference)" Condition="'%(Identity)' == 'Moq'" />
+    </ItemGroup>
+    <Error Condition="'%(_MoqRef.Version)' != '4.16.1'" Text="Moq is locked to 4.16.1 and must not be upgraded. See https://github.com/moq/moq/issues/1372 for context." />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="AutoFixture.Xunit2" Version="4.18.1" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageReference Include="Moq" Version="4.16.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">

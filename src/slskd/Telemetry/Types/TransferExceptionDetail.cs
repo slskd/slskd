@@ -42,7 +42,6 @@ public record TransferExceptionDetail
     public TransferDirection Direction { get; init; }
     public string Filename { get; init; }
     public long Size { get; set; }
-    public long StartOffset { get; init; }
     public TransferStates State { get; set; } = TransferStates.None;
     public DateTime RequestedAt { get; set; }
     public DateTime? EnqueuedAt { get; set; }

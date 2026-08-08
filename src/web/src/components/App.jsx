@@ -13,6 +13,7 @@ import AppContext from './AppContext';
 import AppFooter from './AppFooter';
 import Browse from './Browse/Browse';
 import Chat from './Chat/Chat';
+import Dashboard from './Dashboard/Dashboard';
 import LoginForm from './LoginForm';
 import Rooms from './Rooms/Rooms';
 import Searches from './Search/Searches';
@@ -398,6 +399,12 @@ class App extends Component {
               </Menu.Item>
             ) : (
               <>
+                <Link to={`${urlBase}/dashboard`}>
+                  <Menu.Item>
+                    <Icon name="chart bar" />
+                    Dashboard
+                  </Menu.Item>
+                </Link>
                 <Link to={`${urlBase}/searches`}>
                   <Menu.Item>
                     <Icon name="search" />
@@ -574,6 +581,19 @@ class App extends Component {
                 ) : (
                   <Switch>
                     <Route
+                      path={`${urlBase}/dashboard`}
+                      render={(props) =>
+                        this.withTokenCheck(
+                          <div className="view">
+                            <Dashboard
+                              server={applicationState.server}
+                              {...props}
+                            />
+                          </div>,
+                        )
+                      }
+                    />
+                    <Route
                       path={`${urlBase}/searches/:id?`}
                       render={(props) =>
                         this.withTokenCheck(
@@ -657,7 +677,7 @@ class App extends Component {
                     />
                     <Redirect
                       from="*"
-                      to={`${urlBase}/searches`}
+                      to={`${urlBase}/dashboard`}
                     />
                   </Switch>
                 )}

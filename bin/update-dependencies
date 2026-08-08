@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e
+
+dotnet tool exec dotnet-outdated-tool -u:prompt

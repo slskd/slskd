@@ -51,7 +51,7 @@ const AppFooter = ({
       </Menu.Item>
       <Menu.Item>
         <Icon
-          color="orange"
+          color="green"
           name="arrow up"
         />
         <span className="footer-upload">{formatSpeed(uploadSpeed)}</span>

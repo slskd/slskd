@@ -303,15 +303,15 @@ namespace slskd.Transfers.API
         /// <response code="500">An unexpected error was encountered.</response>
         [HttpPost("downloads/batches")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(QueueDownloadBatchResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(QueueDownloadBatchResponse), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(QueueDownloadBatchResponse), StatusCodes.Status207MultiStatus)]
+        [ProducesResponseType(typeof(EnqueueDownloadBatchResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(EnqueueDownloadBatchResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(EnqueueDownloadBatchResponse), StatusCodes.Status207MultiStatus)]
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
         [ProducesResponseType(typeof(string), StatusCodes.Status429TooManyRequests)]
         [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> EnqueueBatchAsync([FromBody] QueueDownloadBatchRequest request)
+        public async Task<IActionResult> EnqueueBatchAsync([FromBody] EnqueueDownloadBatchRequest request)
         {
             if (Program.IsRelayAgent)
             {
@@ -393,10 +393,10 @@ namespace slskd.Transfers.API
                 // properly finalized and marked as a failure
                 var batch = await Transfers.Downloads.Batches.FindAsync(b => b.Id == batchId);
 
-                var response = new QueueDownloadBatchResponse
+                var response = new EnqueueDownloadBatchResponse
                 {
                     Batch = batch,
-                    Failures = failed.Select(f => new QueueDownloadBatchResponseFailure { Filename = f.Filename, Message = f.Message }).ToList(),
+                    Failures = failed.Select(f => new EnqueueDownloadBatchResponseFailure { Filename = f.Filename, Message = f.Message }).ToList(),
                 };
 
                 // basically a no-op, but we did create the batch record (and it's useless, but it's there)

@@ -34,13 +34,13 @@ using System.Collections.Generic;
 
 namespace slskd.Transfers.API;
 
-public record QueueDownloadBatchResponse
+public record EnqueueDownloadBatchResponse
 {
     public Batch Batch { get; init; }
-    public IReadOnlyCollection<QueueDownloadBatchResponseFailure> Failures { get; init; } = [];
+    public IReadOnlyCollection<EnqueueDownloadBatchResponseFailure> Failures { get; init; } = [];
 }
 
-public record QueueDownloadBatchResponseFailure
+public record EnqueueDownloadBatchResponseFailure
 {
     public string Filename { get; init; }
     public string Message { get; init; }
