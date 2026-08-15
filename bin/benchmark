@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -e
+
+echo $'\n\t🧪  SLSKD_RUN_BENCHMARKS=1 dotnet test tests/slskd.Tests.Benchmarks -c Release --filter FullyQualifiedName~RunBenchmarks\n'
+
+SLSKD_RUN_BENCHMARKS=1 dotnet test tests/slskd.Tests.Benchmarks -c Release --filter FullyQualifiedName~RunBenchmarks
+
+echo $'\n\t🎉  benchmarks succeeded!\n'
