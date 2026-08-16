@@ -1,63 +1,7 @@
-import { isStateCancellable, isStateRetryable } from '../../lib/transfers';
 import { Div, Nbsp } from '../Shared';
 import ShrinkableDropdownButton from '../Shared/ShrinkableDropdownButton';
 import React, { useMemo, useState } from 'react';
 import { Icon, Segment } from 'semantic-ui-react';
-
-const getRetryableFiles = ({ files, retryOption }) => {
-  switch (retryOption) {
-    case 'Errored':
-      return files.filter((file) =>
-        [
-          'Completed, TimedOut',
-          'Completed, Errored',
-          'Completed, Rejected',
-        ].includes(file.state),
-      );
-    case 'Cancelled':
-      return files.filter((file) => file.state === 'Completed, Cancelled');
-    case 'All':
-      return files.filter((file) => isStateRetryable(file.state));
-    default:
-      return [];
-  }
-};
-
-const getCancellableFiles = ({ cancelOption, files }) => {
-  switch (cancelOption) {
-    case 'All':
-      return files.filter((file) => isStateCancellable(file.state));
-    case 'Queued':
-      return files.filter((file) =>
-        ['Queued, Locally', 'Queued, Remotely'].includes(file.state),
-      );
-    case 'In Progress':
-      return files.filter((file) => file.state === 'InProgress');
-    default:
-      return [];
-  }
-};
-
-const getRemovableFiles = ({ files, removeOption }) => {
-  switch (removeOption) {
-    case 'Succeeded':
-      return files.filter((file) => file.state === 'Completed, Succeeded');
-    case 'Errored':
-      return files.filter((file) =>
-        [
-          'Completed, TimedOut',
-          'Completed, Errored',
-          'Completed, Rejected',
-        ].includes(file.state),
-      );
-    case 'Cancelled':
-      return files.filter((file) => file.state === 'Completed, Cancelled');
-    case 'Completed':
-      return files.filter((file) => file.state.includes('Completed'));
-    default:
-      return [];
-  }
-};
 
 const TransfersHeader = ({
   cancelling = false,
@@ -115,7 +59,7 @@ const TransfersHeader = ({
           loading={retrying}
           mediaQuery="(max-width: 715px)"
           onChange={(_, data) => setRetryOption(data.value)}
-          onClick={() => onRetryAll(getRetryableFiles({ files, retryOption }))}
+          onClick={() => onRetryAll({ retryOption })}
           options={[
             { key: 'errored', text: 'Errored', value: 'Errored' },
             { key: 'cancelled', text: 'Cancelled', value: 'Cancelled' },
@@ -132,9 +76,7 @@ const TransfersHeader = ({
           loading={cancelling}
           mediaQuery="(max-width: 715px)"
           onChange={(_, data) => setCancelOption(data.value)}
-          onClick={() =>
-            onCancelAll(getCancellableFiles({ cancelOption, files }))
-          }
+          onClick={() => onCancelAll({ cancelOption })}
           options={[
             { key: 'all', text: 'All', value: 'All' },
             { key: 'queued', text: 'Queued', value: 'Queued' },
@@ -150,9 +92,7 @@ const TransfersHeader = ({
           loading={removing}
           mediaQuery="(max-width: 715px)"
           onChange={(_, data) => setRemoveOption(data.value)}
-          onClick={() =>
-            onRemoveAll(getRemovableFiles({ files, removeOption }))
-          }
+          onClick={() => onRemoveAll({ removeOption })}
           options={[
             { key: 'succeeded', text: 'Succeeded', value: 'Succeeded' },
             { key: 'errored', text: 'Errored', value: 'Errored' },

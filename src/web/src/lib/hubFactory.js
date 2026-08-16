@@ -25,8 +25,14 @@ export const createApplicationHubConnection = () =>
 export const createLogsHubConnection = () =>
   createHubConnection({ url: `${hubBaseUrl}/logs` });
 
-export const createSearchHubConnection = () =>
-  createHubConnection({ url: `${hubBaseUrl}/search` });
+export const createSearchHubConnection = ({ includeInitialList } = {}) => {
+  const query =
+    includeInitialList === undefined
+      ? ''
+      : `?includeInitialList=${includeInitialList}`;
+
+  return createHubConnection({ url: `${hubBaseUrl}/search${query}` });
+};
 
 export const createMetricsHubConnection = () =>
   createHubConnection({ url: `${hubBaseUrl}/metrics` });
