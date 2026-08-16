@@ -9,23 +9,65 @@ import SearchList from './List/SearchList';
 import React, { useEffect, useRef, useState } from 'react';
 import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Button, Icon, Input, Segment } from 'semantic-ui-react';
+import { Button, Icon, Input, Pagination, Segment } from 'semantic-ui-react';
 import { v4 as uuidv4 } from 'uuid';
+
+const PER_PAGE = 100;
 
 const Searches = ({ server } = {}) => {
   const [connecting, setConnecting] = useState(true);
   const [error, setError] = useState(undefined);
+  const [loading, setLoading] = useState(false);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [page, setPage] = useState(1);
   const [searches, setSearches] = useState({});
+  const [selectedSearch, setSelectedSearch] = useState(undefined);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [removing, setRemoving] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const inputRef = useRef();
+  const pageRef = useRef(page);
 
   const { id: searchId } = useParams();
   const history = useHistory();
   const match = useRouteMatch();
+  const listUrl = match.url.replace(`/${searchId}`, '');
+  const totalPages = Math.ceil(totalCount / PER_PAGE);
+
+  const fetchPage = async (requestedPage = pageRef.current) => {
+    try {
+      setLoading(true);
+
+      const { searches: items, totalCount: count } = await library.getAll({
+        limit: PER_PAGE,
+        offset: (requestedPage - 1) * PER_PAGE,
+      });
+      const lastPage = Math.max(1, Math.ceil(count / PER_PAGE));
+
+      setTotalCount(count);
+
+      if (requestedPage > lastPage) {
+        setPage(lastPage);
+        return;
+      }
+
+      setSearches(
+        items.reduce((accumulator, search) => {
+          accumulator[search.id] = search;
+          return accumulator;
+        }, {}),
+      );
+      setError(undefined);
+    } catch (fetchError) {
+      console.error(fetchError);
+      setError(fetchError);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onConnecting = () => {
     setConnecting(true);
@@ -33,7 +75,6 @@ const Searches = ({ server } = {}) => {
 
   const onConnected = () => {
     setConnecting(false);
-    setError(undefined);
   };
 
   const onConnectionError = (connectionError) => {
@@ -41,45 +82,48 @@ const Searches = ({ server } = {}) => {
     setError(connectionError);
   };
 
-  const onUpdate = (update) => {
-    setSearches(update);
-    onConnected();
-  };
-
   useEffect(() => {
     onConnecting();
 
-    const searchHub = createSearchHubConnection();
+    const searchHub = createSearchHubConnection({
+      includeInitialList: false,
+    });
 
-    searchHub.on('list', (searchesEvent) => {
-      onUpdate(
-        searchesEvent.reduce((accumulator, search) => {
-          accumulator[search.id] = search;
-          return accumulator;
-        }, {}),
-      );
-      onConnected();
+    searchHub.on('list', () => {
+      fetchPage();
     });
 
     searchHub.on('update', (search) => {
-      onUpdate((old) => ({ ...old, [search.id]: search }));
+      setSearches((old) =>
+        old[search.id] ? { ...old, [search.id]: search } : old,
+      );
+      setSelectedSearch((old) => (old?.id === search.id ? search : old));
     });
 
     searchHub.on('delete', (search) => {
-      onUpdate((old) => {
-        delete old[search.id];
-        return { ...old };
+      setSelectedSearch((old) => {
+        if (old?.id === search.id) {
+          history.replace(listUrl);
+          return undefined;
+        }
+
+        return old;
       });
+
+      fetchPage();
     });
 
-    searchHub.on('create', (search) => {
-      onUpdate((old) => ({ ...old, [search.id]: search }));
+    searchHub.on('create', () => {
+      fetchPage();
     });
 
     searchHub.onreconnecting((connectionError) =>
       onConnectionError(connectionError?.message ?? 'Disconnected'),
     );
-    searchHub.onreconnected(() => onConnected());
+    searchHub.onreconnected(async () => {
+      await fetchPage();
+      onConnected();
+    });
     searchHub.onclose((connectionError) =>
       onConnectionError(connectionError?.message ?? 'Disconnected'),
     );
@@ -88,6 +132,8 @@ const Searches = ({ server } = {}) => {
       try {
         onConnecting();
         await searchHub.start();
+        await fetchPage();
+        onConnected();
       } catch (connectionError) {
         toast.error(connectionError?.message ?? 'Failed to connect');
         onConnectionError(connectionError?.message ?? 'Failed to connect');
@@ -100,6 +146,58 @@ const Searches = ({ server } = {}) => {
       searchHub.stop();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    pageRef.current = page;
+
+    if (!connecting) {
+      fetchPage(page);
+    }
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchSearch = async () => {
+      if (!searchId || searches[searchId]) {
+        return;
+      }
+
+      try {
+        setLoadingSearch(true);
+        const search = await library.getStatus({ id: searchId });
+
+        if (!cancelled) {
+          setSelectedSearch(search);
+        }
+      } catch (fetchError) {
+        if (!cancelled) {
+          toast.error(
+            fetchError?.response?.data ??
+              fetchError?.message ??
+              'Search not found',
+          );
+          history.replace(listUrl);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingSearch(false);
+        }
+      }
+    };
+
+    if (!searchId) {
+      setSelectedSearch(undefined);
+    } else if (searches[searchId]) {
+      setSelectedSearch(searches[searchId]);
+    } else if (selectedSearch?.id !== searchId) {
+      fetchSearch();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // create a new search, and optionally navigate to it to display the details
   // we do this if the user clicks the search icon, or repeats an existing search
@@ -119,10 +217,13 @@ const Searches = ({ server } = {}) => {
         // we are probably repeating an existing search; the input isn't mounted.  no-op.
       }
 
+      pageRef.current = 1;
+      setPage(1);
+      await fetchPage(1);
       setCreating(false);
 
       if (navigate) {
-        history.push(`${match.url.replace(`/${searchId}`, '')}/${id}`);
+        history.push(`${listUrl}/${id}`);
       }
     } catch (createError) {
       console.error(createError);
@@ -139,15 +240,20 @@ const Searches = ({ server } = {}) => {
       setRemoving(true);
 
       await library.remove({ id: search.id });
-      setSearches((old) => {
-        delete old[search.id];
-        return { ...old };
-      });
+
+      if (search.id === searchId) {
+        setSelectedSearch(undefined);
+        history.replace(listUrl);
+      }
+
+      await fetchPage();
 
       setRemoving(false);
-    } catch (error_) {
-      console.error(error_);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+    } catch (removeError) {
+      console.error(removeError);
+      toast.error(
+        removeError?.response?.data ?? removeError?.message ?? removeError,
+      );
       setRemoving(false);
     }
   };
@@ -169,7 +275,7 @@ const Searches = ({ server } = {}) => {
     }
   };
 
-  if (connecting) {
+  if (connecting || (searchId && loadingSearch)) {
     return <LoaderSegment />;
   }
 
@@ -180,7 +286,9 @@ const Searches = ({ server } = {}) => {
   // if searchId is not null, there's an id in the route.
   // display the details for the search, if there is one
   if (searchId) {
-    if (searches[searchId]) {
+    const search = searches[searchId] ?? selectedSearch;
+
+    if (search?.id === searchId) {
       return (
         <SearchDetail
           creating={creating}
@@ -189,15 +297,13 @@ const Searches = ({ server } = {}) => {
           onRemove={remove}
           onStop={stop}
           removing={removing}
-          search={searches[searchId]}
+          search={search}
           stopping={stopping}
         />
       );
     }
 
-    // if the searchId doesn't match a search we know about, chop
-    // the id off of the url and force navigation back to the list
-    history.replace(match.url.replace(`/${searchId}`, ''));
+    return <LoaderSegment />;
   }
 
   inputRef?.current?.inputRef?.current.focus();
@@ -249,7 +355,18 @@ const Searches = ({ server } = {}) => {
           size="big"
         />
       </Segment>
-      {Object.keys(searches).length === 0 ? (
+      {totalPages > 1 && (
+        <div className="search-pagination">
+          <Pagination
+            activePage={page}
+            onPageChange={(_event, data) => setPage(data.activePage)}
+            totalPages={totalPages}
+          />
+        </div>
+      )}
+      {loading ? (
+        <LoaderSegment />
+      ) : Object.keys(searches).length === 0 ? (
         <PlaceholderSegment
           caption="No searches to display"
           icon="search"
