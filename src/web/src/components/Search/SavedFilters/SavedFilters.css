@@ -1,0 +1,32 @@
+.saved-filters-table .filter-actions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-start;
+}
+
+.saved-filters-table .filter-string-inline {
+  font-size: 0.85em;
+  background: #f0f0f0;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  color: #666;
+  word-break: break-all;
+  user-select: all;
+}
+
+.saved-filters-table .filter-name {
+  height: 100%;
+  gap: 0.5rem;
+}
+
+.saved-filters-table .filter-name-container {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  align-items: center;
+}
