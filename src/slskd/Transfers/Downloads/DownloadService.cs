@@ -550,6 +550,12 @@ namespace slskd.Transfers.Downloads
                                 {
                                     Log.Warning("Download of {Filename} from {Username} failed to enqueue remotely after hard time limit of {Duration} seconds. State transition history: {History}", transfer.Filename, username, maxTimeToWaitForEnqueueRequestAck.TotalSeconds, string.Join(", ", transitions));
                                     enqueuedTcs.TrySetException(new TimeoutException($"Download failed to enqueue remotely after hard time limit of {maxTimeToWaitForEnqueueRequestAck.TotalSeconds} secs"));
+
+                                    // cancel the download attempt so that it doesn't keep running and cause the internal
+                                    // state of slskd to diverge from the internal state of Soulseek.NET.
+                                    // the transfer record is recorded as being cancelled when this happens and there's not
+                                    // an easy/good way to stop it.
+                                    cts.Cancel();
                                 });
 
                                 // satisfies conditions #1 and #2
