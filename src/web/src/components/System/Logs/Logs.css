@@ -1,0 +1,49 @@
+.logs-file-navigator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.logs-file-navigator-dropdown {
+  flex: 1 1 auto;
+}
+
+.logs-options {
+  margin-top: 0px !important;
+}
+
+.logs-filter {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.logs-options-per-page {
+  margin-left: 1rem !important;
+}
+
+.logs-pagination {
+  margin-top: 14px;
+  text-align: right;
+}
+
+.logs-count {
+  margin-top: 1rem;
+  font-size: smaller;
+  opacity: 0.5;
+}
+
+@media only screen and (max-width: 684px) {
+  .logs-pagination .ui.pagination.menu {
+    font-size: smaller;
+  }
+
+  .logs-options-level, .logs-options-per-page {
+    width: 100%;
+    margin-left: 0px !important;
+  }
+
+  .logs-options-per-page {
+    margin-top: 1rem !important;
+  }
+}
