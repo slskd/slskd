@@ -1257,28 +1257,39 @@ namespace slskd
                         RecurseSubdirectories = true,
                     };
 
-                    var files = System.IO.Directory.GetFiles(directory, "*", options)
-                        .Select(filename => Files.ResolveFileInfo(filename))
-                        .Where(file => file.LastAccessTimeUtc <= DateTime.UtcNow.AddMinutes(-age.Value));
+                    var fileInfo = new DirectoryInfo(directory)
+                        .EnumerateFiles("*", options)
+                        .Where(file =>
+                        {
+                            try
+                            {
+                                return file.LastWriteTimeUtc <= DateTime.UtcNow.AddMinutes(-age.Value);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warning(ex, "Failed to access file {File} during pruning: {Message}", file.Name, ex.Message);
+                                return false;
+                            }
+                        });
 
-                    Log.Debug("Found {Count} files of need of pruning", files.Count());
+                    int errorCount = 0;
+                    int fileCount = 0;
 
-                    int errors = 0;
-
-                    foreach (var file in files)
+                    foreach (var file in fileInfo)
                     {
                         try
                         {
                             file.Delete();
+                            fileCount++;
                         }
                         catch (Exception ex)
                         {
-                            errors++;
+                            errorCount++;
                             Log.Warning(ex, "Failed to prune file {File}: {Message}", file, ex.Message);
                         }
                     }
 
-                    Log.Debug("Pruning complete. Deleted: {Deleted}, Errors: {Errors}", files.Count() - errors, errors);
+                    Log.Debug("Pruning complete. Deleted: {Deleted}, Errors: {Errors}", fileCount, errorCount);
                 }
                 catch (Exception ex)
                 {
