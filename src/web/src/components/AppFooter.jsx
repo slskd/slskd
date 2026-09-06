@@ -69,7 +69,7 @@ const AppFooter = ({
           <img
             alt=""
             className="footer-logo"
-            src="/favicon.ico"
+            src="./favicon.ico"
           />
           slskd
           {current && <span className="footer-version">{current}</span>}
