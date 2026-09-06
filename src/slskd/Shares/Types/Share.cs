@@ -71,6 +71,7 @@ namespace slskd.Shares
         /// <param name="share"></param>
         public Share(string share)
         {
+            share = share.TrimEnd('/', '\\');
             Raw = share;
             IsExcluded = share.StartsWith('-') || share.StartsWith('!');
 
