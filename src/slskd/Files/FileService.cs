@@ -67,6 +67,64 @@ namespace slskd.Files
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
+        ///     Resolves an instance of <see cref="FileInfo"/> for the specified <paramref name="info"/>, following
+        ///     any symlinks that may be present to their final target. A non-null return value is guaranteed.
+        /// </summary>
+        /// <param name="info">The FileInfo instance for which to follow symlinks.</param>
+        /// <returns>The resolved FileInfo instance.</returns>
+        /// <exception cref="ArgumentException">Thrown if the specified FileInfo is null.</exception>
+        /// <exception cref="UnauthorizedException">Thrown if the specified or linked file is restricted.</exception>
+        /// <exception cref="IOException">Thrown if the specified or linked file can't be resolved for some reason.</exception>
+        public virtual FileInfo ResolveFileInfo(FileInfo info)
+        {
+            if (info is null)
+            {
+                throw new ArgumentException("The specified FileInfo is null", nameof(info));
+            }
+
+            // if the above didn't throw we are guaranteed a valid instance of FileInfo regardless of whether
+            // the file exists or if it is a symlink. if it doesn't exist it can't be a symlink, so just return it
+            if (!info.Exists)
+            {
+                return info;
+            }
+
+            // LinkTarget is guaranteed to be null if the file isn't a symlink. docs:
+            //  > Gets the target path of the link located in FullName, or null if this FileSystemInfo instance doesn't represent a link.
+            if (info.LinkTarget is null)
+            {
+                return info;
+            }
+
+            // ResolveLinkTarget returns an instance of FileSystemInfo (which is being cast to FileInfo here) as long as
+            // the link itself exists (which we've checked), and regardless of whether the link target itself exists.
+            // we should only get this far if:
+            //   1) the given file exists and
+            //   2) it is a symlink, meaning this line _SHOULD_ be guaranteed to return an instance of FileInfo.
+            try
+            {
+                info = (FileInfo)info.ResolveLinkTarget(returnFinalTarget: true);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is SecurityException)
+            {
+                throw new UnauthorizedException($"Access to the linked file '{info.Name}->{info.LinkTarget}' was denied: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to resolve FileInfo for linked file '{File}->{Link}': {Message}", info.Name, info.LinkTarget, ex.Message);
+                throw new IOException($"Failed to resolve FileInfo for linked file '{info.Name}->{info.LinkTarget}': {ex.Message}", ex);
+            }
+
+            if (info is null)
+            {
+                Log.Error("Resolved FileInfo for linked file '{File}->{Link}' was unexpectedly null", info.Name, info.LinkTarget);
+                throw new IOException($"An unexpected error was encountered while resolving FileInfo for linked file '{info.Name}->{info.LinkTarget}'");
+            }
+
+            return info;
+        }
+
+        /// <summary>
         ///     Resolves an instance of <see cref="FileInfo"/> for the specified <paramref name="filename"/>, following
         ///     any symlinks that may be present to their final target. A non-null return value is guaranteed.
         /// </summary>
@@ -105,46 +163,7 @@ namespace slskd.Files
                 throw new IOException($"Failed to access file '{filename}': {ex.Message}", ex);
             }
 
-            // if the above didn't throw we are guaranteed a valid instance of FileInfo regardless of whether
-            // the file exists or if it is a symlink. if it doesn't exist it can't be a symlink, so just return it
-            if (!info.Exists)
-            {
-                return info;
-            }
-
-            // LinkTarget is guaranteed to be null if the file isn't a symlink. docs:
-            //  > Gets the target path of the link located in FullName, or null if this FileSystemInfo instance doesn't represent a link.
-            if (info.LinkTarget is null)
-            {
-                return info;
-            }
-
-            // ResolveLinkTarget returns an instance of FileSystemInfo (which is being cast to FileInfo here) as long as
-            // the link itself exists (which we've checked), and regardless of whether the link target itself exists.
-            // we should only get this far if:
-            //   1) the given file exists and
-            //   2) it is a symlink, meaning this line _SHOULD_ be guaranteed to return an instance of FileInfo.
-            try
-            {
-                info = (FileInfo)info.ResolveLinkTarget(returnFinalTarget: true);
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is SecurityException)
-            {
-                throw new UnauthorizedException($"Access to the linked file '{filename}->{info.LinkTarget}' was denied: {ex.Message}", ex);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to resolve FileInfo for linked file '{File}->{Link}': {Message}", filename, info.LinkTarget, ex.Message);
-                throw new IOException($"Failed to resolve FileInfo for linked file '{filename}->{info.LinkTarget}': {ex.Message}", ex);
-            }
-
-            if (info is null)
-            {
-                Log.Error("Resolved FileInfo for linked file '{File}->{Link}' was unexpectedly null", filename, info.LinkTarget);
-                throw new IOException($"An unexpected error was encountered while resolving FileInfo for linked file '{filename}->{info.LinkTarget}'");
-            }
-
-            return info;
+            return ResolveFileInfo(info);
         }
 
         /// <summary>
