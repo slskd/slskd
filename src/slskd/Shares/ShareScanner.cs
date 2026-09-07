@@ -315,29 +315,29 @@ namespace slskd.Shares
                             {
                                 // enumerate files in this directory only (no subdirectories) exclude hidden and system files and anything
                                 // that can't be accessed due to security restrictions
-                                var newFiles = System.IO.Directory.GetFiles(directory, "*", new EnumerationOptions()
+                                var newFileInfos = new DirectoryInfo(directory).EnumerateFiles("*", new EnumerationOptions()
                                 {
-                                    AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+                                    AttributesToSkip = FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReparsePoint,
                                     IgnoreInaccessible = true,
                                     RecurseSubdirectories = false,
                                 });
 
-                                addedFiles = newFiles.Length;
-
                                 // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
                                 // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
-                                foreach (var originalFilename in newFiles)
+                                foreach (var info in newFileInfos)
                                 {
-                                    var info = Files.ResolveFileInfo(originalFilename);
-                                    var file = SoulseekFileFactory.Create(originalFilename, maskedFilename: originalFilename.ReplaceFirst(share.LocalPath, share.RemotePath).NormalizePathForSoulseek());
-
-                                    if (filters.Any(filter => filter.IsMatch(originalFilename)))
+                                    if (filters.Any(filter => filter.IsMatch(info.FullName)))
                                     {
                                         filteredFiles++;
                                         continue;
                                     }
 
-                                    repository.InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file, timestamp);
+                                    var file = SoulseekFileFactory.Create(
+                                        filename: info.FullName,
+                                        maskedFilename: info.FullName.ReplaceFirst(share.LocalPath, share.RemotePath).NormalizePathForSoulseek());
+
+                                    repository.InsertFile(maskedFilename: file.Filename, originalFilename: info.FullName, touchedAt: info.LastWriteTimeUtc, file, timestamp);
+                                    addedFiles++;
                                 }
                             }
                             catch (Exception ex)
