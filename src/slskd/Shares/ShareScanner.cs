@@ -208,25 +208,64 @@ namespace slskd.Shares
                         subDirectory.StartsWith(root.TrimEnd('/', '\\') + Path.DirectorySeparatorChar, stringComparison);
                 }
 
-                            return directories.Where(directory => !filters.Any(filter => filter.IsMatch(directory)));
-                        }
-                        catch (Exception ex)
+                /*
+                    derive a list of all subdirectories to scan by enumerating the subdirectories within each configured
+                    share recursively, omitting any directory that matches a filter or that exists within an excluded share
+
+                    we don't enumerate excluded shares because 1) the exclusion is a subdirectory of another share and it
+                    will be enumerated once already or 2) the exclusion is not a subdirectory of another share and we don't
+                    want to enumerate its directories just to remove them all. this is probably obvious and kind of a worthless comment
+                */
+                var unmaskedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var excludedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                var excludedPaths = Shares.Where(s => s.IsExcluded).Select(s => s.LocalPath).ToHashSet();
+
+                foreach (var share in Shares)
+                {
+                    if (share.IsExcluded)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var directories = Directory.EnumerateDirectories(share.LocalPath, "*", new EnumerationOptions()
                         {
-                            Log.Warning("Failed to scan share {Directory}: {Message}", share.LocalPath, ex.Message);
-                            return Array.Empty<string>();
+                            AttributesToSkip = FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReparsePoint,
+                            IgnoreInaccessible = true,
+                            RecurseSubdirectories = true,
+                        });
+
+                        unmaskedDirectories.Add(share.LocalPath);
+
+                        foreach (var directory in directories)
+                        {
+                            if (excludedPaths.Any(excludedPath => IsSubDirectoryOf(subDirectory: directory, root: excludedPath)))
+                            {
+                                excludedDirectories.Add(directory);
+                                Log.Debug("Excluding directory {Directory} because it is a subdirectory of an excluded share", directory);
+                                continue;
+                            }
+
+                            if (filters.Any(f => f.IsMatch(directory)))
+                            {
+                                excludedDirectories.Add(directory);
+                                Log.Debug("Excluding directory {Directory} because it matches one or more share filters", directory);
+                                continue;
+                            }
+
+                            unmaskedDirectories.Add(directory);
                         }
-                    })
-                    .Concat(Shares.Select(share => share.LocalPath)) // include the shares themselves (GetDirectories returns only subdirectories)
-                    .Where(share => System.IO.Directory.Exists(share)) // discard any directories that don't exist.  we already warned about them.
-                    .ToHashSet(); // remove duplicates (in case shares overlap)
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning("Failed to scan share {Directory}: {Message}", share.LocalPath, ex.Message);
+                    }
+                }
 
-                var excludedDirectories = unmaskedDirectories
-                    .Where(share => Shares.Where(share => share.IsExcluded).Any(exclusion => share.StartsWith(exclusion.LocalPath)));
-
-                unmaskedDirectories = unmaskedDirectories.Except(excludedDirectories).ToHashSet();
-
-                State.SetValue(state => state with { Directories = unmaskedDirectories.Count, ExcludedDirectories = excludedDirectories.Count() });
-                Log.Information("Found {Directories} shared directories (and {Excluded} were excluded) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
+                State.SetValue(state => state with { Directories = unmaskedDirectories.Count, ExcludedDirectories = excludedDirectories.Count });
+                Log.Information("Found {Directories} shared directories (and {Excluded} were excluded) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count, sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
                 var current = 0;
