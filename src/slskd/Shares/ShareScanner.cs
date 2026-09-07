@@ -286,6 +286,15 @@ namespace slskd.Shares
 
                 foreach (var id in Enumerable.Range(0, WorkerCount))
                 {
+                    // set up a function to reliably resolve the Share given a directory; users can define nested shares,
+                    // so we need to sort to ensure the deepest-nested share is selected first
+                    var sortedShares = Shares.OrderByDescending(s => s.LocalPath.Length);
+
+                    Share ResolveShareFromDirectory(string directory)
+                    {
+                        return sortedShares.First(share => IsSubDirectoryOf(subDirectory: directory, root: share.LocalPath));
+                    }
+
                     workers.Add(new ChannelReader<string>(
                         channel: channel,
                         cancellationToken: cancellationToken,
@@ -296,7 +305,7 @@ namespace slskd.Shares
                             var addedFiles = 0;
                             var filteredFiles = 0;
 
-                            var share = Shares.First(share => directory.StartsWith(share.LocalPath));
+                            var share = ResolveShareFromDirectory(directory);
 
                             repository.InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath).NormalizePathForSoulseek(), timestamp);
 
