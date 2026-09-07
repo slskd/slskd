@@ -272,6 +272,18 @@ namespace slskd.Shares
                 var cached = 0;
                 var filtered = 0;
 
+                // set up a function to reliably resolve the Share given a directory; users can define nested shares,
+                // so we need to sort to ensure the deepest-nested share is selected first
+                var sortedShares = Shares
+                    .Where(s => !s.IsExcluded)
+                    .OrderByDescending(s => s.LocalPath.Length)
+                    .ToList();
+
+                Share ResolveShareFromDirectory(string directory)
+                {
+                    return sortedShares.First(share => IsSubDirectoryOf(subDirectory: directory, root: share.LocalPath));
+                }
+
                 // set up a channel to fan out for directory scanning
                 var channel = Channel.CreateBounded<string>(new BoundedChannelOptions(1000)
                 {
@@ -286,15 +298,6 @@ namespace slskd.Shares
 
                 foreach (var id in Enumerable.Range(0, WorkerCount))
                 {
-                    // set up a function to reliably resolve the Share given a directory; users can define nested shares,
-                    // so we need to sort to ensure the deepest-nested share is selected first
-                    var sortedShares = Shares.OrderByDescending(s => s.LocalPath.Length);
-
-                    Share ResolveShareFromDirectory(string directory)
-                    {
-                        return sortedShares.First(share => IsSubDirectoryOf(subDirectory: directory, root: share.LocalPath));
-                    }
-
                     workers.Add(new ChannelReader<string>(
                         channel: channel,
                         cancellationToken: cancellationToken,
