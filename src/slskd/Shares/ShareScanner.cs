@@ -199,20 +199,14 @@ namespace slskd.Shares
                 Log.Information("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                // derive a list of all directories from all shares. skip hidden and system directories, as well as anything that
-                // can't be accessed due to security restrictions. it's necessary to enumerate these directories up front so we
-                // can deduplicate directories and apply exclusions
-                var unmaskedDirectories = Shares
-                    .SelectMany(share =>
-                    {
-                        try
-                        {
-                            var directories = System.IO.Directory.GetDirectories(share.LocalPath, "*", new EnumerationOptions()
-                            {
-                                AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-                                IgnoreInaccessible = true,
-                                RecurseSubdirectories = true,
-                            });
+                // note: there's a safer version of this in the FileSafety class that checks for traversal and navigates
+                // case sensitivity for different operating systems. this version is stripped down for speed, and because
+                // we're not dealing with untrusted data
+                static bool IsSubDirectoryOf(string subDirectory, string root, StringComparison stringComparison = StringComparison.OrdinalIgnoreCase)
+                {
+                    return subDirectory.TrimEnd('/', '\\').Equals(root.TrimEnd('/', '\\'), stringComparison) || // subdirectory literally is the root
+                        subDirectory.StartsWith(root.TrimEnd('/', '\\') + Path.DirectorySeparatorChar, stringComparison);
+                }
 
                             return directories.Where(directory => !filters.Any(filter => filter.IsMatch(directory)));
                         }
