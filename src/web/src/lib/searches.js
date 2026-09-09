@@ -1,7 +1,23 @@
 import api from './api';
 
-export const getAll = async () => {
-  return (await api.get('/searches')).data;
+export const getAll = async ({ limit, offset } = {}) => {
+  const parameters = new URLSearchParams();
+
+  if (offset !== undefined) parameters.append('offset', offset);
+  if (limit !== undefined) parameters.append('limit', limit);
+
+  const query = parameters.toString();
+  const response = await api.get(`/searches${query ? `?${query}` : ''}`);
+  const searches = response.data;
+  const parsedTotalCount = Number.parseInt(
+    response.headers?.['x-total-count'],
+    10,
+  );
+  const totalCount = Number.isNaN(parsedTotalCount)
+    ? searches.length
+    : parsedTotalCount;
+
+  return { searches, totalCount };
 };
 
 export const stop = ({ id }) => {
