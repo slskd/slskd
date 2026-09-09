@@ -1,3 +1,4 @@
+import { urlBase } from '../config';
 import { formatBytes } from '../lib/util';
 import React from 'react';
 import { Icon, Menu } from 'semantic-ui-react';
@@ -69,7 +70,7 @@ const AppFooter = ({
           <img
             alt=""
             className="footer-logo"
-            src="./favicon.ico"
+            src={`${urlBase}/favicon.ico`}
           />
           slskd
           {current && <span className="footer-version">{current}</span>}
