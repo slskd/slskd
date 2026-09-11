@@ -826,12 +826,34 @@ namespace slskd
 
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
         {
-            services.AddCors(options => options.AddPolicy("AllowAll", builder => builder
-                .SetIsOriginAllowed((host) => true)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials()
-                .WithExposedHeaders("X-URL-Base", "X-Total-Count")));
+            var allowedCorsOrigins = OptionsAtStartup.Web.Cors.AllowedOrigins
+                .Where(origin => !string.IsNullOrWhiteSpace(origin))
+                .Select(origin => origin.Trim().TrimEnd('/'))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (allowedCorsOrigins.Length == 0)
+            {
+                Log.Warning("CORS allowlist is empty; cross-origin browser requests are disabled");
+            }
+
+            services.AddCors(options => options.AddPolicy("AllowConfiguredOrigins", builder =>
+            {
+                builder
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .WithExposedHeaders("X-URL-Base", "X-Total-Count");
+
+                if (allowedCorsOrigins.Length > 0)
+                {
+                    builder.WithOrigins(allowedCorsOrigins);
+
+                    if (OptionsAtStartup.Web.Cors.AllowCredentials)
+                    {
+                        builder.AllowCredentials();
+                    }
+                }
+            }));
 
             services.ConfigureTelemetry();
 
@@ -1053,7 +1075,7 @@ namespace slskd
                 await context.Response.WriteAsJsonAsync(context.Features.Get<IExceptionHandlerPathFeature>().Error.Message);
             }));
 
-            app.UseCors("AllowAll");
+            app.UseCors("AllowConfiguredOrigins");
 
             if (OptionsAtStartup.Web.Https.Force)
             {
