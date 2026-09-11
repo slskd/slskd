@@ -248,6 +248,19 @@ const Searches = ({ server } = {}) => {
           ref={inputRef}
           size="big"
         />
+
+        <Button
+          className="px-2"
+          disabled={!Object.keys(searches).length}
+          onClick={() => {
+            for (const search of Object.values(searches)) {
+              remove({ id: search.id });
+            }
+          }}
+          type="button"
+        >
+          Clear searches
+        </Button>
       </Segment>
       {Object.keys(searches).length === 0 ? (
         <PlaceholderSegment
