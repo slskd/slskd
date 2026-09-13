@@ -53,6 +53,11 @@ namespace slskd.Shares
         void BackupTo(IShareRepository repository);
 
         /// <summary>
+        ///     Checkpoints the current database, flushing the contents of the WAL (write ahead log) into the table(s).
+        /// </summary>
+        void Checkpoint();
+
+        /// <summary>
         ///     Counts the number of directories in the database.
         /// </summary>
         /// <param name="parentDirectory">The optional directory prefix used for counting subdirectories.</param>
