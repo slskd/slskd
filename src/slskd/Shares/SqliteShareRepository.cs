@@ -84,14 +84,22 @@ namespace slskd.Shares
         /// <param name="repository">The destination repository.</param>
         public void BackupTo(IShareRepository repository)
         {
-            using var sourceConn = GetConnection(ConnectionString);
-            using var backupConn = GetConnection(repository.ConnectionString);
-            sourceConn.BackupDatabase(backupConn);
+            using (var sourceConn = GetConnection(ConnectionString))
+            using (var backupConn = GetConnection(repository.ConnectionString))
+            {
+                sourceConn.BackupDatabase(backupConn);
+            }
+
+            using var backupRepository = new SqliteShareRepository(repository.ConnectionString);
 
             Log.Debug("Vacuuming backup");
-            using var cmd = new SqliteCommand("VACUUM", backupConn);
-            cmd.ExecuteNonQuery();
+            backupRepository.Vacuum();
             Log.Debug("Backup vacuumed successfully");
+
+            Log.Debug("Checkpointing backup");
+            backupRepository.Checkpoint();
+            Log.Debug("Backup checkpointed successfully");
+        }
 
         /// <summary>
         ///     Checkpoints the current database, flushing the contents of the WAL (write ahead log) into the table(s).
