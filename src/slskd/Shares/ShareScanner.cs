@@ -358,6 +358,10 @@ namespace slskd.Shares
                     Log.Debug("Vacuuming...");
                     repository.Vacuum();
                     Log.Debug("Vacuumed successfully");
+
+                    Log.Debug("Checkpointing...");
+                    repository.Checkpoint();
+                    Log.Debug("Checkpointed successfully");
                 }
                 catch (OperationCanceledException)
                 {
