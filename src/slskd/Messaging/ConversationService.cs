@@ -398,20 +398,23 @@ namespace slskd.Messaging
 
         private void ActivateConversation(string username)
         {
-            using var context = ContextFactory.CreateDbContext();
-
-            var conversation = context.Conversations.FirstOrDefault(c => c.Username == username);
-
-            if (conversation != default)
+            try
             {
-                conversation.IsActive = true;
-            }
-            else
-            {
-                context.Conversations.Add(new Conversation { Username = username, IsActive = true });
-            }
+                using var context = ContextFactory.CreateDbContext();
 
-            context.SaveChanges();
+                context.Database.ExecuteSql($@"
+                    INSERT INTO Conversations (Username, IsActive)
+                    VALUES ({username}, 1)
+                    ON CONFLICT(Username) DO UPDATE SET IsActive = excluded.IsActive;
+                ");
+
+                Log.Debug("Successfully activated Conversation for {Username}", username);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to activate Conversation for {Username}: {Message}", username, ex.Message);
+                throw;
+            }
         }
     }
 }

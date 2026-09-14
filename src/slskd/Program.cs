@@ -1067,12 +1067,17 @@ namespace slskd
             var urlBase = OptionsAtStartup.Web.UrlBase;
             urlBase = urlBase.StartsWith("/") ? urlBase : "/" + urlBase;
 
-            // use urlBase. this effectively just removes urlBase from the path.
-            // inject urlBase into any html files we serve, and rewrite links to ./static or /static to
-            // prepend the url base.
+            // use urlBase. this effectively just removes urlBase from the path before sending it to the next middleware
             app.UsePathBase(urlBase);
+
+            // rewrite relative html links to ./static or ./favicon.ico to absolute links that include urlBase
+            // this is necessary because SPA routers (like React Router) mess with the browser's current address
             app.UseHTMLRewrite("((\\.)?\\/static)", $"{(urlBase == "/" ? string.Empty : urlBase)}/static");
+            app.UseHTMLRewrite("((\\.)?\\/favicon\\.ico)", $"{(urlBase == "/" ? string.Empty : urlBase)}/favicon.ico");
+
+            // inject urlBase and port into any html files we serve as a window-scoped javascript variable
             app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\";window.port={OptionsAtStartup.Web.Port}</script>", excludedRoutes: new[] { "/api", "/swagger" });
+
             Log.Information("Using base url {UrlBase}", urlBase);
 
             // serve static content from the configured path
