@@ -1,4 +1,54 @@
+import api from './api';
 import * as search from './searches';
+
+jest.mock('./api', () => ({
+  __esModule: true,
+  default: { get: jest.fn() },
+}));
+
+describe('getAll', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('keeps the unpaged request compatible', async () => {
+    expect.hasAssertions();
+    api.get.mockResolvedValue({
+      data: [{ id: 'one' }],
+      headers: { 'x-total-count': '1' },
+    });
+
+    await expect(search.getAll()).resolves.toEqual({
+      searches: [{ id: 'one' }],
+      totalCount: 1,
+    });
+    expect(api.get).toHaveBeenCalledWith('/searches');
+  });
+
+  it('appends pagination and returns the total count', async () => {
+    expect.hasAssertions();
+    api.get.mockResolvedValue({
+      data: [{ id: 'two' }],
+      headers: { 'x-total-count': '250' },
+    });
+
+    await expect(search.getAll({ limit: 100, offset: 100 })).resolves.toEqual({
+      searches: [{ id: 'two' }],
+      totalCount: 250,
+    });
+    expect(api.get).toHaveBeenCalledWith('/searches?offset=100&limit=100');
+  });
+
+  it('uses the response length when the total count header is absent', async () => {
+    expect.hasAssertions();
+    api.get.mockResolvedValue({ data: [{}, {}], headers: {} });
+
+    await expect(search.getAll({ limit: 100, offset: 0 })).resolves.toEqual({
+      searches: [{}, {}],
+      totalCount: 2,
+    });
+  });
+});
 
 describe('filterResponse', () => {
   it('removes VBR files if "iscbr" is specified', () => {
