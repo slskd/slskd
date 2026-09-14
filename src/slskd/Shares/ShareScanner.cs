@@ -388,7 +388,7 @@ namespace slskd.Shares
                     await Task.WhenAll(workers.Select(w => w.Completed));
                     Log.Debug("All workers finished");
 
-                    Log.Information("Scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
+                    Log.Information("Scan found {Files} files, cached {Cached}, and filtered {Filtered} in {Elapsed}ms", cached + filtered, cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
                     swSnapshot = sw.ElapsedMilliseconds;
 
                     var deletedFiles = repository.PruneFiles(olderThanTimestamp: timestamp);
