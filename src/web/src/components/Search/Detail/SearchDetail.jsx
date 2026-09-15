@@ -1,3 +1,4 @@
+import { getDefaultFilter } from '../../../lib/savedFilters';
 import {
   filterResponse,
   getResponses,
@@ -8,9 +9,17 @@ import ErrorSegment from '../../Shared/ErrorSegment';
 import LoaderSegment from '../../Shared/LoaderSegment';
 import Switch from '../../Shared/Switch';
 import Response from '../Response';
+import SavedFiltersActions from '../SavedFilters/SavedFiltersActions';
 import SearchDetailHeader from './SearchDetailHeader';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Checkbox, Dropdown, Input, Segment } from 'semantic-ui-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Button,
+  Checkbox,
+  Dropdown,
+  Input,
+  Label,
+  Segment,
+} from 'semantic-ui-react';
 
 const sortDropdownOptions = [
   {
@@ -51,6 +60,7 @@ const SearchDetail = ({
   const [foldResults, setFoldResults] = useState(false);
   const [resultFilters, setResultFilters] = useState('');
   const [displayCount, setDisplayCount] = useState(5);
+  const defaultFilterLoadedRef = useRef(false);
 
   // when the search transitions from !isComplete -> isComplete,
   // fetch the results from the server
@@ -76,6 +86,18 @@ const SearchDetail = ({
       get();
     }
   }, [id, isComplete]);
+
+  // Load default filter when component mounts
+  useEffect(() => {
+    if (!defaultFilterLoadedRef.current) {
+      const defaultFilter = getDefaultFilter();
+      if (defaultFilter && defaultFilter.filterString) {
+        setResultFilters(defaultFilter.filterString);
+      }
+
+      defaultFilterLoadedRef.current = true;
+    }
+  }, []);
 
   // apply sorting and filters.  this can take a while for larger result
   // sets, so memoize it.
@@ -125,6 +147,7 @@ const SearchDetail = ({
     setResults([]);
     setHiddenResults([]);
     setDisplayCount(5);
+    defaultFilterLoadedRef.current = false;
   };
 
   const create = async ({ navigate, search: searchForCreate }) => {
@@ -216,22 +239,33 @@ const SearchDetail = ({
               />
             </div>
             <Input
-              action={
-                Boolean(resultFilters) && {
-                  color: 'red',
-                  icon: 'x',
-                  onClick: () => setResultFilters(''),
-                }
-              }
+              action
               className="search-filter"
-              label={{ content: 'Filter', icon: 'filter' }}
+              label
               onChange={(_event, data) => setResultFilters(data.value)}
               placeholder="
                 lackluster container -bothersome iscbr|isvbr islossless|islossy 
                 minbitrate:320 minbitdepth:24 minfilesize:10 minfilesinfolder:8 minlength:5000
               "
               value={resultFilters}
-            />
+            >
+              <Label
+                content="Filter"
+                icon="filter"
+              />
+              <input />
+              {Boolean(resultFilters) && (
+                <Button
+                  color="red"
+                  icon="x"
+                  onClick={() => setResultFilters('')}
+                />
+              )}
+              <SavedFiltersActions
+                currentFilter={resultFilters}
+                onFilterLoad={setResultFilters}
+              />
+            </Input>
           </Segment>
         )}
         {loaded &&
