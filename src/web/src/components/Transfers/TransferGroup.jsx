@@ -116,7 +116,7 @@ class TransferGroup extends Component {
     const allRetryable =
       direction === 'download' &&
       selected.filter((f) => transfers.isStateRetryable(f.state)).length ===
-      selected.length;
+        selected.length;
     const anyCancellable = selected.some((f) =>
       transfers.isStateCancellable(f.state),
     );
