@@ -2076,6 +2076,13 @@ namespace slskd
             public bool Logging { get; init; } = false;
 
             /// <summary>
+            ///     Gets CORS options.
+            /// </summary>
+            [Validate]
+            [RequiresRestart]
+            public CorsOptions Cors { get; init; } = new CorsOptions();
+
+            /// <summary>
             ///     Gets authentication options.
             /// </summary>
             [Validate]
@@ -2369,6 +2376,59 @@ namespace slskd
                     [RequiresRestart]
                     [Secret]
                     public string Password { get; init; }
+                }
+            }
+
+            /// <summary>
+            ///     CORS options.
+            /// </summary>
+            public class CorsOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the list of CORS allowed origins.
+                /// </summary>
+                [Argument(default, "cors-allowed-origins")]
+                [EnvironmentVariable("CORS_ALLOWED_ORIGINS")]
+                [Description("list of allowed CORS origins")]
+                public string[] AllowedOrigins { get; init; } = Array.Empty<string>();
+
+                /// <summary>
+                ///     Gets a value indicating whether CORS requests may include credentials.
+                /// </summary>
+                [Argument(default, "cors-allow-credentials")]
+                [EnvironmentVariable("CORS_ALLOW_CREDENTIALS")]
+                [Description("allow CORS credentials for allowed origins")]
+                public bool AllowCredentials { get; init; } = false;
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+                    var origins = AllowedOrigins
+                        .Where(origin => !string.IsNullOrWhiteSpace(origin))
+                        .Select(origin => origin.Trim())
+                        .ToArray();
+
+                    if (AllowCredentials && origins.Length == 0)
+                    {
+                        results.Add(new ValidationResult("CORS credentials require at least one allowed origin"));
+                    }
+
+                    foreach (var origin in origins)
+                    {
+                        if (origin == "*")
+                        {
+                            results.Add(new ValidationResult("CORS wildcard origins are not allowed; specify explicit origins"));
+                            continue;
+                        }
+
+                        if (!Uri.TryCreate(origin, UriKind.Absolute, out var parsed) ||
+                            (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
+                        {
+                            results.Add(new ValidationResult($"CORS origin '{origin}' must be an absolute http:// or https:// URL"));
+                        }
+                    }
+
+                    return results;
                 }
             }
         }
