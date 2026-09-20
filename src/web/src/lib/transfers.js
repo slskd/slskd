@@ -1,16 +1,31 @@
 import api from './api';
 
-export const getAll = async ({ direction }) => {
-  const response = (
-    await api.get(`/transfers/${encodeURIComponent(direction)}s`)
-  ).data;
+export const getAll = async ({ direction, limit, offset }) => {
+  const parameters = new URLSearchParams();
 
-  if (!Array.isArray(response)) {
-    console.warn('got non-array response from transfers API', response);
+  if (offset !== undefined) parameters.append('offset', offset);
+  if (limit !== undefined) parameters.append('limit', limit);
+
+  const query = parameters.toString();
+  const response = await api.get(
+    `/transfers/${encodeURIComponent(direction)}s${query ? `?${query}` : ''}`,
+  );
+  const transfers = response.data;
+
+  if (!Array.isArray(transfers)) {
+    console.warn('got non-array response from transfers API', transfers);
     return undefined;
   }
 
-  return response;
+  const parsedTotalCount = Number.parseInt(
+    response.headers?.['x-total-count'],
+    10,
+  );
+  const totalCount = Number.isNaN(parsedTotalCount)
+    ? transfers.length
+    : parsedTotalCount;
+
+  return { totalCount, transfers };
 };
 
 export const download = ({ username, files = [] }) => {
