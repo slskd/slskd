@@ -33,10 +33,8 @@
 namespace slskd.Core.API
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
-    using System.Text.RegularExpressions;
-    using System.Threading;
+    using System.Linq;
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
@@ -54,15 +52,13 @@ namespace slskd.Core.API
     [Consumes("application/json")]
     public class LogsController : ControllerBase
     {
-        public LogsController(
-            FileService fileService)
+        public LogsController(FileService fileService)
         {
             Files = fileService;
         }
 
         private FileService Files { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ApplicationController>();
-        private Regex LogLineParseRegex { get; } = new Regex(@"^(\[?([a-zA-Z\.]*)\]?\s)?(\[((\d{4}-\d{2}-\d{2})T)?(\d{2}:\d{2}:\d{2}(?:.\d{3})?)\s([A-Z]+)\]\s)?(.*)", RegexOptions.Compiled);
 
         /// <summary>
         ///     Gets the last few application logs.
@@ -81,26 +77,29 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet("files")]
         [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
-        public async Task<IActionResult> List(CancellationToken cancellationToken, [FromQuery] bool download = false)
+        public async Task<IActionResult> List()
         {
-            var directory = await Files.ListDirectoryContentsAsync(System.IO.Path.GetFullPath(Program.LogDirectory), enumerationOptions: new EnumerationOptions
+            var directory = await Files.ListDirectoryContentsAsync(Path.GetFullPath(Program.LogDirectory), enumerationOptions: new EnumerationOptions
             {
-                AttributesToSkip = FileAttributes.System,
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.System | FileAttributes.Hidden | FileAttributes.ReparsePoint,
                 RecurseSubdirectories = false,
             });
 
-            return Ok(directory.Files);
+            var logs = directory.Files.Where(f => f.Name.EndsWith(".log", StringComparison.OrdinalIgnoreCase));
+
+            return Ok(logs);
         }
 
         /// <summary>
-        ///     Retrieves the requested log file from disk.
+        ///     Retrieves the requested log file from disk as plain text.
         /// </summary>
-        /// <param name="filename"></param>
-        /// <param name="download"></param>
+        /// <param name="filename">The name of the log file.</param>
+        /// <param name="download">A value indicating whether the file should be sent as an attachment.</param>
         /// <returns></returns>
         [HttpGet("files/{filename}")]
         [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
-        public async Task<IActionResult> Get(string filename, [FromQuery] bool download = false)
+        public IActionResult Get(string filename, [FromQuery] bool download = false)
         {
             if (string.IsNullOrWhiteSpace(filename))
             {
@@ -120,22 +119,22 @@ namespace slskd.Core.API
                 return BadRequest("Filename contains one or more invalid characters");
             }
 
+            if (!sanitizedFilename.EndsWith(".log", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("Only .log files may be retrieved");
+            }
+
             try
             {
                 var stream = Files.GetFileContents(FileSafety.CombineSafely(Program.LogDirectory, sanitizedFilename));
+                const string contentType = "text/plain; charset=utf-8";
 
                 if (download)
                 {
-                    return File(stream, "text/plain", filename);
+                    return File(stream, contentType, filename);
                 }
 
-                // future optimization: use IAsyncEnumerable to 'stream' the log records instead of beating up
-                // memory to build a list. save each log in memory and then emit it when the next log
-                // (starting with '[') is read, which indicates that it's not multi-line. in other words, a 1-log buffer
-                // that is flushed when the next log is read, or the file is complete
-                var logs = await ParseLogEntriesAsync(stream);
-
-                return Ok(logs);
+                return File(stream, contentType);
             }
             catch (UnauthorizedException)
             {
@@ -145,139 +144,6 @@ namespace slskd.Core.API
             {
                 return NotFound();
             }
-        }
-
-        private async Task<List<LogRecord>> ParseLogEntriesAsync(Stream stream)
-        {
-            Dictionary<string, string> levels = new()
-            {
-                ["VRB"] = nameof(Serilog.Events.LogEventLevel.Verbose),
-                ["DBG"] = nameof(Serilog.Events.LogEventLevel.Debug),
-                ["INF"] = nameof(Serilog.Events.LogEventLevel.Information),
-                ["WRN"] = nameof(Serilog.Events.LogEventLevel.Warning),
-                ["ERR"] = nameof(Serilog.Events.LogEventLevel.Error),
-                ["FTL"] = nameof(Serilog.Events.LogEventLevel.Fatal),
-            };
-
-            var list = new List<LogRecord>();
-
-            var currentLength = stream.Length;
-
-            var reader = new StreamReader(stream);
-            string line;
-            Match match = default;
-
-            while ((line = await reader.ReadLineAsync()) is not null)
-            {
-                if (line.Length == 0)
-                {
-                    continue;
-                }
-
-                if (stream.Position > currentLength)
-                {
-                    // if we're reading the latest file, Serilog can append it while we're inside of this loop,
-                    // or worse, a problem inside this loop appends lines. if this happens the position will grow
-                    // beyond the length at the start
-                    Log.Information("Parsing of log file {Filename} stopped before end of file; log was appended during the read");
-                    break;
-                }
-
-                try
-                {
-                    // if the line isn't a log, append it to the previous message
-                    if (!line.StartsWith('['))
-                    {
-                        var lastIndex = list.Count - 1;
-
-                        if (lastIndex >= 0)
-                        {
-                            var old = list[lastIndex];
-
-                            list[lastIndex] = new LogRecord
-                            {
-                                Timestamp = old.Timestamp,
-                                Level = old.Level,
-                                Message = old.Message + '\n' + line,
-                            };
-                        }
-
-                        continue;
-                    }
-
-                    /*
-                        there should be 3 possible line types:
-
-                        debug:
-                            [Some.Context] [2000-1-1T11:11:11 WRN] foo bar
-
-                        info:
-                            [2000-1-1T11:11:11 WRN] foo bar
-
-                        line wrap/newline:
-                            foo bar
-
-                        additionally, date was added to disk log files around 9/1/26, so we need to gracefully handle
-                        cases where the timestamp contains only hh:mm:ss, and substitute the unix epoch for the date
-
-                        the regex includes 8 matching groups (hopefully this comment and the regex don't diverge!)
-                        using the debug log as an example, the groups are:
-
-                        0. [Some.Context] [2026-08-29T11:11:11 WRN] foo bar
-                        1. [Some.Context]<space>
-                        2. Some.Context
-                        3. [2000-01-01T11:11:11 WRN]<space>
-                        4. 2000-01-01T
-                        5. 2000-01-01
-                        6. 11:11:11
-                        7. WRN
-                        8. foo bar
-
-                        the final group in the regex is simply `.*`, so we're guaranteed to get a match for every line
-                    */
-                    match = LogLineParseRegex.Match(line);
-
-                    var grp = match.Groups;
-
-                    var date = grp[5].Success ? DateOnly.Parse(grp[5].Value) : DateOnly.FromDateTime(DateTime.UnixEpoch);
-                    var time = grp[6].Success ? TimeOnly.Parse(grp[6].Value) : TimeOnly.FromDateTime(DateTime.UnixEpoch);
-                    var dateTime = date.ToDateTime(time);
-
-                    var level = levels.ContainsKey(grp[7].Value) ? levels[grp[7].Value] : null;
-
-                    list.Add(new LogRecord
-                    {
-                        Context = grp[2].Value,
-                        Timestamp = dateTime,
-                        Level = level,
-                        Message = grp[8].Value,
-                    });
-
-                    Log.Information("Added: {Text}", grp[8].Value);
-                }
-                catch (Exception ex)
-                {
-                    Log.Debug("Error parsing log message: {Message}.  Line: {Line}", ex.Message, line);
-
-                    Log.Warning("Got {GroupCount} groups", match.Groups.Count);
-
-                    foreach (var key in match.Groups.Keys)
-                    {
-                        Log.Warning("Key: {Key}, Success: {Success}, Value: {Value}", key, match.Groups[key].Success, match.Groups[key].Value);
-                    }
-
-                    break;
-
-                    list.Add(new LogRecord
-                    {
-                        Message = line,
-                    });
-                }
-            }
-
-            Log.Information("Returned {Lines}", list.Count);
-
-            return list;
         }
     }
 }
