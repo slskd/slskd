@@ -27,6 +27,8 @@ jobs:
 
       - name: Set Environment Variables
         run: |
+          # forks don't carry the release tags the version is named after
+          git describe --tags --abbrev=0 > /dev/null 2>&1 || git fetch --quiet --tags https://github.com/slskd/slskd.git
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Web
@@ -46,7 +48,8 @@ jobs:
     name: Publish
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+    # publishing needs the official repository's registry and release credentials
+    if: github.repository == 'slskd/slskd' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
     strategy:
       matrix:
         runtime:
@@ -94,7 +97,8 @@ jobs:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+    # publishing needs the official repository's registry and release credentials
+    if: github.repository == 'slskd/slskd' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
     steps:
       - name: Checkout
         uses: actions/checkout@v4
