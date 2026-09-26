@@ -1,3 +1,4 @@
+import ClearAllButton from '../../Shared/ClearAllButton';
 import ErrorSegment from '../../Shared/ErrorSegment';
 import Switch from '../../Shared/Switch';
 import SearchListRow from './SearchListRow';
@@ -7,6 +8,7 @@ import { Card, Icon, Loader, Table } from 'semantic-ui-react';
 const SearchList = ({
   connecting = false,
   error = undefined,
+  onClearAll = async () => {},
   onRemove = () => {},
   onStop = () => {},
   searches = {},
@@ -17,6 +19,17 @@ const SearchList = ({
       raised
     >
       <Card.Content>
+        <div className="search-list-header">
+          <span>
+            {Object.keys(searches).length} search
+            {Object.keys(searches).length === 1 ? '' : 'es'}
+          </span>
+          <ClearAllButton
+            confirm="Delete every finished search? Searches that are still running are kept."
+            disabled={Object.keys(searches).length === 0}
+            onConfirm={onClearAll}
+          />
+        </div>
         <div className="search-list-wrapper">
           <Switch
             connecting={

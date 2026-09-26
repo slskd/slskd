@@ -27,7 +27,9 @@ jobs:
 
       - name: Set Environment Variables
         run: |
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          # forks don't carry the release tags the version is named after
+          git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*' > /dev/null 2>&1 || git fetch --quiet --tags https://github.com/slskd/slskd.git
+          echo "VERSION=$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*').$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Web
         run: ./bin/build --web-only
@@ -46,7 +48,8 @@ jobs:
     name: Publish
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+    # publishing needs the official repository's registry and release credentials
+    if: github.repository == 'slskd/slskd' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
     strategy:
       matrix:
         runtime:
@@ -73,7 +76,7 @@ jobs:
 
       - name: Set Environment Variables
         run: |
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*').$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Download Static Web Content
         uses: actions/download-artifact@v4
@@ -94,7 +97,8 @@ jobs:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+    # publishing needs the official repository's registry and release credentials
+    if: github.repository == 'slskd/slskd' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -107,9 +111,9 @@ jobs:
       # APP_VERSION is passed as a Docker build arg and used to publish the app and must use a plus (+) delimiter between the tag and SHA
       - name: Set Environment Variables
         run: |
-          echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "CONTAINER_VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          echo "APP_VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "TAG=$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*')" >> $GITHUB_ENV
+          echo "CONTAINER_VERSION=$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*').$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "APP_VERSION=$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*').$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "REVISION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "BUILD_DATE=$(date --iso-8601=s)" >> $GITHUB_ENV
 
@@ -196,8 +200,8 @@ jobs:
           fetch-depth: 0
       - name: Set Environment Variables
         run: |
-          echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "TAG=$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*')" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*').$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Download ${{ matrix.runtime }} Binaries
         uses: actions/download-artifact@v4
         with:

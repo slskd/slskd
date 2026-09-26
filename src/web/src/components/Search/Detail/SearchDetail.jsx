@@ -1,5 +1,6 @@
 import {
   filterResponse,
+  getDefaultFilter,
   getResponses,
   parseFiltersFromString,
 } from '../../../lib/searches';
@@ -7,10 +8,11 @@ import { sleep } from '../../../lib/util';
 import ErrorSegment from '../../Shared/ErrorSegment';
 import LoaderSegment from '../../Shared/LoaderSegment';
 import Switch from '../../Shared/Switch';
+import SearchFilters from '../Filters/SearchFilters';
 import Response from '../Response';
 import SearchDetailHeader from './SearchDetailHeader';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Checkbox, Dropdown, Input, Segment } from 'semantic-ui-react';
+import { Button, Checkbox, Dropdown, Segment } from 'semantic-ui-react';
 
 const sortDropdownOptions = [
   {
@@ -22,6 +24,11 @@ const sortDropdownOptions = [
     key: 'queueLength',
     text: 'Queue Depth (Least to Most)',
     value: 'queueLength',
+  },
+  {
+    key: 'fileCount',
+    text: 'Matching Files (Most to Least)',
+    value: 'fileCount',
   },
 ];
 
@@ -49,7 +56,7 @@ const SearchDetail = ({
   const [hideLocked, setHideLocked] = useState(true);
   const [hideNoFreeSlots, setHideNoFreeSlots] = useState(false);
   const [foldResults, setFoldResults] = useState(false);
-  const [resultFilters, setResultFilters] = useState('');
+  const [resultFilters, setResultFilters] = useState(getDefaultFilter);
   const [displayCount, setDisplayCount] = useState(5);
 
   // when the search transitions from !isComplete -> isComplete,
@@ -81,6 +88,7 @@ const SearchDetail = ({
   // sets, so memoize it.
   const sortedAndFilteredResults = useMemo(() => {
     const sortOptions = {
+      fileCount: { field: 'fileCount', order: 'desc' },
       queueLength: { field: 'queueLength', order: 'asc' },
       uploadSpeed: { field: 'uploadSpeed', order: 'desc' },
     };
@@ -215,21 +223,8 @@ const SearchDetail = ({
                 toggle
               />
             </div>
-            <Input
-              action={
-                Boolean(resultFilters) && {
-                  color: 'red',
-                  icon: 'x',
-                  onClick: () => setResultFilters(''),
-                }
-              }
-              className="search-filter"
-              label={{ content: 'Filter', icon: 'filter' }}
-              onChange={(_event, data) => setResultFilters(data.value)}
-              placeholder="
-                lackluster container -bothersome iscbr|isvbr islossless|islossy 
-                minbitrate:320 minbitdepth:24 minfilesize:10 minfilesinfolder:8 minlength:5000
-              "
+            <SearchFilters
+              onChange={setResultFilters}
               value={resultFilters}
             />
           </Segment>

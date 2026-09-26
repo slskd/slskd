@@ -12,6 +12,19 @@ import { toast } from 'react-toastify';
 import { Button, Icon, Input, Segment } from 'semantic-ui-react';
 import { v4 as uuidv4 } from 'uuid';
 
+// delete every finished search; the hub reports each deletion, which updates the list
+const clearAll = async () => {
+  try {
+    const count = await library.removeAll();
+    toast.success(`Deleted ${count} search${count === 1 ? '' : 'es'}`);
+  } catch (clearError) {
+    console.error(clearError);
+    toast.error(
+      clearError?.response?.data ?? clearError?.message ?? clearError,
+    );
+  }
+};
+
 const Searches = ({ server } = {}) => {
   const [connecting, setConnecting] = useState(true);
   const [error, setError] = useState(undefined);
@@ -258,6 +271,7 @@ const Searches = ({ server } = {}) => {
         <SearchList
           connecting={connecting}
           error={error}
+          onClearAll={clearAll}
           onRemove={remove}
           onStop={stop}
           searches={searches}

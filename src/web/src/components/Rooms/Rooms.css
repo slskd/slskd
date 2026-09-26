@@ -144,3 +144,23 @@
 .unknown-user-flag {
   opacity: .1 !important;
 }
+/* keep the flag and the name on one line; long names are cut off (the full
+   name is in the tooltip) rather than wrapping below the flag */
+.room-users .item > .content {
+  display: flex !important;
+  align-items: center;
+  min-width: 0;
+}
+
+.room-users .item > .content > .user-link,
+.room-users .item > .content > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-users .item > .content > .flag,
+.room-users .item > .content > .icon {
+  flex-shrink: 0;
+}

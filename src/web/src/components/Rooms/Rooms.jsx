@@ -1,6 +1,8 @@
 import { activeRoomKey } from '../../config';
 import * as rooms from '../../lib/rooms';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
+import UserLink from '../Shared/UserLink';
+import UserPanelContext from '../UserPanel/UserPanelContext';
 import RoomMenu from './RoomMenu';
 import RoomUserList from './RoomUserList';
 import React, { Component, createRef } from 'react';
@@ -56,7 +58,9 @@ const RoomMessageHistory = React.memo(
               <span className="room-message-time">
                 {formatTimestamp(message.timestamp)}
               </span>
-              <span className="room-message-name">{message.username}: </span>
+              <span className="room-message-name">
+                <UserLink username={message.username} />:{' '}
+              </span>
               <span className="room-message-message">{message.message}</span>
             </List.Content>
           </div>
@@ -104,6 +108,9 @@ class Rooms extends Component {
 
     this.setState({ intervals: initialState.intervals });
   }
+
+  // eslint-disable-next-line react/sort-comp
+  static contextType = UserPanelContext;
 
   listRef = createRef();
 
@@ -248,14 +255,12 @@ class Rooms extends Component {
   };
 
   handleUserProfile = () => {
-    this.props.history.push('/users', {
-      user: this.state.contextMenu.message.username,
-    });
+    this.context?.openUser(this.state.contextMenu.message.username);
   };
 
   handleBrowseShares = () => {
-    this.props.history.push('/browse', {
-      user: this.state.contextMenu.message.username,
+    this.context?.openUser(this.state.contextMenu.message.username, {
+      tab: 'files',
     });
   };
 

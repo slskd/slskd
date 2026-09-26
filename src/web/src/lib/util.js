@@ -150,3 +150,17 @@ export const downloadFile = (data, filename, mime) => {
     window.URL.revokeObjectURL(blobURL);
   }
 };
+
+export const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // the clipboard api needs a secure context, which a LAN http address isn't
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  }
+};

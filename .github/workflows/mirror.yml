@@ -16,6 +16,8 @@ concurrency:
 
 jobs:
   mirror:
+    # forks don't have the mirrors' deploy keys
+    if: github.repository == 'slskd/slskd'
     runs-on: ubuntu-latest
     strategy:
       matrix:

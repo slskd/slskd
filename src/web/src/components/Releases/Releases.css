@@ -1,0 +1,336 @@
+.ui.segment.releases-search-segment {
+  margin-top: 15px;
+  display: flex;
+}
+
+.releases .release-note,
+.releases .release-error {
+  margin-top: 0.75em;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+}
+
+.releases .release-error {
+  color: #db2828;
+}
+
+.release-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 3px;
+  background: var(--slskd-tertiary-border-color, rgba(0, 0, 0, 0.05));
+}
+
+.release-cover-missing {
+  background: var(--slskd-tertiary-border-color, rgba(0, 0, 0, 0.05))
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='%23888' stroke-width='1.2'/%3E%3Ccircle cx='12' cy='12' r='2.5' fill='none' stroke='%23888' stroke-width='1.2'/%3E%3C/svg%3E")
+    center / 55% no-repeat;
+  opacity: 0.7;
+}
+
+.release-disambiguation {
+  font-weight: normal;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.5));
+}
+
+/* search results */
+
+.release-results-count {
+  margin-bottom: 0.5em;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+}
+
+.ui.table.release-results-table td {
+  vertical-align: middle;
+}
+
+.ui.table.release-results-table .release-results-cover {
+  width: 56px;
+  padding-top: 0.4em;
+  padding-bottom: 0.4em;
+}
+
+.release-results-row {
+  cursor: pointer;
+}
+
+.release-results-title {
+  font-weight: 700;
+}
+
+.release-results-artist,
+.release-results-catalog {
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+  font-size: 0.92em;
+}
+
+@media only screen and (max-width: 767px) {
+  .ui.table.release-results-table .release-results-optional {
+    display: none;
+  }
+}
+
+/* release */
+
+.ui.segment.release-header {
+  display: flex;
+  gap: 1.5em;
+  align-items: flex-start;
+}
+
+.release-header > .release-cover {
+  flex: 0 0 220px;
+  width: 220px;
+}
+
+.release-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+h2.release-title {
+  margin: 0 0 0.2em;
+  overflow-wrap: anywhere;
+}
+
+.release-artist {
+  font-size: 1.2em;
+}
+
+.release-facts {
+  margin-top: 0.4em;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+}
+
+.release-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25em;
+  margin-top: 0.75em;
+}
+
+.release-link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #4183c4;
+  font: inherit;
+  cursor: pointer;
+}
+
+.release-link-button:hover {
+  text-decoration: underline;
+}
+
+.ui.table.release-tracklist {
+  margin-top: 0.75em;
+}
+
+.release-tracklist-medium td {
+  font-weight: 700;
+}
+
+.ui.table td.release-tracklist-number {
+  width: 3em;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.5));
+}
+
+.ui.table td.release-tracklist-length {
+  width: 4em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.release-track-artist {
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.5));
+}
+
+@media only screen and (max-width: 684px) {
+  .ui.segment.release-header {
+    flex-direction: column;
+  }
+
+  .release-header > .release-cover {
+    flex-basis: auto;
+    width: 60%;
+    max-width: 240px;
+  }
+}
+
+/* soulseek search */
+
+.release-soulseek-bar {
+  display: flex;
+}
+
+.release-soulseek-query {
+  flex: 1;
+  min-width: 0;
+}
+
+.release-candidates-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em 1em;
+  justify-content: space-between;
+  margin-top: 1em;
+}
+
+/* candidates */
+
+.ui.segment.release-candidate {
+  border-left: 3px solid #21ba45;
+}
+
+.ui.segment.release-candidate.partial {
+  border-left-color: #fbbd08;
+}
+
+.release-candidate-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em 0.75em;
+  align-items: center;
+}
+
+.release-candidate-header > .ui.label {
+  margin: 0;
+}
+
+.release-candidate-user {
+  font-weight: 700;
+}
+
+.release-candidate-meta {
+  margin-left: auto;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+  white-space: nowrap;
+}
+
+.release-candidate-folder {
+  margin-top: 0.5em;
+  font-family: monospace;
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+}
+
+.release-candidate-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em 1.25em;
+  margin-top: 0.4em;
+  font-size: 0.92em;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+}
+
+.release-candidate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75em 1.25em;
+  align-items: center;
+  margin-top: 0.75em;
+}
+
+.release-candidate-actions .ui.button {
+  margin: 0;
+}
+
+.release-candidate-buttons {
+  display: flex;
+  gap: 0.5em;
+  margin-left: auto;
+}
+
+.ui.table.release-candidate-tracks {
+  margin-top: 0.75em;
+}
+
+.ui.table td.release-candidate-file {
+  font-family: monospace;
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+.ui.table td.release-candidate-file-quality {
+  width: 9em;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+}
+
+.release-candidate-missing {
+  font-style: italic;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.5));
+}
+
+.release-length-delta {
+  margin-left: 0.4em;
+  color: #b58105;
+}
+
+.release-length-delta.far {
+  color: #db2828;
+}
+
+@media only screen and (max-width: 684px) {
+  .release-candidate-meta {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+
+  .release-candidate-buttons {
+    margin-left: 0;
+  }
+}
+
+/* back button, saved releases */
+
+.ui.button.releases-back {
+  margin: 0 0 1rem;
+}
+
+.release-cover-loading {
+  animation: release-cover-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes release-cover-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .release-cover-loading {
+    animation: none;
+  }
+}
+
+.saved-releases-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75em;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+}
+
+.saved-releases-header > .ui.button {
+  margin: 0;
+}
+
+.ui.table td.saved-releases-status,
+.ui.table td.saved-releases-date {
+  white-space: nowrap;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+}
+
+.ui.table td.saved-releases-action {
+  width: 3em;
+  text-align: center;
+}
+
+.release-muted {
+  font-style: italic;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.5));
+}

@@ -48,7 +48,10 @@ namespace slskd.Validation
             IgnoreCase = ignoreCase;
         }
 
-        private Type TargetType { get; set; }
+        /// <summary>
+        ///     Gets the enum the value must be a member of.
+        /// </summary>
+        public Type TargetType { get; }
         private bool IgnoreCase { get; set; }
 
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)

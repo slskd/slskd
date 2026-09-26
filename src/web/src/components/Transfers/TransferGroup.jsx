@@ -1,4 +1,5 @@
 import * as transfers from '../../lib/transfers';
+import UserLink from '../Shared/UserLink';
 import TransferList from './TransferList';
 import React, { Component } from 'react';
 import { Button, Card, Icon } from 'semantic-ui-react';
@@ -136,7 +137,7 @@ class TransferGroup extends Component {
               name={isFolded ? 'chevron right' : 'chevron down'}
               onClick={() => this.toggleFolded()}
             />
-            {user.username}
+            <UserLink username={user.username} />
           </Card.Header>
           {user.directories &&
             !isFolded &&

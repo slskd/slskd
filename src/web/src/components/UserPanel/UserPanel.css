@@ -1,0 +1,351 @@
+/* clickable usernames */
+.user-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: inherit;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.2em;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  transition: text-decoration-color 0.15s ease;
+}
+
+.user-link:hover {
+  text-decoration-color: currentColor;
+}
+
+.user-link:focus-visible {
+  outline: 2px solid var(--smui-site-link-color, #4183c4);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* the panel sits between the top navigation and the fixed footer */
+.user-panel {
+  position: fixed;
+  top: 71px;
+  right: 0;
+  bottom: 40px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  max-width: 100vw;
+  background: var(--slskd-secondary-background, #fff);
+  color: var(--slskd-color, rgba(0, 0, 0, 0.87));
+  border-left: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.12);
+  animation: user-panel-in 0.18s ease-out;
+}
+
+@keyframes user-panel-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .user-panel {
+    animation: none;
+  }
+}
+
+@media only screen and (max-width: 600px) {
+  .user-panel {
+    width: 100vw !important;
+  }
+
+  .user-panel-resize-handle {
+    display: none;
+  }
+}
+
+.user-panel-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.user-panel-resize-handle:hover,
+.user-panel-resize-handle:focus-visible {
+  background: var(--smui-site-link-color, #4183c4);
+  opacity: 0.4;
+  outline: none;
+}
+
+body.user-panel-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.user-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.75em 1em 0.25em;
+}
+
+.user-panel-title.user-panel-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-panel-header-buttons.ui.buttons {
+  flex-shrink: 0;
+}
+
+.user-view-tabs.ui.menu {
+  margin-top: 0 !important;
+}
+
+/* the stock secondary menu colors assume a light background */
+.user-view-tabs.ui.secondary.menu .item {
+  color: inherit !important;
+  opacity: 0.6;
+}
+
+.user-view-tabs.ui.secondary.menu .item:hover,
+.user-view-tabs.ui.secondary.menu .active.item {
+  opacity: 1;
+}
+
+.user-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1em;
+}
+
+/* profile */
+.user-profile-self-note.ui.message {
+  margin-top: 0;
+}
+
+/* stack the picture over the details when the card is narrow, whether on a
+   phone or in a narrow panel */
+.user-profile-card {
+  container-type: inline-size;
+}
+
+@container (max-width: 480px) {
+  .user-profile-summary {
+    flex-direction: column;
+  }
+}
+
+.user-profile-summary {
+  display: flex;
+  gap: 1em;
+  align-items: flex-start;
+}
+
+.user-profile-picture {
+  flex-shrink: 0;
+  width: 128px;
+  height: 128px;
+  padding: 0;
+  border: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--slskd-subtle-background, rgba(0, 0, 0, 0.04));
+  cursor: zoom-in;
+}
+
+.user-profile-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.user-profile-picture-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  opacity: 0.35;
+}
+
+.user-profile-picture-empty .icon {
+  margin: 0 !important;
+}
+
+.user-profile-picture-modal .content {
+  text-align: center;
+}
+
+.user-profile-picture-modal img {
+  max-width: 100%;
+  max-height: 75vh;
+}
+
+.user-profile-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-profile-name {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  font-size: 1.15em;
+  font-weight: 700;
+  margin-bottom: 0.5em;
+  overflow-wrap: anywhere;
+}
+
+.user-profile-name .label {
+  font-weight: 400;
+}
+
+.user-profile-stats {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2em 1em;
+  margin: 0;
+}
+
+.user-profile-stats dt {
+  opacity: 0.65;
+}
+
+.user-profile-stats dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.user-profile-stats dd .label {
+  margin-left: 0.5em;
+}
+
+.user-profile-mono {
+  font-family: monospace;
+}
+
+.user-profile-description {
+  margin-top: 1em;
+  padding: 0.75em 1em;
+  border-radius: 6px;
+  background: var(--slskd-subtle-background, rgba(0, 0, 0, 0.04));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 24em;
+  overflow-y: auto;
+}
+
+.user-profile-muted {
+  opacity: 0.65;
+}
+
+.user-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 1em;
+}
+
+.user-profile-actions > .ui.button {
+  margin: 0;
+}
+
+.user-profile-danger.item {
+  color: #db2828 !important;
+}
+
+/* files */
+.user-files-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.user-files-toolbar > span {
+  flex: 1;
+  font-size: 0.9em;
+}
+
+.user-files-loader.ui.loader {
+  margin-top: 3em !important;
+}
+
+.user-files-hint {
+  text-align: center;
+  margin-top: 1em;
+}
+
+/* the browse selection card is sized for the full page; let it fill the panel */
+.user-files .ui.card {
+  width: 100% !important;
+}
+
+/* right click menu */
+.user-context-menu {
+  position: fixed;
+  z-index: 1100;
+  min-width: 200px;
+  padding: 0.25em 0;
+  background: var(--slskd-overlay-background, #fff);
+  color: var(--slskd-color, rgba(0, 0, 0, 0.87));
+  border: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.user-context-menu-title {
+  padding: 0.4em 1em;
+  font-weight: 700;
+  opacity: 0.65;
+  font-size: 0.9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+
+.user-context-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.5em 1em;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.user-context-menu-item:hover,
+.user-context-menu-item:focus-visible {
+  background: var(--slskd-hover-background, rgba(0, 0, 0, 0.06));
+  outline: none;
+}
+
+/* docked: the page content and the settings save bar make room for the panel */
+body.user-panel-docked .app-content-body {
+  margin-right: var(--user-panel-width);
+}
+
+body.user-panel-docked .settings-savebar {
+  right: var(--user-panel-width);
+}

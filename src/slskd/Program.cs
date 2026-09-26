@@ -80,6 +80,7 @@ namespace slskd
     using slskd.Events;
     using slskd.Files;
     using slskd.Integrations.FTP;
+    using slskd.Integrations.MusicBrainz;
     using slskd.Integrations.Pushbullet;
     using slskd.Integrations.Scripts;
     using slskd.Integrations.VPN;
@@ -407,7 +408,8 @@ namespace slskd
             }
 
             // derive the application directory value and defaults that are dependent upon it
-            AppDirectory ??= DefaultAppDirectory;
+            // normalized so paths derived from it use consistent separators (e.g. '--app-dir C:/foo' on Windows)
+            AppDirectory = Path.GetFullPath(AppDirectory ?? DefaultAppDirectory);
             DataDirectory = Path.Combine(AppDirectory, "data");
             DataBackupDirectory = Path.Combine(DataDirectory, "backups");
             LogDirectory = Path.Combine(AppDirectory, "logs");
@@ -795,6 +797,9 @@ namespace slskd
             services.AddSingleton<IFTPService, FTPService>();
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
+            services.AddSingleton<IMusicBrainzService, MusicBrainzService>();
+            services.AddSingleton<ICoverArtService, CoverArtService>();
+            services.AddSingleton<ISavedReleaseService, SavedReleaseService>();
 
             return services;
         }

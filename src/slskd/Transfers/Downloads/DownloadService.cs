@@ -1343,7 +1343,10 @@ namespace slskd.Transfers.Downloads
                     that are concerned about this (extremely unlikely) case should configure slskd to always overwrite
                     partial files.
                 */
-                var incompleteDirectory = OptionsMonitor.CurrentValue.Directories.Incomplete;
+
+                // normalize the configured directory; on Windows, a mixed-separator path like 'C:/data\incomplete' (easily produced
+                // by --app-dir with forward slashes) is rejected by ResolveFileInfo(), which only accepts fully normalized paths
+                var incompleteDirectory = Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Incomplete);
                 var sanitizedUsername = FileSafety.SanitizePathSegment(transfer.Username);
                 var sanitizedFilename = FileSafety.GetFileNameSafely(transfer.Filename, sanitize: true);
                 var sanitizedRemotePath = FileSafety.GetDirectoryNameSafely(transfer.Filename, sanitize: true) ?? string.Empty;
@@ -1477,7 +1480,7 @@ namespace slskd.Transfers.Downloads
                     that has sanitized and checked for safety against traversal
                 */
                 var subdirectory = await DeriveDestination(transfer);
-                var destinationDirectory = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, subdirectory);
+                var destinationDirectory = FileSafety.CombineSafely(Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Downloads), subdirectory);
 
                 var existsStrategy = OptionsMonitor.CurrentValue.Transfers.Download.Destination.Exists.ToEnum<DestinationExistsStrategy>();
 

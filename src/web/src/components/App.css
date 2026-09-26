@@ -318,3 +318,21 @@ body {
     font-size: 14px;
     margin-top: 1px;
 }
+/* form labels default to near-black, which disappears on the dark theme */
+:root.dark .ui.form .field > label {
+    color: var(--smui-site-body-text-color);
+}
+
+/* placeholders were as bright as typed text on the dark theme */
+:root.dark input::placeholder,
+:root.dark textarea::placeholder {
+    color: var(--slskd-color-subtle) !important;
+    opacity: 1;
+}
+
+/* semantic's focused textarea has hardcoded dark text and a white background */
+:root.dark .ui.form textarea,
+:root.dark .ui.form textarea:focus {
+    color: var(--smui-site-input-color);
+    background: var(--smui-input-background);
+}

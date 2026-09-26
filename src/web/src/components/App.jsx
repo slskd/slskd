@@ -15,11 +15,15 @@ import Browse from './Browse/Browse';
 import Chat from './Chat/Chat';
 import Dashboard from './Dashboard/Dashboard';
 import LoginForm from './LoginForm';
+import Releases from './Releases/Releases';
 import Rooms from './Rooms/Rooms';
 import Searches from './Search/Searches';
+import Settings from './Settings/Settings';
 import ErrorSegment from './Shared/ErrorSegment';
+import ReleaseIcon from './Shared/ReleaseIcon';
 import System from './System/System';
 import Transfers from './Transfers/Transfers';
+import UserPanelProvider from './UserPanel/UserPanelProvider';
 import Users from './Users/Users';
 import React, { Component } from 'react';
 import { Link, Redirect, Route, Switch } from 'react-router-dom';
@@ -411,6 +415,12 @@ class App extends Component {
                     Search
                   </Menu.Item>
                 </Link>
+                <Link to={`${urlBase}/releases`}>
+                  <Menu.Item>
+                    <ReleaseIcon />
+                    Releases
+                  </Menu.Item>
+                </Link>
                 <Link to={`${urlBase}/downloads`}>
                   <Menu.Item>
                     <Icon name="download" />
@@ -515,6 +525,14 @@ class App extends Component {
                   </Modal.Actions>
                 </Modal>
               )}
+              {!isAgent && (
+                <Link to={`${urlBase}/settings`}>
+                  <Menu.Item>
+                    <Icon name="sliders horizontal" />
+                    Settings
+                  </Menu.Item>
+                </Link>
+              )}
               <Link to={`${urlBase}/system`}>
                 <Menu.Item>
                   <Icon name="cogs" />
@@ -579,107 +597,128 @@ class App extends Component {
                     />
                   </Switch>
                 ) : (
-                  <Switch>
-                    <Route
-                      path={`${urlBase}/dashboard`}
-                      render={(props) =>
-                        this.withTokenCheck(
-                          <div className="view">
-                            <Dashboard
-                              server={applicationState.server}
+                  <UserPanelProvider>
+                    <Switch>
+                      <Route
+                        path={`${urlBase}/dashboard`}
+                        render={(props) =>
+                          this.withTokenCheck(
+                            <div className="view">
+                              <Dashboard
+                                server={applicationState.server}
+                                {...props}
+                              />
+                            </div>,
+                          )
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/searches/:id?`}
+                        render={(props) =>
+                          this.withTokenCheck(
+                            <div className="view">
+                              <Searches
+                                server={applicationState.server}
+                                {...props}
+                              />
+                            </div>,
+                          )
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/releases/:id?`}
+                        render={(props) =>
+                          this.withTokenCheck(
+                            <div className="view">
+                              <Releases
+                                server={applicationState.server}
+                                {...props}
+                              />
+                            </div>,
+                          )
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/browse`}
+                        render={(props) =>
+                          this.withTokenCheck(<Browse {...props} />)
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/users/:username?`}
+                        render={(props) =>
+                          this.withTokenCheck(<Users {...props} />)
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/chat`}
+                        render={(props) =>
+                          this.withTokenCheck(
+                            <Chat
                               {...props}
-                            />
-                          </div>,
-                        )
-                      }
-                    />
-                    <Route
-                      path={`${urlBase}/searches/:id?`}
-                      render={(props) =>
-                        this.withTokenCheck(
-                          <div className="view">
-                            <Searches
-                              server={applicationState.server}
+                              state={applicationState}
+                            />,
+                          )
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/rooms`}
+                        render={(props) =>
+                          this.withTokenCheck(<Rooms {...props} />)
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/uploads`}
+                        render={(props) =>
+                          this.withTokenCheck(
+                            <div className="view">
+                              <Transfers
+                                {...props}
+                                direction="upload"
+                              />
+                            </div>,
+                          )
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/downloads`}
+                        render={(props) =>
+                          this.withTokenCheck(
+                            <div className="view">
+                              <Transfers
+                                {...props}
+                                direction="download"
+                                server={applicationState.server}
+                              />
+                            </div>,
+                          )
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/settings/:section?`}
+                        render={(props) =>
+                          this.withTokenCheck(<Settings {...props} />)
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/system/:tab?`}
+                        render={(props) =>
+                          this.withTokenCheck(
+                            <System
                               {...props}
-                            />
-                          </div>,
-                        )
-                      }
-                    />
-                    <Route
-                      path={`${urlBase}/browse`}
-                      render={(props) =>
-                        this.withTokenCheck(<Browse {...props} />)
-                      }
-                    />
-                    <Route
-                      path={`${urlBase}/users`}
-                      render={(props) =>
-                        this.withTokenCheck(<Users {...props} />)
-                      }
-                    />
-                    <Route
-                      path={`${urlBase}/chat`}
-                      render={(props) =>
-                        this.withTokenCheck(
-                          <Chat
-                            {...props}
-                            state={applicationState}
-                          />,
-                        )
-                      }
-                    />
-                    <Route
-                      path={`${urlBase}/rooms`}
-                      render={(props) =>
-                        this.withTokenCheck(<Rooms {...props} />)
-                      }
-                    />
-                    <Route
-                      path={`${urlBase}/uploads`}
-                      render={(props) =>
-                        this.withTokenCheck(
-                          <div className="view">
-                            <Transfers
-                              {...props}
-                              direction="upload"
-                            />
-                          </div>,
-                        )
-                      }
-                    />
-                    <Route
-                      path={`${urlBase}/downloads`}
-                      render={(props) =>
-                        this.withTokenCheck(
-                          <div className="view">
-                            <Transfers
-                              {...props}
-                              direction="download"
-                              server={applicationState.server}
-                            />
-                          </div>,
-                        )
-                      }
-                    />
-                    <Route
-                      path={`${urlBase}/system/:tab?`}
-                      render={(props) =>
-                        this.withTokenCheck(
-                          <System
-                            {...props}
-                            options={applicationOptions}
-                            state={applicationState}
-                            theme={theme}
-                          />,
-                        )
-                      }
-                    />
-                    <Redirect
-                      from="*"
-                      to={`${urlBase}/dashboard`}
-                    />
-                  </Switch>
+                              options={applicationOptions}
+                              state={applicationState}
+                              theme={theme}
+                            />,
+                          )
+                        }
+                      />
+                      <Redirect
+                        from="*"
+                        to={`${urlBase}/dashboard`}
+                      />
+                    </Switch>
+                  </UserPanelProvider>
                 )}
               </AppContext.Provider>
             </div>
