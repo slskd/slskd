@@ -1,0 +1,81 @@
+name: Fork build
+
+# builds this fork for Linux on every push to its branch and publishes the binaries as a
+# rolling "qol-latest" release, so a small server can download them instead of building.
+# bin/update-vps installs or updates from that release.
+
+on:
+  push:
+    branches: [ nicotine-qol ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fork-build
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: '10'
+  NODE_VERSION: '22'
+  RELEASE_TAG: qol-latest
+
+jobs:
+  build:
+    name: Build, test and release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Set version
+        run: |
+          # the fork has no release tags of its own; version it after the upstream release it's based on
+          git fetch --quiet --tags https://github.com/slskd/slskd.git || true
+          echo "VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0).65534+$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build and test
+        run: ./bin/build --version "$VERSION"
+
+      - name: Publish
+        run: |
+          for runtime in linux-x64 linux-arm64; do
+            ./bin/publish --no-prebuild --runtime "$runtime" --version "$VERSION"
+            tar -czf "dist/slskd-$runtime.tar.gz" -C "dist/$runtime" .
+          done
+
+          (cd dist && sha256sum slskd-*.tar.gz > SHA256SUMS)
+          ls -la dist
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Built from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME} (version ${VERSION}).
+
+          Install or update on a Linux server with:
+
+              curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/bin/update-vps | sudo bash"
+
+          # replaced on every build, so the download links always point at the newest one
+          gh release delete "$RELEASE_TAG" --cleanup-tag --yes || true
+          gh release create "$RELEASE_TAG" dist/slskd-*.tar.gz dist/SHA256SUMS \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "nicotine-qol (latest build)" \
+            --notes "$notes"
