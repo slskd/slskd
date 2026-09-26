@@ -4,6 +4,7 @@ import {
   updateYaml,
   validateYaml,
 } from '../../../lib/options';
+import { getErrorMessage } from '../../../lib/util';
 import { Div, PlaceholderSegment, Switch } from '../../Shared';
 import CodeEditor from '../../Shared/CodeEditor';
 import React, { useEffect, useState } from 'react';
@@ -58,7 +59,7 @@ const EditModal = ({ onClose, open, theme }) => {
         await updateYaml({ yaml: newYaml });
         onClose();
       } catch (nextUpdateError) {
-        setUpdateError(nextUpdateError.response.data);
+        setUpdateError(getErrorMessage(nextUpdateError));
       }
     }
   };

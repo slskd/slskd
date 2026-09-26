@@ -1,5 +1,6 @@
-# slskd
+# slskd (qol fork)
 
+[![Fork build](https://img.shields.io/github/actions/workflow/status/xctwt/slskd/fork-build.yml?branch=nicotine-qol&logo=github&label=fork%20build)](https://github.com/xctwt/slskd/actions/workflows/fork-build.yml)
 [![Build](https://img.shields.io/github/actions/workflow/status/slskd/slskd/ci.yml?branch=master&logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/slskd/slskd?logo=docker)](https://hub.docker.com/r/slskd/slskd)
 [![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total?logo=github&color=brightgreen)](https://github.com/slskd/slskd/releases)
@@ -8,6 +9,160 @@
 [![Matrix](https://img.shields.io/badge/Matrix-%3F%20online-na?logo=matrix&color=brightgreen)](https://slskd.org/matrix)
 
 A modern client-server application for the [Soulseek](https://www.slsknet.org/news/) file-sharing network.
+
+> [!NOTE]
+> This is a fork of [slskd/slskd](https://github.com/slskd/slskd) that adds release lookups, a settings editor and other quality-of-life features inspired by [Nicotine+](https://nicotine-plus.org/). It works with an existing slskd configuration and data. The badges above other than **fork build** are for upstream slskd. Please report problems with this fork's features here, not upstream.
+
+## Differences from upstream slskd
+
+### Releases (MusicBrainz)
+
+A new **Releases** page finds an album on MusicBrainz first, then looks for it on Soulseek.
+
+- Search by `Artist - Album`, plain text, a MusicBrainz release, release-group or artist link, or a bare release ID.
+- See each release's track list, format, label and catalog number, with cover art from the Cover Art Archive. Covers the archive doesn't have are looked up on Deezer and iTunes.
+- Search Soulseek for a release in one click. Matching folders are ranked by how many of the release's tracks they hold (by track number, title and length) and by file quality. Download the matched tracks, with or without the folder's other files (cover art, logs), into an `Artist - Album (Year)` folder.
+- Releases you search for are saved and linked to their Soulseek searches, so you can come back to them later.
+
+The new `integrations.musicbrainz` options are all optional:
+
+```yaml
+integrations:
+  musicbrainz:
+    disabled: false
+    url: https://musicbrainz.org   # point at a mirror to avoid the public rate limit
+    request_interval: 1000         # milliseconds between requests; musicbrainz.org allows one per second
+    cover_fallback: true           # look up missing covers on Deezer and iTunes
+```
+
+### Settings page
+
+A **Settings** page edits `slskd.yml` through forms, organized like Nicotine+'s preferences (Profile, Network, Shares, Downloads, Uploads, Users & Bans, Searches & Rooms, Web & Security, Cleanup, Integrations). It includes:
+
+- An editor for user groups and ban lists.
+- A profile editor for the description and picture other users see, with a preview. Uploaded pictures are stored in `<app dir>/profile/`.
+
+Changes are validated by the server and saved together. Only the keys you changed are written; comments, ordering and keys the page doesn't know about are left as they were.
+
+The page needs `remote_configuration: true` in `slskd.yml`, the same as upstream's built-in YAML editor.
+
+### Users
+
+- Every user has a profile page at `/users/<username>`, showing their status, statistics, group, description, picture and shared files. You can ban or unban them there, or gift them days of privileges.
+- Clicking a username anywhere (search results, transfers, chat, rooms) opens that user in a side panel without leaving the page.
+- Right-clicking a username opens a menu: **View Profile**, **Browse Files**, **Send Message…**, **Open in Users Tab** and **Copy Username**.
+
+### Searches
+
+- A filter form next to the filter text box, with minimum and maximum size and length, minimum upload speed, maximum queue length, minimum files per folder, required and excluded words, and formats. Filters can be saved and reused.
+- A **Clear all** button that deletes every finished search.
+
+### Fixes
+
+- On Windows, paths derived from `--app-dir` are normalized, so values with forward slashes (e.g. `C:/slskd`) no longer break downloads.
+- Validating options no longer fails when two requests read the config file at the same time.
+- Error messages survive reverse proxies. Cloudflare replaces a 502 from the server with its own error page, so MusicBrainz failures are now reported as 503, with the reason shown in the UI and logged.
+
+### Builds
+
+- There is no Docker image for this fork. Every push to `nicotine-qol` publishes Linux builds (`linux-x64` and `linux-arm64`) to the rolling [`qol-latest`](https://github.com/xctwt/slskd/releases/tag/qol-latest) release.
+- [`bin/update-vps`](bin/update-vps) installs the latest build over an existing systemd install and rolls back if it doesn't start.
+- Fork builds are versioned after the upstream release they're based on, e.g. `0.26.0.65534+abc1234`.
+
+## Installing this fork
+
+### Linux server (systemd)
+
+1. Create a user and download the latest build. Use `slskd-linux-arm64.tar.gz` on ARM machines:
+
+   ```sh
+   sudo useradd --system --create-home --home-dir /var/lib/slskd slskd
+   sudo mkdir -p /opt/slskd
+   curl -fL https://github.com/xctwt/slskd/releases/download/qol-latest/slskd-linux-x64.tar.gz \
+     | sudo tar -xz -C /opt/slskd
+   sudo chown -R slskd:slskd /opt/slskd
+   ```
+
+2. Create `/etc/systemd/system/slskd.service`:
+
+   ```ini
+   [Unit]
+   Description=slskd
+   After=network-online.target
+   Wants=network-online.target
+
+   [Service]
+   Type=simple
+   User=slskd
+   Group=slskd
+   ExecStart=/opt/slskd/slskd --app-dir /var/lib/slskd
+   Restart=on-failure
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. Start it:
+
+   ```sh
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now slskd
+   ```
+
+   On the first run slskd creates `/var/lib/slskd/slskd.yml`. Edit it to add your Soulseek username and password, change the web UI login (the default is `slskd` / `slskd`), and set `remote_configuration: true` if you want to use the Settings page. Then run `sudo systemctl restart slskd`. [`config/slskd.example.yml`](config/slskd.example.yml) lists every option.
+
+4. Open `http://<server>:5030`. If you put it behind a reverse proxy or Cloudflare, see the [reverse proxy guide](docs/reverse_proxy.md), and make sure WebSockets are allowed. Search results and transfers update over a WebSocket connection.
+
+### Docker
+
+Build the image from this repository, then run it exactly as you would upstream's image (see [Quick Start](#quick-start)), using `slskd-qol` in place of `slskd/slskd`:
+
+```sh
+git clone -b nicotine-qol https://github.com/xctwt/slskd.git
+cd slskd
+docker build -t slskd-qol .
+```
+
+### From source
+
+Building needs the .NET 10 SDK, Node.js 22 and bash:
+
+```sh
+git clone -b nicotine-qol https://github.com/xctwt/slskd.git
+cd slskd
+./bin/build                              # builds and tests the web UI and the server
+./bin/publish --runtime linux-x64        # self-contained build in dist/linux-x64
+```
+
+## Updating
+
+- **systemd:** run the update script on the server:
+
+  ```sh
+  curl -fsSL https://raw.githubusercontent.com/xctwt/slskd/nicotine-qol/bin/update-vps | sudo bash
+  ```
+
+  The script finds the install folder from the `slskd` service. Set `SERVICE=<name>` or `INSTALL_DIR=<folder>` if yours is different. It stops the service, keeps the current version in `<install folder>.previous`, installs the new build, and puts the previous version back if the new one doesn't stay up. Your config and data are not touched.
+
+- **Docker:** run `git pull`, rebuild the image, and recreate the container.
+
+## Migrating from upstream slskd
+
+This fork uses the same application directory as upstream: the same `slskd.yml`, the same database in `data/`, and the same logs. Nothing needs converting.
+
+1. **Back up your application directory.** This is the folder with `slskd.yml` in it: the path given to `--app-dir`, `~/.local/share/slskd` by default, or the `/app` volume in Docker. For example, `sudo tar -czf ~/slskd-backup.tar.gz -C /var/lib slskd`.
+2. **Install the fork over upstream:**
+   - **Upstream binaries under systemd:** run the update script from [Updating](#updating). It detects the install folder from your service and replaces only the binaries and web UI.
+   - **Upstream Docker image:** build `slskd-qol` as described under [Docker](#docker). Stop the old container, then start a new one with the same volumes, ports and environment variables, but with `image: slskd-qol`.
+   - **Upstream binaries started by hand:** stop slskd, extract the fork's build over the old folder (delete the old `wwwroot` folder first), and start it with the same `--app-dir`.
+3. **Optional:** set `remote_configuration: true` to use the Settings page, and add an `integrations.musicbrainz` section if the defaults don't suit you.
+4. Open the web UI and hard-refresh (Ctrl+F5). Your browser may still have the old UI cached.
+
+### Going back to upstream
+
+1. Remove the `integrations.musicbrainz` section from `slskd.yml`, if you added one. Upstream slskd ignores it at startup, but its built-in config editor refuses to save a file containing keys it doesn't recognize.
+2. Reinstall upstream: extract an upstream [release](https://github.com/slskd/slskd/releases) over the install folder (delete `wwwroot` first), or switch the container back to `slskd/slskd`.
+3. `data/releases.json` (saved releases) is only used by this fork, so you can delete it. Uploaded profile pictures in `profile/` keep working if `soulseek.picture` points at one.
 
 ## Features
 

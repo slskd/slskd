@@ -37,6 +37,7 @@ namespace slskd.Integrations.MusicBrainz.API
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Serilog;
 
     /// <summary>
     ///     MusicBrainz release lookups.
@@ -60,6 +61,7 @@ namespace slskd.Integrations.MusicBrainz.API
         }
 
         private ICoverArtService CoverArt { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<MusicBrainzController>();
         private IMusicBrainzService MusicBrainz { get; }
 
         /// <summary>
@@ -104,8 +106,7 @@ namespace slskd.Integrations.MusicBrainz.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         /// <response code="400">The query is missing.</response>
-        /// <response code="502">MusicBrainz could not be reached or rejected the request.</response>
-        /// <response code="503">MusicBrainz lookups are disabled.</response>
+        /// <response code="503">MusicBrainz could not be reached or rejected the request, or lookups are disabled.</response>
         [HttpGet("releases")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(MusicBrainzReleaseSearchResult), 200)]
@@ -126,8 +127,7 @@ namespace slskd.Integrations.MusicBrainz.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">MusicBrainz has no release with the ID.</response>
-        /// <response code="502">MusicBrainz could not be reached or rejected the request.</response>
-        /// <response code="503">MusicBrainz lookups are disabled.</response>
+        /// <response code="503">MusicBrainz could not be reached or rejected the request, or lookups are disabled.</response>
         [HttpGet("releases/{id:guid}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(MusicBrainzRelease), 200)]
@@ -153,7 +153,11 @@ namespace slskd.Integrations.MusicBrainz.API
             }
             catch (MusicBrainzException ex)
             {
-                return StatusCode(502, ex.Message);
+                Log.Warning("MusicBrainz request {Path}{Query} failed: {Message}", Request.Path, Request.QueryString, ex.Message);
+
+                // not 502: reverse proxies such as Cloudflare replace a 502 from the origin with their own
+                // error page, and the reason MusicBrainz failed would never reach the user
+                return StatusCode(503, ex.Message);
             }
         }
     }

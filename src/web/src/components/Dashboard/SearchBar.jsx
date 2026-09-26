@@ -1,6 +1,7 @@
 import '../Search/Search.css';
 import { urlBase } from '../../config';
 import * as library from '../../lib/searches';
+import { getErrorMessage } from '../../lib/util';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useHistory } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -41,9 +42,7 @@ const SearchBar = ({ server } = {}) => {
       }
     } catch (createError) {
       console.error(createError);
-      toast.error(
-        createError?.response?.data ?? createError?.message ?? createError,
-      );
+      toast.error(getErrorMessage(createError));
       setCreating(false);
     }
   };

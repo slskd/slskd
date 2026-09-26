@@ -1,6 +1,7 @@
 import './Search.css';
 import { createSearchHubConnection } from '../../lib/hubFactory';
 import * as library from '../../lib/searches';
+import { getErrorMessage } from '../../lib/util';
 import ErrorSegment from '../Shared/ErrorSegment';
 import LoaderSegment from '../Shared/LoaderSegment';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
@@ -19,9 +20,7 @@ const clearAll = async () => {
     toast.success(`Deleted ${count} search${count === 1 ? '' : 'es'}`);
   } catch (clearError) {
     console.error(clearError);
-    toast.error(
-      clearError?.response?.data ?? clearError?.message ?? clearError,
-    );
+    toast.error(getErrorMessage(clearError));
   }
 };
 
@@ -139,9 +138,7 @@ const Searches = ({ server } = {}) => {
       }
     } catch (createError) {
       console.error(createError);
-      toast.error(
-        createError?.response?.data ?? createError?.message ?? createError,
-      );
+      toast.error(getErrorMessage(createError));
       setCreating(false);
     }
   };
@@ -160,7 +157,7 @@ const Searches = ({ server } = {}) => {
       setRemoving(false);
     } catch (error_) {
       console.error(error_);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+      toast.error(getErrorMessage(error_));
       setRemoving(false);
     }
   };
@@ -173,11 +170,7 @@ const Searches = ({ server } = {}) => {
       setStopping(false);
     } catch (stoppingError) {
       console.error(stoppingError);
-      toast.error(
-        stoppingError?.response?.data ??
-          stoppingError?.message ??
-          stoppingError,
-      );
+      toast.error(getErrorMessage(stoppingError));
       setStopping(false);
     }
   };

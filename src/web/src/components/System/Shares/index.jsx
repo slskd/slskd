@@ -1,4 +1,5 @@
 import * as sharesLibrary from '../../../lib/shares';
+import { getErrorMessage } from '../../../lib/util';
 import { LoaderSegment, ShrinkableButton, Switch } from '../../Shared';
 import ContentsModal from './ContentsModal';
 import ExclusionTable from './ExclusionTable';
@@ -58,7 +59,7 @@ const Shares = ({ state = {}, theme } = {}) => {
       setShares(flattened);
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -85,7 +86,7 @@ const Shares = ({ state = {}, theme } = {}) => {
       await sharesLibrary.rescan();
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+      toast.error(getErrorMessage(error));
     } finally {
       setWorking(false);
     }
@@ -97,12 +98,7 @@ const Shares = ({ state = {}, theme } = {}) => {
       await sharesLibrary.cancel();
     } catch (error) {
       console.error(error);
-      toast.error(
-        error?.response?.data ??
-          error?.message ??
-          error ??
-          'Failed to cancel the scan',
-      );
+      toast.error(getErrorMessage(error, 'Failed to cancel the scan'));
     } finally {
       setWorking(false);
     }

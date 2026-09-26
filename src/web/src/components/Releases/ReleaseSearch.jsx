@@ -3,6 +3,7 @@ import {
   searchFor,
   searchReleases,
 } from '../../lib/musicbrainz';
+import { getErrorMessage } from '../../lib/util';
 import ErrorSegment from '../Shared/ErrorSegment';
 import LoaderSegment from '../Shared/LoaderSegment';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
@@ -16,9 +17,6 @@ const pageSize = 25;
 
 // results by query, so going back to a search doesn't ask MusicBrainz again
 const cache = new Map();
-
-const errorText = (error) =>
-  error?.response?.data ?? error?.message ?? String(error);
 
 const ReleaseSearch = ({ base, query }) => {
   const history = useHistory();
@@ -101,7 +99,7 @@ const ReleaseSearch = ({ base, query }) => {
   }
 
   if (error && !result) {
-    return <ErrorSegment caption={errorText(error)} />;
+    return <ErrorSegment caption={getErrorMessage(error)} />;
   }
 
   if (!result) {
@@ -200,7 +198,7 @@ const ReleaseSearch = ({ base, query }) => {
           ))}
         </Table.Body>
       </Table>
-      {error && <div className="release-error">{errorText(error)}</div>}
+      {error && <div className="release-error">{getErrorMessage(error)}</div>}
       {result.releases.length < result.count && (
         <Button
           fluid

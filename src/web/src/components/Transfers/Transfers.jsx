@@ -1,5 +1,6 @@
 import './Transfers.css';
 import * as transfersLibrary from '../../lib/transfers';
+import { getErrorMessage } from '../../lib/util';
 import { LoaderSegment, PlaceholderSegment } from '../Shared';
 import TransferGroup from './TransferGroup';
 import TransfersHeader from './TransfersHeader';
@@ -20,7 +21,7 @@ const Transfers = ({ direction, server }) => {
       setTransfers(response);
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+      toast.error(getErrorMessage(error));
     }
   };
 
@@ -62,7 +63,7 @@ const Transfers = ({ direction, server }) => {
       if (!suppressStateChange) setRetrying(false);
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+      toast.error(getErrorMessage(error));
       if (!suppressStateChange) setRetrying(false);
     }
   };
@@ -86,7 +87,7 @@ const Transfers = ({ direction, server }) => {
       if (!suppressStateChange) setCancelling(false);
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+      toast.error(getErrorMessage(error));
       if (!suppressStateChange) setCancelling(false);
     }
   };
@@ -110,7 +111,7 @@ const Transfers = ({ direction, server }) => {
       if (!suppressStateChange) setRemoving(false);
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+      toast.error(getErrorMessage(error));
       if (!suppressStateChange) setRemoving(false);
     }
   };
