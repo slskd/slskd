@@ -246,6 +246,109 @@ namespace slskd.Users.API
         }
 
         /// <summary>
+        ///     Retrieves statistics (shared file and directory counts, average speed) for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="username">The username of the user.</param>
+        /// <returns></returns>
+        /// <response code="200">The request completed successfully.</response>
+        [HttpGet("{username}/statistics")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Statistics), 200)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> Statistics([FromRoute, UrlEncoded, Required] string username)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            if (Users.IsBlacklisted(username))
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var response = await Users.GetStatisticsAsync(username);
+                return Ok(response);
+            }
+            catch (UserOfflineException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        /// <summary>
+        ///     Retrieves the name of the group to which the specified <paramref name="username"/> currently belongs.
+        /// </summary>
+        /// <remarks>
+        ///     Unlike other user endpoints, this endpoint responds for blacklisted users, returning the blacklisted group.
+        /// </remarks>
+        /// <param name="username">The username of the user.</param>
+        /// <returns></returns>
+        /// <response code="200">The request completed successfully.</response>
+        [HttpGet("{username}/group")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(string), 200)]
+        public IActionResult Group([FromRoute, UrlEncoded, Required] string username)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            if (Users.IsBlacklisted(username))
+            {
+                // blacklisting is no longer modeled as a group internally, but callers still want a name to display
+                return Ok("blacklisted");
+            }
+
+            return Ok(Users.GetGroup(username));
+        }
+
+        /// <summary>
+        ///     Gifts the specified number of days of privileges to the specified <paramref name="username"/>.
+        /// </summary>
+        /// <remarks>
+        ///     The days are deducted from the privileges of the currently logged in Soulseek account.
+        /// </remarks>
+        /// <param name="username">The username of the user.</param>
+        /// <param name="request">The privileges request.</param>
+        /// <returns></returns>
+        /// <response code="204">The request completed successfully.</response>
+        [HttpPost("{username}/privileges")]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> GrantPrivileges([FromRoute, UrlEncoded, Required] string username, [FromBody, Required] GrantPrivilegesRequest request)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            if (request == null || request.Days < 1)
+            {
+                return BadRequest("The number of days must be at least 1");
+            }
+
+            try
+            {
+                await Users.GrantPrivilegesAsync(username, request.Days);
+                return NoContent();
+            }
+            catch (UserOfflineException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (SoulseekClientException ex)
+            {
+                Log.Warning("Failed to grant {Days} days of privileges to {Username}: {Message}", request.Days, username, ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>
         ///     Retrieves status for the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username of the user.</param>

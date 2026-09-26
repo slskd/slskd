@@ -1,4 +1,4 @@
-// <copyright file="EnumAttribute.cs" company="JP Dillingham">
+// <copyright file="GrantPrivilegesRequest.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,53 +30,16 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Validation
+namespace slskd.Users.API
 {
-    using System;
-    using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations;
-    using System.Linq;
-
     /// <summary>
-    ///     Validates that the value is a valid member of the specified <see cref="Enum"/>.
+    ///     A request to gift privileges to a user.
     /// </summary>
-    public class EnumAttribute : ValidationAttribute
+    public class GrantPrivilegesRequest
     {
-        public EnumAttribute(Type targetType, bool ignoreCase = true)
-        {
-            TargetType = targetType;
-            IgnoreCase = ignoreCase;
-        }
-
         /// <summary>
-        ///     Gets the enum the value must be a member of.
+        ///     Gets or sets the number of days of privileges to gift.
         /// </summary>
-        public Type TargetType { get; }
-        private bool IgnoreCase { get; set; }
-
-        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
-        {
-            if (value is IList<string> array)
-            {
-                if (array.Any(x => string.IsNullOrEmpty(x)))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more null or empty values");
-                }
-
-                if (array.Any(x => !Enum.TryParse(TargetType, x, IgnoreCase, out _)))
-                {
-                    return new ValidationResult($"The elements in the {validationContext.DisplayName} field must all be one of: {string.Join(", ", Enum.GetNames(TargetType))}. Case {(IgnoreCase ? "insensitive" : "sensitive")}.");
-                }
-            }
-            else
-            {
-                if (value != null && !Enum.TryParse(TargetType, value.ToString(), IgnoreCase, out _))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be one of: {string.Join(", ", Enum.GetNames(TargetType))}. Case {(IgnoreCase ? "insensitive" : "sensitive")}.");
-                }
-            }
-
-            return ValidationResult.Success;
-        }
+        public int Days { get; set; }
     }
 }

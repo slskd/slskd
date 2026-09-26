@@ -1,4 +1,4 @@
-// <copyright file="EnumAttribute.cs" company="JP Dillingham">
+// <copyright file="OptionsSchemaController.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,53 +30,34 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Validation
+namespace slskd.Core.API
 {
-    using System;
-    using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations;
-    using System.Linq;
+    using Asp.Versioning;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
 
     /// <summary>
-    ///     Validates that the value is a valid member of the specified <see cref="Enum"/>.
+    ///     Describes the application options.
     /// </summary>
-    public class EnumAttribute : ValidationAttribute
+    [Route("api/v{version:apiVersion}/options/schema")]
+    [ApiVersion("0")]
+    [ApiController]
+    [Produces("application/json")]
+    [Consumes("application/json")]
+    public class OptionsSchemaController : ControllerBase
     {
-        public EnumAttribute(Type targetType, bool ignoreCase = true)
-        {
-            TargetType = targetType;
-            IgnoreCase = ignoreCase;
-        }
-
         /// <summary>
-        ///     Gets the enum the value must be a member of.
+        ///     Gets a description of every option that can be set in the configuration file, including its type, allowed
+        ///     values, default, and whether changing it requires a restart.
         /// </summary>
-        public Type TargetType { get; }
-        private bool IgnoreCase { get; set; }
-
-        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+        /// <returns></returns>
+        /// <response code="200">The request completed successfully.</response>
+        [HttpGet]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(OptionsSchemaNode), 200)]
+        public IActionResult Get()
         {
-            if (value is IList<string> array)
-            {
-                if (array.Any(x => string.IsNullOrEmpty(x)))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more null or empty values");
-                }
-
-                if (array.Any(x => !Enum.TryParse(TargetType, x, IgnoreCase, out _)))
-                {
-                    return new ValidationResult($"The elements in the {validationContext.DisplayName} field must all be one of: {string.Join(", ", Enum.GetNames(TargetType))}. Case {(IgnoreCase ? "insensitive" : "sensitive")}.");
-                }
-            }
-            else
-            {
-                if (value != null && !Enum.TryParse(TargetType, value.ToString(), IgnoreCase, out _))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be one of: {string.Join(", ", Enum.GetNames(TargetType))}. Case {(IgnoreCase ? "insensitive" : "sensitive")}.");
-                }
-            }
-
-            return ValidationResult.Success;
+            return Ok(OptionsSchema.Root);
         }
     }
 }

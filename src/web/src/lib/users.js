@@ -27,3 +27,17 @@ export const getDirectoryContents = async ({ username, directory }) => {
     })
   ).data;
 };
+
+export const getStatistics = ({ username }) => {
+  return api.get(`/users/${encodeURIComponent(username)}/statistics`);
+};
+
+export const getGroup = async ({ username }) => {
+  return (await api.get(`/users/${encodeURIComponent(username)}/group`)).data;
+};
+
+export const grantPrivileges = ({ username, days }) => {
+  return api.post(`/users/${encodeURIComponent(username)}/privileges`, {
+    days,
+  });
+};

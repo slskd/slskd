@@ -2,6 +2,7 @@ import './Chat.css';
 import { activeChatKey } from '../../config';
 import * as chat from '../../lib/chat';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
+import UserLink from '../Shared/UserLink';
 import ChatMenu from './ChatMenu';
 import React, { Component, createRef } from 'react';
 import {
@@ -36,8 +37,14 @@ const ChatMessageHistory = React.memo(
               {formatTimestamp(message.timestamp)}
             </span>
             <span className="chat-message-name">
-              {message.direction === 'Out' ? selfUsername : message.username}:
-            </span>
+              {message.direction === 'Out' ? (
+                // the username is unknown while disconnected
+                selfUsername ?? 'You'
+              ) : (
+                <UserLink username={message.username} />
+              )}
+              :
+            </span>{' '}
             <span className="chat-message-message">{message.message}</span>
           </List.Content>
         ))}
@@ -59,7 +66,11 @@ class Chat extends Component {
   componentDidMount() {
     this.setState(
       {
-        active: sessionStorage.getItem(activeChatKey) || '',
+        // a user passed in location state (from 'send message' elsewhere) wins
+        active:
+          this.props.location?.state?.user ||
+          sessionStorage.getItem(activeChatKey) ||
+          '',
         interval: window.setInterval(this.fetchConversations, 5_000),
       },
       async () => {
@@ -69,6 +80,17 @@ class Chat extends Component {
         );
       },
     );
+  }
+
+  componentDidUpdate(previousProps) {
+    const user = this.props.location?.state?.user;
+
+    if (user && user !== previousProps.location?.state?.user) {
+      this.setState({ active: user }, async () => {
+        await this.fetchConversations();
+        this.selectConversation(user);
+      });
+    }
   }
 
   componentWillUnmount() {
@@ -268,7 +290,7 @@ class Chat extends Component {
                   color="green"
                   name="circle"
                 />
-                {active}
+                <UserLink username={active} />
                 <Icon
                   className="close-button"
                   color="red"

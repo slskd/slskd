@@ -1,0 +1,535 @@
+.settings {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 15px 15px 96px; /* room for the save bar */
+}
+
+.settings-header.ui.segment {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.settings-header h1 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.6em;
+}
+
+.settings-search.ui.input {
+  width: min(320px, 50vw);
+}
+
+.settings-layout {
+  display: flex;
+  gap: 1.5em;
+  align-items: flex-start;
+  margin-top: 1em;
+}
+
+.settings-nav {
+  position: sticky;
+  top: 86px;
+  flex: 0 0 210px;
+}
+
+.settings-nav .ui.menu .item {
+  display: flex !important;
+  align-items: center;
+  gap: 0.25em;
+  /* semantic's secondary menu hardcodes dark text, which vanishes in the dark theme */
+  color: inherit !important;
+  opacity: 0.8;
+}
+
+.settings-nav .ui.menu .item:hover,
+.settings-nav .ui.menu .active.item {
+  opacity: 1;
+}
+
+.settings-nav .ui.menu .item > .icon:not(.dropdown) {
+  float: none;
+  margin: 0 0.5em 0 0 !important;
+  order: -1;
+}
+
+.settings-nav-yaml {
+  margin-top: 1em !important;
+  opacity: 0.75;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-section-header {
+  margin-bottom: 1em;
+}
+
+.settings-section-header h2 {
+  margin: 0 0 0.25em;
+}
+
+.settings-section-header p {
+  margin: 0 0 0.25em;
+  opacity: 0.75;
+}
+
+@media only screen and (max-width: 767px) {
+  .settings-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-nav {
+    position: static;
+    flex: none;
+    overflow-x: auto;
+  }
+
+  .settings-nav .ui.vertical.menu {
+    display: flex;
+    flex-direction: row;
+    width: max-content !important;
+  }
+
+  .settings-nav-yaml {
+    margin-top: 0 !important;
+  }
+
+  .settings-header h1 {
+    display: none;
+  }
+
+  .settings-search.ui.input {
+    flex: 1;
+    width: auto;
+  }
+}
+
+/* groups of fields */
+.settings-group.ui.segment {
+  margin: 0 0 1em;
+}
+
+.settings-group h3 {
+  font-size: 1.1em;
+  margin: 0 0 0.75em;
+}
+
+.settings-group-help {
+  margin: -0.25em 0 1em;
+  opacity: 0.75;
+}
+
+.settings-advanced summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-advanced summary::before {
+  content: '▸';
+  transition: transform 0.15s ease;
+}
+
+.settings-advanced[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.settings-advanced summary h3 {
+  margin: 0;
+}
+
+.settings-advanced[open] summary {
+  margin-bottom: 0.75em;
+}
+
+.settings-advanced-hint {
+  font-size: 0.85em;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-advanced summary::before {
+    transition: none;
+  }
+}
+
+/* a single field: label on the left, control on the right */
+.settings-field {
+  display: grid;
+  grid-template-columns: minmax(180px, 35%) 1fr;
+  gap: 0.5em 1.5em;
+  padding: 0.6em 0;
+  border-top: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.08));
+}
+
+.settings-group h3 + .settings-field,
+.settings-group-help + .settings-field,
+.settings-advanced summary + .settings-field,
+.settings-user-group-header + .settings-field {
+  border-top: none;
+}
+
+@media only screen and (max-width: 600px) {
+  .settings-field {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-field-label {
+  padding-top: 0.5em;
+}
+
+.settings-field-toggle .settings-field-label {
+  padding-top: 0.1em;
+}
+
+.settings-field-label label {
+  font-weight: 700;
+}
+
+.settings-field-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25em;
+  margin-top: 0.25em;
+}
+
+.settings-field-badges .ui.label {
+  margin: 0;
+}
+
+.settings-field-input {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+
+.settings-field-input > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-field-toggle .settings-field-input > :first-child {
+  flex: 0 0 auto;
+}
+
+.settings-field-select .settings-field-input > .ui.dropdown {
+  flex: 0 1 auto;
+  min-width: 14em;
+}
+
+.settings-number.ui.input {
+  flex: 0 1 auto !important;
+  max-width: 16em;
+}
+
+.settings-number.ui.input > input {
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-reset.ui.button {
+  flex: 0 0 auto;
+  margin: 0.35em 0 0 !important;
+}
+
+.settings-field-help {
+  margin-top: 0.35em;
+  font-size: 0.9em;
+  opacity: 0.75;
+}
+
+.settings-field-help.error {
+  color: #db2828;
+  opacity: 1;
+}
+
+.settings-changed-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 0.4em;
+  border-radius: 50%;
+  background: var(--smui-site-link-color, #2185d0);
+  vertical-align: middle;
+}
+
+/* list editor */
+.settings-list-items {
+  list-style: none;
+  margin: 0 0 0.5em;
+  padding: 0;
+}
+
+.settings-list-items li,
+.settings-list-add {
+  display: flex;
+  gap: 0.35em;
+}
+
+.settings-list-items li + li {
+  margin-top: 0.35em;
+}
+
+.settings-list-items li > .ui.input,
+.settings-list-add > .ui.input {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-list-items .ui.button,
+.settings-list-add .ui.button {
+  margin: 0 !important;
+  flex-shrink: 0;
+  /* same width for remove and add, so the inputs line up */
+  min-width: 8em;
+}
+
+/* user groups */
+.settings-user-group {
+  margin-bottom: 1em;
+  padding: 0.75em 1em;
+  border: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+  border-radius: 6px;
+}
+
+.settings-user-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.settings-user-group-header h4 {
+  margin: 0;
+}
+
+.settings-user-group-delete.ui.button {
+  margin-left: auto !important;
+}
+
+.settings-user-group-add {
+  display: flex;
+  gap: 0.5em;
+}
+
+.settings-user-group-add .ui.input {
+  flex: 1;
+  max-width: 24em;
+}
+
+/* profile */
+.settings-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1em;
+  align-items: start;
+}
+
+@media only screen and (max-width: 991px) {
+  .settings-profile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-profile .settings-group.ui.segment {
+  margin: 0;
+}
+
+.settings-dropzone {
+  display: flex;
+  gap: 1em;
+  align-items: center;
+  padding: 1em;
+  border: 2px dashed var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.2));
+  border-radius: 8px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.settings-dropzone.dragging {
+  border-color: var(--smui-site-link-color, #2185d0);
+  background: var(--slskd-subtle-background, rgba(33, 133, 208, 0.06));
+}
+
+.settings-dropzone.disabled {
+  opacity: 0.6;
+}
+
+.settings-dropzone-preview {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.settings-dropzone-icon.icon {
+  flex-shrink: 0;
+  opacity: 0.35;
+  margin: 0 !important;
+}
+
+.settings-dropzone-text p {
+  margin: 0 0 0.5em;
+}
+
+.settings-dropzone-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+}
+
+.settings-dropzone-buttons .ui.button {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-dropzone {
+    transition: none;
+  }
+}
+
+/* save bar, pinned above the footer */
+.settings-savebar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 40px;
+  z-index: 950;
+  color: var(--slskd-color, rgba(0, 0, 0, 0.87));
+  background: var(--slskd-secondary-background, #fff);
+  border-top: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.settings-savebar-inner {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.6em 15px;
+}
+
+.settings-savebar-inner > span {
+  flex: 1;
+}
+
+.settings-savebar-error {
+  color: #db2828;
+  white-space: pre-wrap;
+}
+
+.settings-savebar-buttons {
+  display: flex;
+  gap: 0.5em;
+}
+
+.settings-savebar-buttons .ui.button {
+  margin: 0;
+}
+
+/* the stock form label color assumes a light background */
+.settings-profile .ui.form .field > label {
+  color: inherit;
+}
+
+/* all settings */
+.settings-all-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75em;
+}
+
+.settings-all-toolbar .ui.button {
+  margin: 0;
+}
+
+.settings-subgroup + .settings-subgroup {
+  margin-top: 1.25em;
+}
+
+.settings-subgroup h4,
+.settings-dictionary h4 {
+  margin: 0 0 0.5em;
+  font-size: 1em;
+  opacity: 0.85;
+}
+
+.settings-subgroup h4 + .settings-field {
+  border-top: none;
+}
+
+.settings-dictionary {
+  margin-top: 1em;
+}
+
+.settings-field-key {
+  display: block;
+  margin-top: 0.15em;
+  font-size: 0.8em;
+  opacity: 0.55;
+  overflow-wrap: anywhere;
+}
+
+.settings-field-objectList .settings-list-items li > .ui.input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* the theme only styles inputs; make selection dropdowns match them */
+.settings .ui.selection.dropdown {
+  background: var(--smui-input-background, #fff);
+  color: var(--smui-site-input-color, rgba(0, 0, 0, 0.87));
+  border-color: var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+}
+
+.settings .ui.selection.dropdown > .text:not(.default),
+.settings .ui.selection.dropdown > .dropdown.icon,
+.settings .ui.selection.dropdown > input.search {
+  color: inherit;
+}
+
+.settings .ui.selection.dropdown .menu {
+  background: var(--smui-menu-background, #fff);
+  border-color: var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+}
+
+.settings .ui.selection.dropdown .menu > .item {
+  color: var(--smui-menu-item-color, rgba(0, 0, 0, 0.87));
+  border-top-color: var(--slskd-tertiary-border-color, #fafafa);
+}
+
+.settings .ui.selection.dropdown .menu > .item:hover,
+.settings .ui.selection.dropdown .menu > .selected.item {
+  background: var(--smui-menu-hovered-item-background, rgba(0, 0, 0, 0.05));
+  color: var(--smui-menu-hovered-item-color, rgba(0, 0, 0, 0.95));
+}
+
+/* textareas outside a .ui.form get no theme styles */
+.settings-field-textarea textarea {
+  width: 100%;
+  min-height: 6em;
+  padding: 0.6em 1em;
+  font: inherit;
+  line-height: 1.4;
+  color: var(--smui-site-input-color, rgba(0, 0, 0, 0.87));
+  background: var(--smui-input-background, #fff);
+  border: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+  border-radius: 0.28571429rem;
+  resize: vertical;
+}
+
+.settings-field-textarea textarea:focus {
+  outline: none;
+  border-color: #85b7d9;
+}

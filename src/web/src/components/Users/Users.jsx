@@ -1,83 +1,98 @@
 import './Users.css';
-import { activeUserInfoKey } from '../../config';
-import * as users from '../../lib/users';
+import '../UserPanel/UserPanel.css';
+import { activeUserInfoKey, urlBase } from '../../config';
+import AppContext from '../AppContext';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
-import User from './User';
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Icon, Input, Item, Loader, Segment } from 'semantic-ui-react';
+import UserView from './UserView';
+import React, { useContext, useEffect, useState } from 'react';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { Button, Icon, Input, Segment } from 'semantic-ui-react';
 
+const tabsKey = 'slskd-user-tabs';
+
+const loadTabs = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(tabsKey));
+    return Array.isArray(saved) ? saved.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+};
+
+const userPath = (username) =>
+  `${urlBase}/users/${encodeURIComponent(username)}`;
+
+// open user profiles as tabs, like nicotine+'s user info tabs
 const Users = () => {
+  const history = useHistory();
   const location = useLocation();
-  const inputRef = useRef();
-  const [user, setUser] = useState();
-  const [usernameInput, setUsernameInput] = useState();
-  const [selectedUsername, setSelectedUsername] = useState(undefined);
-  // eslint-disable-next-line react/hook-use-state
-  const [{ error, fetching }, setStatus] = useState({
-    error: undefined,
-    fetching: false,
-  });
+  const { username: active } = useParams();
+  const { state = {} } = useContext(AppContext) ?? {};
+  const selfUsername = state.user?.username;
 
-  const setInputText = (text) => {
-    inputRef.current.inputRef.current.value = text;
-  };
+  const [tabs, setTabs] = useState(loadTabs);
+  const [views, setViews] = useState({});
+  const [input, setInput] = useState('');
 
-  const setInputFocus = () => {
-    inputRef.current.focus();
-  };
-
-  const clear = () => {
-    localStorage.removeItem(activeUserInfoKey);
-    setSelectedUsername(undefined);
-    setUser(undefined);
-    setInputText('');
-    setInputFocus();
-  };
-
-  const keyUp = (event) => (event.key === 'Escape' ? clear() : '');
-
-  useLayoutEffect(() => {
-    document.removeEventListener('keyup', keyUp, false);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
+  // older links pass the user in location state; the last viewed user is
+  // restored when landing on the page without one, including from the nav
+  // while a user is showing
   useEffect(() => {
-    document.addEventListener('keyup', keyUp, false);
+    const requested = location.state?.user;
 
-    const storedUsername =
-      location.state?.user || localStorage.getItem(activeUserInfoKey);
+    if (requested) {
+      history.replace(userPath(requested));
+    } else if (!active) {
+      const last = localStorage.getItem(activeUserInfoKey);
+      const restore = tabs.includes(last) ? last : tabs[0];
 
-    if (storedUsername !== undefined) {
-      setSelectedUsername(storedUsername);
-      setInputText(storedUsername);
+      if (restore) {
+        history.replace(userPath(restore));
+      }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.state, active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const fetchUser = async () => {
-      if (!selectedUsername) {
-        return;
-      }
+    if (!active) {
+      return;
+    }
 
-      setStatus({ error: undefined, fetching: true });
+    localStorage.setItem(activeUserInfoKey, active);
+    setTabs((previous) =>
+      previous.includes(active) ? previous : [...previous, active],
+    );
+  }, [active]);
 
-      try {
-        const [info, status, endpoint] = await Promise.all([
-          users.getInfo({ username: selectedUsername }),
-          users.getStatus({ username: selectedUsername }),
-          users.getEndpoint({ username: selectedUsername }),
-        ]);
+  useEffect(() => {
+    localStorage.setItem(tabsKey, JSON.stringify(tabs));
+  }, [tabs]);
 
-        localStorage.setItem(activeUserInfoKey, selectedUsername);
-        setUser({ ...info.data, ...status.data, ...endpoint.data });
-        setStatus({ error: undefined, fetching: false });
-      } catch (fetchError) {
-        setStatus({ error: fetchError, fetching: false });
-      }
-    };
+  const open = (username) => {
+    const trimmed = username?.trim();
 
-    fetchUser();
-  }, [selectedUsername]);
+    if (trimmed) {
+      history.push(userPath(trimmed));
+      setInput('');
+    }
+  };
+
+  const close = (username) => {
+    const index = tabs.indexOf(username);
+    const next = tabs.filter((tab) => tab !== username);
+    setTabs(next);
+
+    if (username === active) {
+      const neighbor = next[index] ?? next[index - 1];
+      history.replace(neighbor ? userPath(neighbor) : `${urlBase}/users`);
+    }
+  };
+
+  const view = views[active] ?? { refreshKey: 0, tab: 'profile' };
+  const setView = (patch) =>
+    setViews((previous) => ({
+      ...previous,
+      [active]: { ...view, ...patch },
+    }));
 
   return (
     <div className="users-container">
@@ -92,62 +107,120 @@ const Users = () => {
           />
         </div>
         <Input
-          action={
-            !fetching &&
-            (user == null
-              ? {
-                  icon: 'search',
-                  onClick: () => setSelectedUsername(usernameInput),
-                }
-              : { color: 'red', icon: 'x', onClick: clear })
-          }
+          action={{
+            'aria-label': 'Open user',
+            disabled: !input.trim(),
+            icon: 'search',
+            onClick: () => open(input),
+          }}
           className="users-input"
-          disabled={fetching}
           input={
             <input
+              aria-label="Username"
               data-lpignore="true"
-              disabled={Boolean(user) || fetching}
-              placeholder="Username"
+              placeholder="Open a user's profile by username"
               type="search"
             />
           }
-          loading={fetching}
-          onChange={(event) => setUsernameInput(event.target.value)}
-          onKeyUp={(event) =>
-            event.key === 'Enter' ? setSelectedUsername(usernameInput) : ''
-          }
-          placeholder="Username"
-          ref={inputRef}
+          onChange={(_event, { value }) => setInput(value)}
+          onKeyUp={(event) => event.key === 'Enter' && open(input)}
           size="big"
+          value={input}
         />
+        {selfUsername && (
+          <Button
+            className="users-self-button"
+            content="My Profile"
+            icon="id card"
+            onClick={() => open(selfUsername)}
+            size="big"
+          />
+        )}
       </Segment>
-      {fetching ? (
-        <Loader
-          active
-          className="search-loader"
-          inline="centered"
-          size="big"
-        />
-      ) : (
-        <div>
-          {error ? (
-            <span>Failed to retrieve information for {selectedUsername}</span>
-          ) : user == null ? (
-            <PlaceholderSegment
-              caption="No user info to display"
-              icon="users"
-            />
-          ) : (
-            <Segment
-              className="users-user"
-              raised
+      {tabs.length > 0 && (
+        <div
+          aria-label="Open users"
+          className="users-tabs"
+          role="tablist"
+        >
+          {tabs.map((username) => (
+            <div
+              className={`users-tab ${username === active ? 'active' : ''}`}
+              key={username}
             >
-              <Item.Group>
-                <User {...user} />
-              </Item.Group>
-            </Segment>
+              <button
+                aria-selected={username === active}
+                className="users-tab-name"
+                onAuxClick={(event) => event.button === 1 && close(username)}
+                onClick={() => history.push(userPath(username))}
+                role="tab"
+                title={`${username} (middle click to close)`}
+                type="button"
+              >
+                {username === selfUsername && (
+                  <Icon
+                    name="id card outline"
+                    title="You"
+                  />
+                )}
+                {username}
+              </button>
+              <button
+                aria-label={`Close ${username}`}
+                className="users-tab-close"
+                onClick={() => close(username)}
+                title="Close"
+                type="button"
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+          ))}
+          {tabs.length > 1 && (
+            <button
+              className="users-tab-close-all"
+              onClick={() => {
+                setTabs([]);
+                history.replace(`${urlBase}/users`);
+              }}
+              type="button"
+            >
+              Close all
+            </button>
           )}
         </div>
+      )}
+      {active ? (
+        <Segment
+          className="users-user"
+          raised
+        >
+          <div className="users-user-header">
+            <h2>{active}</h2>
+            {/* the files tab has its own refresh */}
+            {view.tab === 'profile' && (
+              <Button
+                aria-label="Refresh profile"
+                icon="refresh"
+                onClick={() => setView({ refreshKey: view.refreshKey + 1 })}
+                size="small"
+                title="Refresh profile"
+              />
+            )}
+          </div>
+          <UserView
+            key={active}
+            onTabChange={(tab) => setView({ tab })}
+            refreshKey={view.refreshKey}
+            tab={view.tab}
+            username={active}
+          />
+        </Segment>
+      ) : (
+        <PlaceholderSegment
+          caption="Open a profile by username, or click any username in search results, rooms, chat or transfers"
+          icon="users"
+        />
       )}
     </div>
   );

@@ -68,7 +68,9 @@ namespace slskd.Validation
                     {
                         try
                         {
-                            using var fs = File.Open(file, FileMode.Open, FileAccess.Value);
+                            // options are validated per request, so concurrent requests open the file at the same time;
+                            // an exclusive open would make them fail each other
+                            using var fs = File.Open(file, FileMode.Open, FileAccess.Value, FileShare.ReadWrite | FileShare.Delete);
                             fs.Close();
                         }
                         catch (IOException)

@@ -1,4 +1,5 @@
 import './Rooms.css';
+import UserLink from '../Shared/UserLink';
 import React, { useMemo } from 'react';
 import { Flag, Icon, List, Popup } from 'semantic-ui-react';
 
@@ -48,7 +49,7 @@ const RoomUserList = ({ users }) => {
               content={getDetails(user)}
               trigger={getFlag(user)}
             />
-            {user.username}
+            <UserLink username={user.username} />
           </List.Content>
         </List.Item>
       ))}

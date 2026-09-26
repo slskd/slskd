@@ -23,3 +23,9 @@ export const validateYaml = async ({ yaml }) => {
 export const updateYaml = async ({ yaml }) => {
   return (await api.put('/options/yaml', yaml)).data;
 };
+
+// describes every option: type, allowed values, default, and whether a change
+// needs a restart
+export const getSchema = async () => {
+  return (await api.get('/options/schema')).data;
+};

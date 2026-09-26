@@ -2,6 +2,7 @@ import * as transfers from '../../lib/transfers';
 import { getDirectoryContents } from '../../lib/users';
 import { formatBytes, getDirectoryName } from '../../lib/util';
 import FileList from '../Shared/FileList';
+import UserLink from '../Shared/UserLink';
 import React, { Component } from 'react';
 import { toast } from 'react-toastify';
 import { Button, Card, Icon, Label } from 'semantic-ui-react';
@@ -167,7 +168,7 @@ class Response extends Component {
               color={free ? 'green' : 'yellow'}
               name="circle"
             />
-            {response.username}
+            <UserLink username={response.username} />
             <Icon
               className="close-button"
               color="red"

@@ -1,5 +1,6 @@
 import * as reports from '../../lib/reports';
 import { formatBytes, formatSpeed } from '../../lib/util';
+import UserLink from '../Shared/UserLink';
 import React, { useEffect, useRef, useState } from 'react';
 import { Divider, Grid, Header, Icon, Loader, Table } from 'semantic-ui-react';
 
@@ -78,7 +79,9 @@ const LeaderboardTable = ({ loading, onSort, rows, sortBy }) => (
             >
               {index + 1}
             </Table.Cell>
-            <Table.Cell>{row.username}</Table.Cell>
+            <Table.Cell>
+              <UserLink username={row.username} />
+            </Table.Cell>
             <Table.Cell textAlign="right">
               {row.count.toLocaleString()}
             </Table.Cell>

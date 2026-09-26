@@ -1,6 +1,13 @@
 import './Browse.css';
+import {
+  buildDirectoryTree,
+  findDirectoryByPath,
+  formatBrowseSummary,
+  processBrowseResponse,
+} from '../../lib/browse';
 import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
+import UserLink from '../Shared/UserLink';
 import DirectoryTree from './DirectoryTree';
 import Selection from './Selection';
 import React, { Component } from 'react';
@@ -35,15 +42,6 @@ const idbGet = async (key) => {
     req.onerror = ({ target }) => reject(target.error);
   });
 };
-
-const formatBrowseSummary = ({
-  directories,
-  files,
-  lockedDirectories,
-  lockedFiles,
-}) =>
-  `${files + lockedFiles} files in ${directories + lockedDirectories} ` +
-  `directories (including ${lockedFiles} files in ${lockedDirectories} locked directories)`;
 
 const initialState = {
   browseError: undefined,
@@ -89,6 +87,16 @@ class Browse extends Component {
     document.addEventListener('keyup', this.keyUp, false);
   }
 
+  componentDidUpdate(previousProps) {
+    // browsing a user from elsewhere (e.g. the user panel) while this page is open
+    const user = this.props.location.state?.user;
+
+    if (user && user !== previousProps.location.state?.user) {
+      this.inputtext.inputRef.current.value = user;
+      this.browse();
+    }
+  }
+
   componentWillUnmount() {
     clearInterval(this.state.interval);
     this.setState({ interval: undefined });
@@ -101,41 +109,13 @@ class Browse extends Component {
 
     try {
       const response = await users.browse({ username });
-      let { directories } = response;
-      const { lockedDirectories } = response;
-
-      // detect the path separator from the first directory name we see
-      let separator;
-      const directoryCount = directories.length;
-      const fileCount = directories.reduce((accumulator, directory) => {
-        if (!separator) {
-          if (directory.name.includes('\\')) separator = '\\';
-          else if (directory.name.includes('/')) separator = '/';
-        }
-
-        return accumulator + directory.fileCount;
-      }, 0);
-
-      const lockedDirectoryCount = lockedDirectories.length;
-      const lockedFileCount = lockedDirectories.reduce(
-        (accumulator, directory) => accumulator + directory.fileCount,
-        0,
-      );
-
-      directories = directories.concat(
-        lockedDirectories.map((d) => ({ ...d, locked: true })),
-      );
+      const { directories, info, separator } = processBrowseResponse(response);
 
       this.setState({
         directories,
-        info: {
-          directories: directoryCount,
-          files: fileCount,
-          lockedDirectories: lockedDirectoryCount,
-          lockedFiles: lockedFileCount,
-        },
+        info,
         separator,
-        tree: this.getDirectoryTree({ directories, separator }),
+        tree: buildDirectoryTree({ directories, separator }),
       });
 
       this.setState({ browseError: undefined, browseState: 'complete' }, () => {
@@ -227,7 +207,7 @@ class Browse extends Component {
       const directories = saved?.directories ?? [];
       const separator = saved?.separator ?? meta?.separator ?? '\\';
       const tree = directories.length
-        ? this.getDirectoryTree({ directories, separator })
+        ? buildDirectoryTree({ directories, separator })
         : [];
 
       this.setState({
@@ -253,69 +233,6 @@ class Browse extends Component {
 
     const response = await users.getBrowseStatus({ username });
     this.setState({ browseStatus: response.data });
-  };
-
-  getDirectoryTree = ({ directories, separator }) => {
-    if (!directories.length || directories[0].name === undefined) {
-      return [];
-    }
-
-    // group each directory under its parent path in a single O(N) pass
-    const byParent = new Map();
-    const nameSet = new Set();
-
-    for (const d of directories) {
-      nameSet.add(d.name);
-      const lastSep = d.name.lastIndexOf(separator);
-      const parentKey = lastSep === -1 ? '' : d.name.slice(0, lastSep);
-      let bucket = byParent.get(parentKey);
-      if (!bucket) {
-        bucket = [];
-        byParent.set(parentKey, bucket);
-      }
-
-      bucket.push(d);
-    }
-
-    // roots are directories whose parent path isn't itself in the list
-    const roots = directories.filter((d) => {
-      const lastSep = d.name.lastIndexOf(separator);
-      const parentKey = lastSep === -1 ? '' : d.name.slice(0, lastSep);
-      return !nameSet.has(parentKey);
-    });
-
-    // recursively build the tree, computing file/directory counts along the way
-    const buildNode = (dir) => {
-      const children = (byParent.get(dir.name) || []).map(buildNode);
-      return {
-        ...dir,
-        children,
-        totalDirectoryCount:
-          children.length +
-          children.reduce((s, c) => s + c.totalDirectoryCount, 0),
-        totalFileCount:
-          (dir.files?.length ?? 0) +
-          children.reduce((s, c) => s + c.totalFileCount, 0),
-      };
-    };
-
-    return roots.map(buildNode);
-  };
-
-  findDirectoryByPath = (path, nodes) => {
-    for (const node of nodes) {
-      if (node.name === path) {
-        return node;
-      }
-
-      const found = this.findDirectoryByPath(path, node.children || []);
-
-      if (found) {
-        return found;
-      }
-    }
-
-    return null;
   };
 
   selectDirectory = (directory) => {
@@ -413,7 +330,7 @@ class Browse extends Component {
                 color="green"
                 name="circle"
               />
-              {username}
+              <UserLink username={username} />
             </Card.Header>
             <Card.Meta className="browse-meta">
               <span>{formatBrowseSummary(info)}</span>
@@ -454,6 +371,17 @@ class Browse extends Component {
     }
 
     const emptyTree = !(tree && tree.length > 0);
+
+    // nobody has been browsed yet
+    if (emptyTree && !username && !browseLoading) {
+      return (
+        <PlaceholderSegment
+          caption="Enter a username to browse their shared files"
+          icon="folder open"
+        />
+      );
+    }
+
     if (emptyTree) {
       return browseLoading ? (
         <Loader
@@ -478,7 +406,7 @@ class Browse extends Component {
   render() {
     const { browseState, browseStatus, selected, tree } = this.state;
     const selectedDirectory = selected
-      ? this.findDirectoryByPath(selected.directoryName, tree)
+      ? findDirectoryByPath(selected.directoryName, tree)
       : null;
     const pending = browseState === 'pending';
 

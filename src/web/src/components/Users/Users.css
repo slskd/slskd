@@ -40,3 +40,97 @@
   white-space: pre-wrap;
   margin-top: 15px;
 }
+.users-self-button.ui.button {
+  margin-left: 0.5em;
+  flex-shrink: 0;
+}
+
+@media only screen and (max-width: 600px) {
+  .users-self-button.ui.button {
+    display: none;
+  }
+}
+
+/* open user tabs */
+.users-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35em;
+  margin-top: 15px;
+}
+
+.users-tab {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+  border-radius: 999px;
+  background: var(--slskd-secondary-background, #fff);
+  color: var(--slskd-color, rgba(0, 0, 0, 0.87));
+}
+
+.users-tab.active {
+  border-color: var(--smui-site-link-color, #2185d0);
+  box-shadow: inset 0 0 0 1px var(--smui-site-link-color, #2185d0);
+}
+
+.users-tab button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.users-tab-name {
+  padding: 0.4em 0.25em 0.4em 0.9em;
+  max-width: 16em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.users-tab.active .users-tab-name {
+  font-weight: 700;
+}
+
+.users-tab-close {
+  padding: 0.4em 0.6em 0.4em 0.1em;
+  opacity: 0.5;
+}
+
+.users-tab-close:hover,
+.users-tab-close:focus-visible {
+  opacity: 1;
+}
+
+.users-tab button:focus-visible,
+.users-tab-close-all:focus-visible {
+  outline: 2px solid var(--smui-site-link-color, #2185d0);
+  outline-offset: 1px;
+  border-radius: 999px;
+}
+
+.users-tab-close-all {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0.4em 0.6em;
+  text-decoration: underline;
+}
+
+.users-user-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.users-user-header h2 {
+  flex: 1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
