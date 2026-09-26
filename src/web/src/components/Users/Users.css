@@ -134,3 +134,99 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* interests tab */
+.users-tab-pinned .users-tab-name {
+  padding-right: 0.9em;
+}
+
+.interests-search {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+}
+
+.interests-search .ui.input {
+  flex: 1;
+}
+
+.interests-back {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.interests-back:hover,
+.interests-back:focus-visible {
+  opacity: 1;
+}
+
+.interests-section {
+  margin-top: 1.5em;
+}
+
+.interests-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  margin: 0 0 0.6em;
+  font-size: 1.1em;
+}
+
+.interests-count {
+  margin-left: 0.25em;
+  font-weight: 400;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.interests-users {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12em, 1fr));
+  gap: 0.35em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.interests-users button {
+  width: 100%;
+  padding: 0.45em 0.6em;
+  border: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interests-users button:hover {
+  background: var(--slskd-hover-background, rgba(0, 0, 0, 0.06));
+}
+
+.interests-users button:focus-visible {
+  outline: 2px solid var(--smui-site-link-color, #2185d0);
+  outline-offset: 1px;
+}
+
+.interests-more {
+  margin-top: 0.5em;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--smui-site-link-color, #2185d0);
+  font: inherit;
+  cursor: pointer;
+}
+
+.interests-more:hover {
+  text-decoration: underline;
+}

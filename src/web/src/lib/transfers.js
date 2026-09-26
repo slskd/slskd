@@ -100,3 +100,68 @@ export const isStateCancellable = (state) =>
   ].find((s) => s === state);
 
 export const isStateRemovable = (state) => state.includes('Completed');
+
+// the server enqueues at most two download requests at a time and turns the
+// rest away with a 429, so retries go out one request per user, two users at
+// a time, and back off if something else holds a slot
+const retryConcurrency = 2;
+const retryAttempts = 6;
+
+const sleep = (ms) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const downloadWithBackoff = async ({ files, username }, backoff) => {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await download({ files, username });
+    } catch (error) {
+      if (error?.response?.status !== 429 || attempt >= retryAttempts) {
+        throw error;
+      }
+
+      await sleep(backoff * attempt);
+    }
+  }
+};
+
+/**
+ * Enqueues the given downloads again.
+ * @param {{ filename: string, size: number, username: string }[]} files - The downloads to retry.
+ * @param {object} [options]
+ * @param {number} [options.backoff] - Milliseconds to wait after the first 429, growing with each attempt.
+ * @returns {Promise<{ failed: { username: string, count: number, error: unknown }[] }>} The users whose files couldn't be enqueued.
+ */
+export const retryDownloads = async (files, { backoff = 500 } = {}) => {
+  const byUser = new Map();
+
+  for (const { filename, size, username } of files) {
+    if (!byUser.has(username)) {
+      byUser.set(username, []);
+    }
+
+    byUser.get(username).push({ filename, size });
+  }
+
+  const queue = [...byUser.entries()];
+  const failed = [];
+
+  const worker = async () => {
+    while (queue.length > 0) {
+      const [username, userFiles] = queue.shift();
+
+      try {
+        await downloadWithBackoff({ files: userFiles, username }, backoff);
+      } catch (error) {
+        failed.push({ count: userFiles.length, error, username });
+      }
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(retryConcurrency, queue.length) }, worker),
+  );
+
+  return { failed };
+};

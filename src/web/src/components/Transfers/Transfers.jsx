@@ -70,12 +70,24 @@ const Transfers = ({ direction, server }) => {
 
   const retryAll = async (transfersToRetry) => {
     setRetrying(true);
-    await Promise.all(
-      transfersToRetry.map((file) =>
-        retry({ file, suppressStateChange: true }),
-      ),
-    );
-    setRetrying(false);
+
+    try {
+      const { failed } =
+        await transfersLibrary.retryDownloads(transfersToRetry);
+
+      if (failed.length > 0) {
+        const count = failed.reduce((total, user) => total + user.count, 0);
+        const [first] = failed;
+
+        toast.error(
+          `Couldn't retry ${count} download${count === 1 ? '' : 's'} from ${
+            failed.length === 1 ? first.username : `${failed.length} users`
+          }: ${getErrorMessage(first.error)}`,
+        );
+      }
+    } finally {
+      setRetrying(false);
+    }
   };
 
   const cancel = async ({ file, suppressStateChange = false }) => {

@@ -533,3 +533,28 @@
   outline: none;
   border-color: #85b7d9;
 }
+
+.settings-interests {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16em, 1fr));
+  gap: 1em;
+}
+
+.settings-interests-column h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  margin: 0 0 0.5em;
+  font-size: 1em;
+}
+
+.settings-interests-count {
+  margin-left: 0.25em;
+  font-weight: 400;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-interests-column .interest-list {
+  margin-top: 0.6em;
+}

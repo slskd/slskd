@@ -349,3 +349,84 @@ body.user-panel-docked .app-content-body {
 body.user-panel-docked .settings-savebar {
   right: var(--user-panel-width);
 }
+
+/* interests on a profile */
+.user-profile-interests {
+  margin-top: 1em;
+}
+
+.user-profile-interest-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14em, 1fr));
+  gap: 1em;
+}
+
+.user-profile-interest-groups h4 {
+  margin: 0 0 0.5em;
+  font-size: 1em;
+}
+
+.interest-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.interest {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+  border-radius: 999px;
+  background: var(--slskd-subtle-background, rgba(0, 0, 0, 0.04));
+}
+
+.interest.interest-shared {
+  border-color: var(--smui-site-link-color, #2185d0);
+  font-weight: 700;
+}
+
+.interest button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.interest-name {
+  padding: 0.2em 0.75em;
+  overflow-wrap: anywhere;
+}
+
+.interest:has(.interest-remove) .interest-name {
+  padding-right: 0.25em;
+}
+
+button.interest-name:hover {
+  text-decoration: underline;
+}
+
+.interest-remove {
+  padding: 0.2em 0.5em 0.2em 0;
+  opacity: 0.55;
+}
+
+.interest-remove:hover,
+.interest-remove:focus-visible {
+  opacity: 1;
+}
+
+.interest-remove:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.interest button:focus-visible {
+  outline: 2px solid var(--smui-site-link-color, #2185d0);
+  outline-offset: 1px;
+  border-radius: 999px;
+}

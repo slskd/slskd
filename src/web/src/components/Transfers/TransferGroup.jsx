@@ -62,7 +62,7 @@ class TransferGroup extends Component {
   };
 
   retryAll = async (selected) => {
-    await Promise.all(selected.map((file) => this.handleRetry(file)));
+    await this.props.retryAll(selected);
   };
 
   cancelAll = async (direction, username, selected) => {

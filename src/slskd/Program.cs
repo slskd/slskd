@@ -85,6 +85,7 @@ namespace slskd
     using slskd.Integrations.Scripts;
     using slskd.Integrations.VPN;
     using slskd.Integrations.Webhooks;
+    using slskd.Interests;
     using slskd.Messaging;
     using slskd.Relay;
     using slskd.Search;
@@ -784,6 +785,9 @@ namespace slskd
             services.AddSingleton<IUserService, UserService>();
 
             services.AddSingleton<IRoomService, RoomService>();
+
+            services.AddSingleton<IServerChannel, ServerChannel>();
+            services.AddSingleton<IInterestService, InterestService>();
 
             services.AddSingleton<TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();

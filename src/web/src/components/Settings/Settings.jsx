@@ -37,6 +37,17 @@ import { Button, Icon, Input, Menu, Message, Segment } from 'semantic-ui-react';
 const descriptionPath = ['soulseek', 'description'];
 const picturePath = ['soulseek', 'picture'];
 
+const interestFields = {
+  hated: { key: 'soulseek.interests.hated', label: 'Dislikes', type: 'list' },
+  liked: { key: 'soulseek.interests.liked', label: 'Likes', type: 'list' },
+};
+
+const profilePaths = [
+  descriptionPath,
+  fieldPath(interestFields.liked),
+  fieldPath(interestFields.hated),
+];
+
 // group names can't contain a NUL, so it's a safe separator
 const pathKey = (segments) => segments.join('\u0000');
 
@@ -550,7 +561,9 @@ const Settings = () => {
     let count = Object.keys(changes).filter((key) => keys.has(key)).length;
 
     if (candidate.key === 'profile') {
-      count += (changes[pathKey(descriptionPath)] ? 1 : 0) + (picture ? 1 : 0);
+      count +=
+        profilePaths.filter((path) => changes[pathKey(path)]).length +
+        (picture ? 1 : 0);
     }
 
     if (candidate.userGroups) {
@@ -633,9 +646,15 @@ const Settings = () => {
 
     results.push(...generatedResults.map((group) => ({ groups: [group] })));
 
-    const profileMatches = ['profile', 'description', 'picture', 'avatar'].some(
-      (word) => word.includes(normalizedQuery),
-    );
+    const profileMatches = [
+      'profile',
+      'description',
+      'picture',
+      'avatar',
+      'interests',
+      'likes',
+      'dislikes',
+    ].some((word) => word.includes(normalizedQuery));
 
     if (results.length === 0 && !profileMatches) {
       return (
@@ -654,7 +673,7 @@ const Settings = () => {
           <Segment className="settings-group">
             <h3>Profile</h3>
             <Link to={`${urlBase}/settings/profile`}>
-              Edit your description and picture
+              Edit your description, picture and interests
             </Link>
           </Segment>
         )}
@@ -831,6 +850,16 @@ const Settings = () => {
       const change = changes[pathKey(descriptionPath)];
       const pending = change ?? saved[pathKey(descriptionPath)];
 
+      // what's in effect, or the unsaved (or saved but not yet reloaded) edit
+      const interestsOf = (field) => {
+        const key = pathKey(fieldPath(field));
+        const edit = changes[key] ?? saved[key];
+        return {
+          changed: Boolean(changes[key]),
+          items: edit ? edit.value : getOption(options, fieldPath(field)) ?? [],
+        };
+      };
+
       return (
         <ProfileEditor
           currentPictureUrl={currentPictureUrl}
@@ -839,6 +868,8 @@ const Settings = () => {
           }
           descriptionChanged={Boolean(change)}
           disabled={!canConfigure || Boolean(loadError) || saving}
+          hated={interestsOf(interestFields.hated)}
+          liked={interestsOf(interestFields.liked)}
           onDescriptionChange={(value) =>
             setField(
               {
@@ -849,6 +880,15 @@ const Settings = () => {
               value,
             )
           }
+          onInterestsChange={({ hated, liked }) => {
+            if (liked) {
+              setField(interestFields.liked, liked);
+            }
+
+            if (hated) {
+              setField(interestFields.hated, hated);
+            }
+          }}
           onPictureChange={setPictureChange}
           picture={picture}
           username={selfUsername}

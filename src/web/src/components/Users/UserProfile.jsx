@@ -6,7 +6,7 @@ import { copyToClipboard } from '../../lib/util';
 import AppContext from '../AppContext';
 import { useUserPanel } from '../UserPanel/UserPanelContext';
 import ProfileCard from './ProfileCard';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -55,7 +55,23 @@ const useUserProfile = ({ isSelf, refreshKey, username }) => {
     const update = (patch) =>
       !cancelled && setData((previous) => ({ ...previous, ...patch }));
 
-    setData({ infoLoading: true });
+    setData({ infoLoading: true, interestsLoading: !isSelf });
+
+    // interests come from the server rather than the peer, so they load on
+    // their own instead of waiting behind user info
+    const loadInterests = async () => {
+      try {
+        update({
+          interests: await users.getInterests({ username }),
+          interestsLoading: false,
+        });
+      } catch (error) {
+        update({
+          interestsError: `Couldn't get interests: ${getErrorMessage(error)}`,
+          interestsLoading: false,
+        });
+      }
+    };
 
     const load = async () => {
       const [status, statistics, group] = await Promise.allSettled([
@@ -94,9 +110,12 @@ const useUserProfile = ({ isSelf, refreshKey, username }) => {
           infoError:
             'You have banned this user. Unban them to see their profile.',
           infoLoading: false,
+          interestsLoading: false,
         });
         return;
       }
+
+      loadInterests();
 
       if (presence === 'Offline') {
         update({ infoError: `${username} is offline.`, infoLoading: false });
@@ -377,7 +396,13 @@ const SelfActions = () => {
 
 const UserProfile = ({ onBrowse, refreshKey = 0, username }) => {
   const { options = {}, state = {} } = useContext(AppContext) ?? {};
+  const history = useHistory();
   const [localRefresh, setLocalRefresh] = useState(0);
+  const ownInterests = options.soulseek?.interests;
+  const ownLiked = useMemo(
+    () => new Set(ownInterests?.liked ?? []),
+    [ownInterests],
+  );
   const isSelf =
     Boolean(state.user?.username) && state.user.username === username;
 
@@ -403,6 +428,11 @@ const UserProfile = ({ onBrowse, refreshKey = 0, username }) => {
         description={
           isSelf ? options.soulseek?.description : data.info?.description
         }
+        interests={isSelf ? ownInterests : data.interests}
+        onInterestSelect={(item) =>
+          history.push(`${urlBase}/interests?item=${encodeURIComponent(item)}`)
+        }
+        sharedInterests={isSelf ? undefined : ownLiked}
         username={username}
       />
       {isSelf ? (

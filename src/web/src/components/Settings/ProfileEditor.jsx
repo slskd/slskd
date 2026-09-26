@@ -1,9 +1,11 @@
+import { normalize } from '../../lib/interests';
 import { maxPictureBytes } from '../../lib/profile';
 import * as users from '../../lib/users';
 import { formatBytes } from '../../lib/util';
+import InterestList from '../Users/InterestList';
 import ProfileCard from '../Users/ProfileCard';
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Form, Icon, Message, Segment } from 'semantic-ui-react';
+import { Button, Form, Icon, Input, Message, Segment } from 'semantic-ui-react';
 
 const acceptedTypes = [
   'image/jpeg',
@@ -13,14 +15,77 @@ const acceptedTypes = [
   'image/webp',
 ];
 
-// edits the description and picture served to other users, with a preview of
-// how the profile looks to them.  the picture is only uploaded on save
+const InterestEditor = ({
+  disabled,
+  icon,
+  id,
+  items,
+  onAdd,
+  onRemove,
+  placeholder,
+  title,
+}) => {
+  const [input, setInput] = useState('');
+
+  const add = () => {
+    const item = normalize(input);
+
+    if (item) {
+      onAdd(item);
+    }
+
+    setInput('');
+  };
+
+  return (
+    <div className="settings-interests-column">
+      <h4>
+        <Icon name={icon} />
+        {title}
+        <span className="settings-interests-count">{items.length}</span>
+      </h4>
+      <Input
+        action={{
+          content: 'Add',
+          disabled: disabled || !normalize(input),
+          onClick: add,
+          type: 'button',
+        }}
+        disabled={disabled}
+        fluid
+        id={id}
+        onChange={(_event, { value }) => setInput(value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            add();
+          }
+        }}
+        placeholder={placeholder}
+        size="small"
+        value={input}
+      />
+      <InterestList
+        disabled={disabled}
+        empty="Nothing yet."
+        items={items}
+        onRemove={onRemove}
+      />
+    </div>
+  );
+};
+
+// edits the description, picture and interests served to other users, with a
+// preview of how the profile looks to them.  the picture is only uploaded on save
 const ProfileEditor = ({
   currentPictureUrl,
   description,
   descriptionChanged,
   disabled,
+  hated,
+  liked,
   onDescriptionChange,
+  onInterestsChange,
   onPictureChange,
   picture,
   username,
@@ -82,6 +147,31 @@ const ProfileEditor = ({
   const previewUrl = picture?.remove
     ? undefined
     : picture?.url ?? currentPictureUrl;
+
+  // an interest can't be both liked and disliked; adding it to one list takes
+  // it off the other
+  const addInterest = (list, item) => {
+    const other = list === 'liked' ? 'hated' : 'liked';
+    const lists = { hated: hated.items, liked: liked.items };
+    const patch = {};
+
+    if (!lists[list].includes(item)) {
+      patch[list] = [...lists[list], item];
+    }
+
+    if (lists[other].includes(item)) {
+      patch[other] = lists[other].filter((existing) => existing !== item);
+    }
+
+    onInterestsChange(patch);
+  };
+
+  const removeInterest = (list, item) => {
+    const items = list === 'liked' ? liked.items : hated.items;
+    onInterestsChange({
+      [list]: items.filter((existing) => existing !== item),
+    });
+  };
 
   return (
     <div className="settings-profile">
@@ -226,6 +316,45 @@ const ProfileEditor = ({
               </Message>
             )}
           </Form.Field>
+          <Form.Field>
+            <label htmlFor="settings-profile-likes">
+              Interests
+              {(liked.changed || hated.changed) && (
+                <span
+                  aria-label="Unsaved change"
+                  className="settings-changed-dot"
+                  title="Unsaved change"
+                />
+              )}
+            </label>
+            <div className="settings-interests">
+              <InterestEditor
+                disabled={disabled}
+                icon="thumbs up outline"
+                id="settings-profile-likes"
+                items={liked.items}
+                onAdd={(item) => addInterest('liked', item)}
+                onRemove={(item) => removeInterest('liked', item)}
+                placeholder="An artist, genre or anything else"
+                title="Likes"
+              />
+              <InterestEditor
+                disabled={disabled}
+                icon="thumbs down outline"
+                id="settings-profile-dislikes"
+                items={hated.items}
+                onAdd={(item) => addInterest('hated', item)}
+                onRemove={(item) => removeInterest('hated', item)}
+                placeholder="Something you'd rather avoid"
+                title="Dislikes"
+              />
+            </div>
+            <div className="settings-field-help">
+              Other users can find you by the things you like, and see both
+              lists on your profile. Interests are saved in lowercase, like
+              other clients do.
+            </div>
+          </Form.Field>
         </Form>
       </Segment>
       <Segment className="settings-group settings-profile-preview">
@@ -233,6 +362,7 @@ const ProfileEditor = ({
         <ProfileCard
           description={description}
           infoLoading={false}
+          interests={{ hated: hated.items, liked: liked.items }}
           picture={previewUrl}
           presence="Online"
           statistics={statistics}

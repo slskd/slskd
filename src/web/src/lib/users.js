@@ -41,3 +41,8 @@ export const grantPrivileges = ({ username, days }) => {
     days,
   });
 };
+
+export const getInterests = async ({ username }) => {
+  return (await api.get(`/users/${encodeURIComponent(username)}/interests`))
+    .data;
+};

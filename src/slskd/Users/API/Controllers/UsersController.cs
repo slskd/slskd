@@ -34,6 +34,7 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Users.API
 {
+    using System;
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.Net;
@@ -42,7 +43,7 @@ namespace slskd.Users.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
-
+    using slskd.Interests;
     using Soulseek;
 
     /// <summary>
@@ -61,16 +62,19 @@ namespace slskd.Users.API
         /// <param name="soulseekClient"></param>
         /// <param name="browseTracker"></param>
         /// <param name="userService"></param>
+        /// <param name="interestService"></param>
         /// <param name="optionsSnapshot"></param>
-        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService, IOptionsSnapshot<Options> optionsSnapshot)
+        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService, IInterestService interestService, IOptionsSnapshot<Options> optionsSnapshot)
         {
             Client = soulseekClient;
             BrowseTracker = browseTracker;
             Users = userService;
+            Interests = interestService;
             OptionsSnapshot = optionsSnapshot;
         }
 
         private IBrowseTracker BrowseTracker { get; }
+        private IInterestService Interests { get; }
         private ISoulseekClient Client { get; }
         private IUserService Users { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
@@ -242,6 +246,51 @@ namespace slskd.Users.API
             catch (UserOfflineException ex)
             {
                 return NotFound(ex.Message);
+            }
+        }
+
+        /// <summary>
+        ///     Retrieves the things the specified <paramref name="username"/> likes and dislikes.
+        /// </summary>
+        /// <param name="username">The username of the user.</param>
+        /// <returns></returns>
+        /// <response code="200">The request completed successfully.</response>
+        /// <response code="503">The client isn't connected to the server.</response>
+        /// <response code="504">The server didn't respond in time.</response>
+        [HttpGet("{username}/interests")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(UserInterests), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(typeof(string), 503)]
+        [ProducesResponseType(typeof(string), 504)]
+        public async Task<IActionResult> GetInterests([FromRoute, UrlEncoded, Required] string username)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            if (Users.IsBlacklisted(username))
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var response = await Interests.GetUserInterestsAsync(username);
+                return Ok(response);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(503, ex.Message);
+            }
+            catch (TimeoutException ex)
+            {
+                return StatusCode(504, ex.Message);
+            }
+            catch (NotSupportedException ex)
+            {
+                return StatusCode(501, ex.Message);
             }
         }
 

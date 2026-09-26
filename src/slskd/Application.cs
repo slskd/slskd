@@ -58,6 +58,7 @@ namespace slskd
     using slskd.Events;
     using slskd.Files;
     using slskd.Integrations.Pushbullet;
+    using slskd.Interests;
     using slskd.Messaging;
     using slskd.Relay;
     using slskd.Search;
@@ -116,6 +117,7 @@ namespace slskd
             IBrowseTracker browseTracker,
             IRoomService roomService,
             IUserService userService,
+            IInterestService interestService,
             IMessagingService messagingService,
             IShareService shareService,
             ISearchService searchService,
@@ -186,6 +188,9 @@ namespace slskd
 
             RoomService = roomService;
             Users = userService;
+
+            // shares configured interests with the server after each login and when they change
+            Interests = interestService;
             Messaging = messagingService;
             ApplicationHub = applicationHub;
 
@@ -241,6 +246,7 @@ namespace slskd
         private ISoulseekClient Client { get; set; }
         private FileService Files { get; }
         private IRoomService RoomService { get; set; }
+        private IInterestService Interests { get; }
         private IBrowseTracker BrowseTracker { get; set; }
         private ConnectionWatchdog ConnectionWatchdog { get; }
         private IMessagingService Messaging { get; set; }

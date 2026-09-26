@@ -1,4 +1,5 @@
 import { formatSpeed } from '../../lib/util';
+import InterestList from './InterestList';
 import React, { useState } from 'react';
 import { Icon, Label, Loader, Modal, Popup } from 'semantic-ui-react';
 
@@ -106,6 +107,57 @@ const Stat = ({ children, label }) => (
 const formatCount = (value) =>
   value == null ? '–' : Number(value).toLocaleString();
 
+const Interests = ({
+  interests,
+  interestsError,
+  interestsLoading,
+  onInterestSelect,
+  sharedInterests,
+}) => {
+  const liked = interests?.liked ?? [];
+  const hated = interests?.hated ?? [];
+
+  let content;
+
+  if (interestsLoading) {
+    content = <span className="user-profile-muted">Requesting interests…</span>;
+  } else if (interestsError) {
+    content = <span className="user-profile-muted">{interestsError}</span>;
+  } else if (liked.length === 0 && hated.length === 0) {
+    content = <span className="user-profile-muted">No interests shared.</span>;
+  } else {
+    content = (
+      <div className="user-profile-interest-groups">
+        <div>
+          <h4>
+            <Icon name="thumbs up outline" />
+            Likes
+          </h4>
+          <InterestList
+            empty="Nothing yet."
+            highlight={sharedInterests}
+            items={liked}
+            onSelect={onInterestSelect}
+          />
+        </div>
+        <div>
+          <h4>
+            <Icon name="thumbs down outline" />
+            Dislikes
+          </h4>
+          <InterestList
+            empty="Nothing yet."
+            items={hated}
+            onSelect={onInterestSelect}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="user-profile-interests">{content}</div>;
+};
+
 // the information another user would see in nicotine+'s user info tab
 const ProfileCard = ({
   description,
@@ -114,9 +166,14 @@ const ProfileCard = ({
   info,
   infoError,
   infoLoading,
+  interests,
+  interestsError,
+  interestsLoading,
   isPrivileged,
+  onInterestSelect,
   picture,
   presence,
+  sharedInterests,
   statistics,
   title,
   username,
@@ -227,6 +284,13 @@ const ProfileCard = ({
           <span className="user-profile-muted">No description.</span>
         )}
       </div>
+      <Interests
+        interests={interests}
+        interestsError={interestsError}
+        interestsLoading={interestsLoading}
+        onInterestSelect={onInterestSelect}
+        sharedInterests={sharedInterests}
+      />
     </div>
   );
 };
