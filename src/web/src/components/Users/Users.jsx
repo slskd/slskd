@@ -3,9 +3,15 @@ import '../UserPanel/UserPanel.css';
 import { activeUserInfoKey, urlBase } from '../../config';
 import AppContext from '../AppContext';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
+import Interests, { interestsPath } from './Interests';
 import UserView from './UserView';
 import React, { useContext, useEffect, useState } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import {
+  useHistory,
+  useLocation,
+  useParams,
+  useRouteMatch,
+} from 'react-router-dom';
 import { Button, Icon, Input, Segment } from 'semantic-ui-react';
 
 const tabsKey = 'slskd-user-tabs';
@@ -22,11 +28,13 @@ const loadTabs = () => {
 const userPath = (username) =>
   `${urlBase}/users/${encodeURIComponent(username)}`;
 
-// open user profiles as tabs, like nicotine+'s user info tabs
+// open user profiles as tabs, like nicotine+'s user info tabs, next to a
+// pinned tab for finding users by interest
 const Users = () => {
   const history = useHistory();
   const location = useLocation();
   const { username: active } = useParams();
+  const interestsActive = Boolean(useRouteMatch(`${urlBase}/interests`));
   const { state = {} } = useContext(AppContext) ?? {};
   const selfUsername = state.user?.username;
 
@@ -42,7 +50,7 @@ const Users = () => {
 
     if (requested) {
       history.replace(userPath(requested));
-    } else if (!active) {
+    } else if (!active && !interestsActive) {
       const last = localStorage.getItem(activeUserInfoKey);
       const restore = tabs.includes(last) ? last : tabs[0];
 
@@ -50,7 +58,7 @@ const Users = () => {
         history.replace(userPath(restore));
       }
     }
-  }, [location.state, active]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.state, active, interestsActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!active) {
@@ -137,60 +145,85 @@ const Users = () => {
           />
         )}
       </Segment>
-      {tabs.length > 0 && (
+      <div
+        aria-label="Open users"
+        className="users-tabs"
+        role="tablist"
+      >
         <div
-          aria-label="Open users"
-          className="users-tabs"
-          role="tablist"
+          className={`users-tab users-tab-pinned ${
+            interestsActive ? 'active' : ''
+          }`}
         >
-          {tabs.map((username) => (
-            <div
-              className={`users-tab ${username === active ? 'active' : ''}`}
-              key={username}
-            >
-              <button
-                aria-selected={username === active}
-                className="users-tab-name"
-                onAuxClick={(event) => event.button === 1 && close(username)}
-                onClick={() => history.push(userPath(username))}
-                role="tab"
-                title={`${username} (middle click to close)`}
-                type="button"
-              >
-                {username === selfUsername && (
-                  <Icon
-                    name="id card outline"
-                    title="You"
-                  />
-                )}
-                {username}
-              </button>
-              <button
-                aria-label={`Close ${username}`}
-                className="users-tab-close"
-                onClick={() => close(username)}
-                title="Close"
-                type="button"
-              >
-                <Icon name="close" />
-              </button>
-            </div>
-          ))}
-          {tabs.length > 1 && (
+          <button
+            aria-selected={interestsActive}
+            className="users-tab-name"
+            onClick={() => history.push(interestsPath())}
+            role="tab"
+            title="Find users by interest"
+            type="button"
+          >
+            <Icon name="heart outline" />
+            Interests
+          </button>
+        </div>
+        {tabs.map((username) => (
+          <div
+            className={`users-tab ${username === active ? 'active' : ''}`}
+            key={username}
+          >
             <button
-              className="users-tab-close-all"
-              onClick={() => {
-                setTabs([]);
-                history.replace(`${urlBase}/users`);
-              }}
+              aria-selected={username === active}
+              className="users-tab-name"
+              onAuxClick={(event) => event.button === 1 && close(username)}
+              onClick={() => history.push(userPath(username))}
+              role="tab"
+              title={`${username} (middle click to close)`}
               type="button"
             >
-              Close all
+              {username === selfUsername && (
+                <Icon
+                  name="id card outline"
+                  title="You"
+                />
+              )}
+              {username}
             </button>
-          )}
-        </div>
-      )}
-      {active ? (
+            <button
+              aria-label={`Close ${username}`}
+              className="users-tab-close"
+              onClick={() => close(username)}
+              title="Close"
+              type="button"
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+        ))}
+        {tabs.length > 1 && (
+          <button
+            className="users-tab-close-all"
+            onClick={() => {
+              setTabs([]);
+
+              if (!interestsActive) {
+                history.replace(`${urlBase}/users`);
+              }
+            }}
+            type="button"
+          >
+            Close all
+          </button>
+        )}
+      </div>
+      {interestsActive ? (
+        <Segment
+          className="users-user"
+          raised
+        >
+          <Interests />
+        </Segment>
+      ) : active ? (
         <Segment
           className="users-user"
           raised

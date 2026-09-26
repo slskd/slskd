@@ -1752,6 +1752,12 @@ namespace slskd
             public string Picture { get; init; } = null;
 
             /// <summary>
+            ///     Gets the interests shared with other users on the Soulseek network.
+            /// </summary>
+            [Validate]
+            public InterestsOptions Interests { get; init; } = new InterestsOptions();
+
+            /// <summary>
             ///     Gets the local IP address on which to listen for incoming connections.
             /// </summary>
             [Argument(default, "slsk-listen-ip-address")]
@@ -1790,6 +1796,28 @@ namespace slskd
             /// </summary>
             [Validate]
             public ConnectionOptions Connection { get; init; } = new ConnectionOptions();
+
+            /// <summary>
+            ///     Interest options.
+            /// </summary>
+            public class InterestsOptions
+            {
+                /// <summary>
+                ///     Gets the list of things the user likes.
+                /// </summary>
+                [Argument(default, "slsk-liked")]
+                [EnvironmentVariable("SLSK_LIKED")]
+                [Description("things you like, shared with other users")]
+                public string[] Liked { get; init; } = Array.Empty<string>();
+
+                /// <summary>
+                ///     Gets the list of things the user dislikes.
+                /// </summary>
+                [Argument(default, "slsk-hated")]
+                [EnvironmentVariable("SLSK_HATED")]
+                [Description("things you dislike, shared with other users")]
+                public string[] Hated { get; init; } = Array.Empty<string>();
+            }
 
             /// <summary>
             ///     Connection options.

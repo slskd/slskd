@@ -645,7 +645,10 @@ class App extends Component {
                         }
                       />
                       <Route
-                        path={`${urlBase}/users/:username?`}
+                        path={[
+                          `${urlBase}/interests`,
+                          `${urlBase}/users/:username?`,
+                        ]}
                         render={(props) =>
                           this.withTokenCheck(<Users {...props} />)
                         }
