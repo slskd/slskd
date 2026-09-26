@@ -1,5 +1,6 @@
 import { listSaved, removeAllSaved, removeSaved } from '../../lib/musicbrainz';
 import { getAll } from '../../lib/searches';
+import { getErrorMessage } from '../../lib/util';
 import ClearAllButton from '../Shared/ClearAllButton';
 import ErrorSegment from '../Shared/ErrorSegment';
 import LoaderSegment from '../Shared/LoaderSegment';
@@ -10,9 +11,6 @@ import React, { useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Icon, Segment, Table } from 'semantic-ui-react';
-
-const errorText = (error) =>
-  error?.response?.data ?? error?.message ?? String(error);
 
 const searchStatus = (search) => {
   if (!search) return <span className="release-muted">search deleted</span>;
@@ -64,7 +62,7 @@ const SavedReleases = ({ base }) => {
       await removeSaved({ id });
       setSaved((current) => current.filter((item) => item.release.id !== id));
     } catch (removeError) {
-      toast.error(errorText(removeError));
+      toast.error(getErrorMessage(removeError));
     }
   };
 
@@ -74,11 +72,11 @@ const SavedReleases = ({ base }) => {
       setSaved([]);
       toast.success(`Removed ${count} saved release${count === 1 ? '' : 's'}`);
     } catch (clearError) {
-      toast.error(errorText(clearError));
+      toast.error(getErrorMessage(clearError));
     }
   };
 
-  if (error) return <ErrorSegment caption={errorText(error)} />;
+  if (error) return <ErrorSegment caption={getErrorMessage(error)} />;
   if (!saved) return <LoaderSegment />;
 
   if (saved.length === 0) {

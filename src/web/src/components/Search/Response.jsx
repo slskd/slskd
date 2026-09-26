@@ -1,6 +1,6 @@
 import * as transfers from '../../lib/transfers';
 import { getDirectoryContents } from '../../lib/users';
-import { formatBytes, getDirectoryName } from '../../lib/util';
+import { formatBytes, getDirectoryName, getErrorMessage } from '../../lib/util';
 import FileList from '../Shared/FileList';
 import UserLink from '../Shared/UserLink';
 import React, { Component } from 'react';
@@ -122,7 +122,7 @@ class Response extends Component {
       }
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+      toast.error(getErrorMessage(error));
     } finally {
       this.setState({ fetchingDirectoryContents: false });
     }

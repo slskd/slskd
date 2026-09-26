@@ -1,4 +1,5 @@
 import { getCurrentDebugView } from '../../../lib/options';
+import { getErrorMessage } from '../../../lib/util';
 import { CodeEditor, PlaceholderSegment, Switch } from '../../Shared';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
@@ -15,7 +16,7 @@ const DebugModal = ({ onClose, open, theme }) => {
       setDebugView(await getCurrentDebugView());
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }

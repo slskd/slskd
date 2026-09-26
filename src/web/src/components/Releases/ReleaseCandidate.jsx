@@ -1,7 +1,12 @@
 import { formatDuration } from '../../lib/musicbrainz';
 import { downloadPlan } from '../../lib/releases';
 import { enqueueBatch } from '../../lib/transfers';
-import { formatBytes, formatSpeed, getFileName } from '../../lib/util';
+import {
+  formatBytes,
+  formatSpeed,
+  getErrorMessage,
+  getFileName,
+} from '../../lib/util';
 import UserLink from '../Shared/UserLink';
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
@@ -13,12 +18,6 @@ import {
   Segment,
   Table,
 } from 'semantic-ui-react';
-
-const errorText = (error) =>
-  error?.response?.data?.message ??
-  error?.response?.data ??
-  error?.message ??
-  String(error);
 
 // how far a file's length is from the track's, in seconds
 const LengthDelta = ({ file, track }) => {
@@ -225,7 +224,7 @@ const ReleaseCandidate = ({
 
       setQueued(true);
     } catch (error) {
-      toast.error(`Could not queue the download: ${errorText(error)}`);
+      toast.error(`Could not queue the download: ${getErrorMessage(error)}`);
     } finally {
       setDownloading(false);
     }

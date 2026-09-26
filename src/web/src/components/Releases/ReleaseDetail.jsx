@@ -20,6 +20,7 @@ import {
   stop,
 } from '../../lib/searches';
 import { getDirectoryContents } from '../../lib/users';
+import { getErrorMessage } from '../../lib/util';
 import SearchFilters from '../Search/Filters/SearchFilters';
 import ErrorSegment from '../Shared/ErrorSegment';
 import LoaderSegment from '../Shared/LoaderSegment';
@@ -36,9 +37,6 @@ import {
   Table,
 } from 'semantic-ui-react';
 import { v4 as uuidv4 } from 'uuid';
-
-const errorText = (error) =>
-  error?.response?.data ?? error?.message ?? String(error);
 
 const Tracklist = ({ release }) => {
   const multiDisc = release.media.length > 1;
@@ -154,7 +152,7 @@ const SearchNotes = ({ disabled, search, searchError, searching, status }) => (
       </div>
     )}
     {searchError && (
-      <div className="release-error">{errorText(searchError)}</div>
+      <div className="release-error">{getErrorMessage(searchError)}</div>
     )}
     {searching && (
       <div className="release-note">
@@ -277,7 +275,7 @@ const ReleaseDetail = ({ disabled, id }) => {
         });
       } catch (saveError) {
         toast.warning(
-          `The search started, but the release could not be saved: ${errorText(saveError)}`,
+          `The search started, but the release could not be saved: ${getErrorMessage(saveError)}`,
         );
       }
 
@@ -287,7 +285,7 @@ const ReleaseDetail = ({ disabled, id }) => {
       setDisplayCount(10);
       setSearch(next);
     } catch (createError) {
-      toast.error(errorText(createError));
+      toast.error(getErrorMessage(createError));
     } finally {
       setStarting(false);
     }
@@ -332,7 +330,7 @@ const ReleaseDetail = ({ disabled, id }) => {
         [user.username]: [...(current[user.username] ?? []), ...files],
       }));
     } catch (folderError) {
-      toast.error(`Could not list the folder: ${errorText(folderError)}`);
+      toast.error(`Could not list the folder: ${getErrorMessage(folderError)}`);
     } finally {
       setLoadingFolders((current) => ({ ...current, [key]: false }));
     }
@@ -377,7 +375,7 @@ const ReleaseDetail = ({ disabled, id }) => {
   }, [fetchedFiles, filters, release, responses, sort]);
 
   if (error) {
-    return <ErrorSegment caption={errorText(error)} />;
+    return <ErrorSegment caption={getErrorMessage(error)} />;
   }
 
   if (!release) {

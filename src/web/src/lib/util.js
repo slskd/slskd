@@ -164,3 +164,41 @@ export const copyToClipboard = async (text) => {
     textarea.remove();
   }
 };
+
+// turns an error (typically an axios error) into a string that is safe to render.
+// response bodies may be plain strings, ProblemDetails objects from the API, or
+// objects from a proxy sitting in front of slskd (e.g. a Cloudflare 502 page)
+export const getErrorMessage = (
+  error,
+  fallback = 'An unknown error occurred',
+) => {
+  const data = error?.response?.data;
+
+  if (typeof data === 'string' && data.trim() !== '') {
+    return data;
+  }
+
+  if (data && typeof data === 'object') {
+    const validationErrors = Object.values(data.errors ?? {}).flat();
+
+    if (validationErrors.length > 0) {
+      return validationErrors.join(' ');
+    }
+
+    const message = data.detail ?? data.title ?? data.message;
+
+    if (typeof message === 'string' && message.trim() !== '') {
+      return data.status ? `${message} (${data.status})` : message;
+    }
+  }
+
+  if (typeof error?.message === 'string' && error.message !== '') {
+    return error.message;
+  }
+
+  if (typeof error === 'string' && error !== '') {
+    return error;
+  }
+
+  return fallback;
+};
