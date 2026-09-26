@@ -2409,6 +2409,53 @@ namespace slskd
             public PushbulletOptions Pushbullet { get; init; } = new PushbulletOptions();
 
             /// <summary>
+            ///     Gets MusicBrainz options.
+            /// </summary>
+            [Validate]
+            public MusicBrainzOptions MusicBrainz { get; init; } = new MusicBrainzOptions();
+
+            /// <summary>
+            ///     MusicBrainz options.
+            /// </summary>
+            public class MusicBrainzOptions
+            {
+                /// <summary>
+                ///     Gets a value indicating whether MusicBrainz lookups are disabled.
+                /// </summary>
+                [Argument(default, "no-musicbrainz")]
+                [EnvironmentVariable("NO_MUSICBRAINZ")]
+                [Description("do not look up releases on MusicBrainz")]
+                public bool Disabled { get; init; } = false;
+
+                /// <summary>
+                ///     Gets the base URL of the MusicBrainz server.
+                /// </summary>
+                [Argument(default, "musicbrainz-url")]
+                [EnvironmentVariable("MUSICBRAINZ_URL")]
+                [Description("base URL of the MusicBrainz server; change this to use a mirror")]
+                [Url]
+                [NotNullOrWhiteSpace]
+                public string Url { get; init; } = "https://musicbrainz.org";
+
+                /// <summary>
+                ///     Gets the minimum time between requests to MusicBrainz, in milliseconds.
+                /// </summary>
+                [Argument(default, "musicbrainz-request-interval")]
+                [EnvironmentVariable("MUSICBRAINZ_REQUEST_INTERVAL")]
+                [Description("minimum time between requests to MusicBrainz, in milliseconds; musicbrainz.org allows one per second")]
+                [Range(0, 60000)]
+                public int RequestInterval { get; init; } = 1000;
+
+                /// <summary>
+                ///     Gets a value indicating whether covers missing from the Cover Art Archive are looked up on Deezer and iTunes.
+                /// </summary>
+                [Argument(default, "musicbrainz-cover-fallback")]
+                [EnvironmentVariable("MUSICBRAINZ_COVER_FALLBACK")]
+                [Description("look up covers the Cover Art Archive doesn't have (or can't be reached for) on Deezer and iTunes, by artist and album name")]
+                public bool CoverFallback { get; init; } = true;
+            }
+
+            /// <summary>
             ///     VPN options.
             /// </summary>
             public class VpnOptions : IValidatableObject

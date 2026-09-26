@@ -329,3 +329,10 @@ body {
     color: var(--slskd-color-subtle) !important;
     opacity: 1;
 }
+
+/* semantic's focused textarea has hardcoded dark text and a white background */
+:root.dark .ui.form textarea,
+:root.dark .ui.form textarea:focus {
+    color: var(--smui-site-input-color);
+    background: var(--smui-input-background);
+}

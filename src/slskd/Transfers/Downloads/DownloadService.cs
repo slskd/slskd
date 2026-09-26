@@ -1343,6 +1343,7 @@ namespace slskd.Transfers.Downloads
                     that are concerned about this (extremely unlikely) case should configure slskd to always overwrite
                     partial files.
                 */
+
                 // normalize the configured directory; on Windows, a mixed-separator path like 'C:/data\incomplete' (easily produced
                 // by --app-dir with forward slashes) is rejected by ResolveFileInfo(), which only accepts fully normalized paths
                 var incompleteDirectory = Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Incomplete);

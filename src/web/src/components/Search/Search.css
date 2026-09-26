@@ -126,3 +126,14 @@
   display: inline;
   margin-left: auto;
 }
+.search-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75em;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.6));
+}
+
+.search-list-header > .ui.button {
+  margin: 0;
+}

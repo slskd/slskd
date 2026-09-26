@@ -256,5 +256,30 @@ namespace slskd.Search.API
             await Searches.DeleteAsync(search);
             return NoContent();
         }
+
+        /// <summary>
+        ///     Deletes every search that has finished. Searches still in progress are kept.
+        /// </summary>
+        /// <response code="200">The searches were deleted; the response is the number deleted.</response>
+        /// <returns></returns>
+        [HttpDelete]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(int), 200)]
+        public async Task<IActionResult> DeleteAll()
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var searches = await Searches.ListAsync(search => search.EndedAt != null);
+
+            foreach (var search in searches)
+            {
+                await Searches.DeleteAsync(search);
+            }
+
+            return Ok(searches.Count);
+        }
     }
 }

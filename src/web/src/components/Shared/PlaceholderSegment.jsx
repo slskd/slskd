@@ -13,7 +13,7 @@ const PlaceholderSegment = ({ caption, icon, size, ...rest }) => {
       {...rest}
     >
       <Header icon>
-        <Icon name={icon} />
+        {typeof icon === 'string' ? <Icon name={icon} /> : icon}
         {caption}
       </Header>
     </Segment>

@@ -15,10 +15,12 @@ import Browse from './Browse/Browse';
 import Chat from './Chat/Chat';
 import Dashboard from './Dashboard/Dashboard';
 import LoginForm from './LoginForm';
+import Releases from './Releases/Releases';
 import Rooms from './Rooms/Rooms';
 import Searches from './Search/Searches';
 import Settings from './Settings/Settings';
 import ErrorSegment from './Shared/ErrorSegment';
+import ReleaseIcon from './Shared/ReleaseIcon';
 import System from './System/System';
 import Transfers from './Transfers/Transfers';
 import UserPanelProvider from './UserPanel/UserPanelProvider';
@@ -413,6 +415,12 @@ class App extends Component {
                     Search
                   </Menu.Item>
                 </Link>
+                <Link to={`${urlBase}/releases`}>
+                  <Menu.Item>
+                    <ReleaseIcon />
+                    Releases
+                  </Menu.Item>
+                </Link>
                 <Link to={`${urlBase}/downloads`}>
                   <Menu.Item>
                     <Icon name="download" />
@@ -610,6 +618,19 @@ class App extends Component {
                           this.withTokenCheck(
                             <div className="view">
                               <Searches
+                                server={applicationState.server}
+                                {...props}
+                              />
+                            </div>,
+                          )
+                        }
+                      />
+                      <Route
+                        path={`${urlBase}/releases/:id?`}
+                        render={(props) =>
+                          this.withTokenCheck(
+                            <div className="view">
+                              <Releases
                                 server={applicationState.server}
                                 {...props}
                               />

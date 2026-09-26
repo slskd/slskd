@@ -80,6 +80,7 @@ namespace slskd
     using slskd.Events;
     using slskd.Files;
     using slskd.Integrations.FTP;
+    using slskd.Integrations.MusicBrainz;
     using slskd.Integrations.Pushbullet;
     using slskd.Integrations.Scripts;
     using slskd.Integrations.VPN;
@@ -796,6 +797,9 @@ namespace slskd
             services.AddSingleton<IFTPService, FTPService>();
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
+            services.AddSingleton<IMusicBrainzService, MusicBrainzService>();
+            services.AddSingleton<ICoverArtService, CoverArtService>();
+            services.AddSingleton<ISavedReleaseService, SavedReleaseService>();
 
             return services;
         }

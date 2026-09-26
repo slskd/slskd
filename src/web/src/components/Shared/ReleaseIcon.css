@@ -1,0 +1,23 @@
+i.icon.release-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+i.icon.release-icon > svg {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}
+
+/* the menu lays icons out as blocks above their labels */
+.ui.labeled.icon.menu .item > i.icon.release-icon {
+  display: flex;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ui.icon.header i.icon.release-icon {
+  display: flex;
+  margin: 0 auto 0.5rem;
+}

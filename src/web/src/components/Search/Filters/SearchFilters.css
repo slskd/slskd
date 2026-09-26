@@ -1,0 +1,184 @@
+.search-filters {
+  margin-top: 1rem;
+}
+
+.search-filters-bar {
+  display: flex;
+  gap: 0.5em;
+  align-items: stretch;
+}
+
+.search-filters-bar > .ui.button,
+.search-filters-bar > .ui.dropdown.button {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.search-filters-bar .search-filter {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.search-filters-count {
+  display: inline-block;
+  min-width: 1.6em;
+  margin-left: 0.5em;
+  padding: 0.1em 0.45em;
+  border-radius: 1em;
+  background: #2185d0;
+  color: #fff;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+.ui.button > .icon.search-filters-caret {
+  margin: 0 0 0 0.4em;
+}
+
+.search-filters-presets .menu > .item {
+  max-width: 26em;
+}
+
+.search-filters-preset-filters {
+  display: block;
+  margin-top: 0.3em;
+  font-family: monospace;
+  font-size: 0.85em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  opacity: 0.6;
+}
+
+/* selection dropdowns get no theme styles of their own */
+.search-filters .ui.selection.dropdown {
+  background: var(--smui-input-background, #fff);
+  color: var(--smui-site-input-color, rgba(0, 0, 0, 0.87));
+  border-color: var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+}
+
+.search-filters .ui.selection.dropdown > .text:not(.default),
+.search-filters .ui.selection.dropdown > .dropdown.icon,
+.search-filters .ui.selection.dropdown > input.search {
+  color: inherit;
+}
+
+.search-filters .ui.selection.dropdown .menu {
+  background: var(--smui-menu-background, #fff);
+  border-color: var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+}
+
+.search-filters .ui.selection.dropdown .menu > .item {
+  color: var(--smui-menu-item-color, rgba(0, 0, 0, 0.87));
+  border-top-color: var(--slskd-tertiary-border-color, #fafafa);
+}
+
+.search-filters .ui.selection.dropdown .menu > .item:hover,
+.search-filters .ui.selection.dropdown .menu > .selected.item {
+  background: var(--smui-menu-hovered-item-background, rgba(0, 0, 0, 0.05));
+  color: var(--smui-menu-hovered-item-color, rgba(0, 0, 0, 0.95));
+}
+
+.search-filters-presets .menu > .item > .icon.search-filters-preset-delete {
+  float: right;
+  margin: 0 0 0 1em;
+  opacity: 0.6;
+}
+
+.search-filters-presets .menu > .item > .icon.search-filters-preset-delete:hover {
+  opacity: 1;
+  color: #db2828;
+}
+
+.ui.segment.search-filters-panel {
+  margin-top: 0.75em;
+}
+
+.search-filters-section {
+  margin: 1em 0 0.5em;
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--slskd-color-subtle, rgba(0, 0, 0, 0.5));
+}
+
+.search-filters-section:first-child {
+  margin-top: 0;
+}
+
+.search-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11em, 1fr));
+  gap: 0 1em;
+}
+
+.search-filters-grid-wide {
+  grid-template-columns: repeat(auto-fill, minmax(18em, 1fr));
+}
+
+.ui.form .search-filters-grid > .field {
+  margin: 0 0 0.75em;
+}
+
+.search-filters-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75em 1.5em;
+  align-items: center;
+  margin-top: 0.5em;
+  padding-top: 1em;
+  border-top: 1px solid var(--slskd-tertiary-border-color, rgba(34, 36, 38, 0.15));
+}
+
+.search-filters-footer > .ui.button {
+  margin-left: auto;
+}
+
+.ui.input.search-filters-preset-name > input {
+  width: 12em;
+  min-width: 0;
+}
+
+.search-filters-help {
+  max-width: 30em;
+}
+
+.search-filters-help ul {
+  margin: 0.5em 0 0;
+  padding-left: 1.2em;
+}
+
+.search-filters-help li {
+  margin-bottom: 0.4em;
+}
+
+.search-filters-help code {
+  white-space: nowrap;
+}
+
+@media only screen and (max-width: 684px) {
+  .search-filters-bar {
+    flex-wrap: wrap;
+  }
+
+  .search-filters-bar .search-filter {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .search-filters-bar > .search-filters-toggle {
+    flex: 1;
+  }
+}
+
+/* the chosen preset; the default active item colors don't follow the theme */
+.ui.dropdown.search-filters-presets .menu > .item {
+  color: var(--smui-menu-item-color, rgba(0, 0, 0, 0.87));
+}
+
+.ui.dropdown.search-filters-presets .menu > .active.item {
+  background: var(--smui-menu-hovered-item-background, rgba(0, 0, 0, 0.05));
+  color: var(--smui-menu-hovered-item-color, rgba(0, 0, 0, 0.95)) !important;
+  font-weight: 700;
+}
