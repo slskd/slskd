@@ -6,7 +6,7 @@ export const list = async () => {
   return response;
 };
 
-export const getFile = async ({ filename }) => {
+export const getFileText = async ({ filename }) => {
   const response = (
     await api.get(`/logs/files/${encodeURIComponent(filename)}`, {
       responseType: 'text',
