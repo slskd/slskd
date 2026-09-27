@@ -1,24 +1,17 @@
 import '../System.css';
 import { createLogsHubConnection } from '../../../lib/hubFactory';
 import { LoaderSegment } from '../../Shared';
-import React, { Component } from 'react';
-import { Table } from 'semantic-ui-react';
+import LogTable from './LogTable';
+import { Component } from 'react';
 
 const initialState = {
   connected: false,
   logs: [],
 };
 
-const levels = {
-  Debug: 'DBG',
-  Error: 'ERR',
-  Information: 'INF',
-  Warning: 'WRN',
-};
-
 const maxLogs = 500;
 
-class Logs extends Component {
+class Live extends Component {
   constructor(props) {
     super(props);
 
@@ -31,14 +24,16 @@ class Logs extends Component {
     logsHub.on('buffer', (buffer) => {
       this.setState({
         connected: true,
-        logs: buffer.reverse().slice(0, maxLogs),
+        logs: buffer.reverse().slice(0, maxLogs).map(this.withId),
       });
     });
 
     logsHub.on('log', (log) => {
+      const record = this.withId(log);
+
       this.setState((previousState) => ({
         connected: true,
-        logs: [log].concat(previousState.logs).slice(0, maxLogs),
+        logs: [record].concat(previousState.logs).slice(0, maxLogs),
       }));
     });
 
@@ -49,10 +44,9 @@ class Logs extends Component {
     logsHub.start();
   }
 
-  formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`; // eslint-disable-line max-len
-  };
+  nextId = 0;
+
+  withId = (log) => ({ ...log, id: this.nextId++ });
 
   render() {
     const { connected, logs } = this.state;
@@ -60,39 +54,10 @@ class Logs extends Component {
     return (
       <div className="logs">
         {!connected && <LoaderSegment />}
-        {connected && (
-          <Table
-            className="logs-table"
-            compact="very"
-          >
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell>Timestamp</Table.HeaderCell>
-                <Table.HeaderCell>Level</Table.HeaderCell>
-                <Table.HeaderCell>Message</Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body className="logs-table-body">
-              {logs.map((log) => (
-                <Table.Row
-                  disabled={log.level === 'Debug'}
-                  key={log.timestamp}
-                  negative={log.level === 'Error'}
-                  warning={log.level === 'Warning'}
-                >
-                  <Table.Cell>{this.formatTimestamp(log.timestamp)}</Table.Cell>
-                  <Table.Cell>{levels[log.level] || log.level}</Table.Cell>
-                  <Table.Cell className="logs-table-message">
-                    {log.message}
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
-        )}
+        {connected && <LogTable logs={logs} />}
       </div>
     );
   }
 }
 
-export default Logs;
+export default Live;
