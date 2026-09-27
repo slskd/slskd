@@ -2,7 +2,7 @@
 # updates an slskd installed as a systemd service to the latest build of this fork, from the
 # "qol-latest" release that .github/workflows/fork-build.yml publishes. run it on the server:
 #
-#   curl -fsSL https://raw.githubusercontent.com/xctwt/slskd/nicotine-qol/bin/update-vps | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/xctwt/slskd/master/bin/update-vps | sudo bash
 #
 # settings (environment variables):
 #   SERVICE      systemd service name (default: slskd)

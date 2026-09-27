@@ -1,6 +1,6 @@
 # slskd (qol fork)
 
-[![Fork build](https://img.shields.io/github/actions/workflow/status/xctwt/slskd/fork-build.yml?branch=nicotine-qol&logo=github&label=fork%20build)](https://github.com/xctwt/slskd/actions/workflows/fork-build.yml)
+[![Fork build](https://img.shields.io/github/actions/workflow/status/xctwt/slskd/fork-build.yml?branch=master&logo=github&label=fork%20build)](https://github.com/xctwt/slskd/actions/workflows/fork-build.yml)
 [![Build](https://img.shields.io/github/actions/workflow/status/slskd/slskd/ci.yml?branch=master&logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/slskd/slskd?logo=docker)](https://hub.docker.com/r/slskd/slskd)
 [![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total?logo=github&color=brightgreen)](https://github.com/slskd/slskd/releases)
@@ -65,7 +65,7 @@ The page needs `remote_configuration: true` in `slskd.yml`, the same as upstream
 
 ### Builds
 
-- There is no Docker image for this fork. Every push to `nicotine-qol` publishes Linux builds (`linux-x64` and `linux-arm64`) to the rolling [`qol-latest`](https://github.com/xctwt/slskd/releases/tag/qol-latest) release.
+- There is no Docker image for this fork. Every push to `master` publishes Linux builds (`linux-x64` and `linux-arm64`) to the rolling [`qol-latest`](https://github.com/xctwt/slskd/releases/tag/qol-latest) release.
 - [`bin/update-vps`](bin/update-vps) installs the latest build over an existing systemd install and rolls back if it doesn't start.
 - Fork builds are versioned after the upstream release they're based on, e.g. `0.26.0.65534+abc1234`.
 
@@ -118,7 +118,7 @@ The page needs `remote_configuration: true` in `slskd.yml`, the same as upstream
 Build the image from this repository, then run it exactly as you would upstream's image (see [Quick Start](#quick-start)), using `slskd-qol` in place of `slskd/slskd`:
 
 ```sh
-git clone -b nicotine-qol https://github.com/xctwt/slskd.git
+git clone https://github.com/xctwt/slskd.git
 cd slskd
 docker build -t slskd-qol .
 ```
@@ -128,7 +128,7 @@ docker build -t slskd-qol .
 Building needs the .NET 10 SDK, Node.js 22 and bash:
 
 ```sh
-git clone -b nicotine-qol https://github.com/xctwt/slskd.git
+git clone https://github.com/xctwt/slskd.git
 cd slskd
 ./bin/build                              # builds and tests the web UI and the server
 ./bin/publish --runtime linux-x64        # self-contained build in dist/linux-x64
@@ -139,7 +139,7 @@ cd slskd
 - **systemd:** run the update script on the server:
 
   ```sh
-  curl -fsSL https://raw.githubusercontent.com/xctwt/slskd/nicotine-qol/bin/update-vps | sudo bash
+  curl -fsSL https://raw.githubusercontent.com/xctwt/slskd/master/bin/update-vps | sudo bash
   ```
 
   The script finds the install folder from the `slskd` service. Set `SERVICE=<name>` or `INSTALL_DIR=<folder>` if yours is different. It stops the service, keeps the current version in `<install folder>.previous`, installs the new build, and puts the previous version back if the new one doesn't stay up. Your config and data are not touched.

@@ -1,12 +1,12 @@
 name: Fork build
 
-# builds this fork for Linux on every push to its branch and publishes the binaries as a
+# builds this fork for Linux on every push to master and publishes the binaries as a
 # rolling "qol-latest" release, so a small server can download them instead of building.
 # bin/update-vps installs or updates from that release.
 
 on:
   push:
-    branches: [ nicotine-qol ]
+    branches: [ master ]
   workflow_dispatch:
 
 permissions:
@@ -77,5 +77,5 @@ jobs:
           gh release create "$RELEASE_TAG" dist/slskd-*.tar.gz dist/SHA256SUMS \
             --prerelease \
             --target "$GITHUB_SHA" \
-            --title "nicotine-qol (latest build)" \
+            --title "latest build" \
             --notes "$notes"
