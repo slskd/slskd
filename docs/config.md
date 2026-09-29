@@ -369,6 +369,32 @@ transfers:
 
 ## Destination
 
+### Subdirectory
+
+The `subdirectory` key sets the directory, relative to the downloads directory, where completed downloads are saved. The default is `${SOURCE_DIRECTORY}`.
+
+The value is a pattern. Any of the following placeholders can be included, including more than one:
+
+| Placeholder | Replaced with |
+| --- | --- |
+| `${SOURCE_USERNAME}` | Username of the user the file is downloaded from |
+| `${SOURCE_PATH}` | Remote directory path of the file, excluding the filename |
+| `${SOURCE_DIRECTORY}` | Name of the remote file's parent directory |
+| `${BATCH_ID}` | Id of the download batch |
+| `${BATCH_EXTERNAL_ID}` | External id supplied when the batch was enqueued |
+| `${SEARCH_ID}` | Id of the search that produced the download |
+| `${SEARCH_TEXT}` | Text of the search that produced the download |
+
+`'{}'` saves files directly in the downloads directory without a subfolder.
+
+#### **YAML**
+```yaml
+transfers:
+  download:
+    destination:
+      subdirectory: ${SOURCE_DIRECTORY}
+```
+
 ### Permissions
 
 On [Unix-like](https://en.wikipedia.org/wiki/Unix-like) operating systems, downloaded files will be created according to the [umask](https://en.wikipedia.org/wiki/Umask) of the process (see [Permissions](#permissions) for more info).

@@ -1023,6 +1023,9 @@ namespace slskd
                     /// <summary>
                     ///     Gets the destination subdirectory for the files in the batch.
                     /// </summary>
+                    /// <remarks>
+                    ///     '{}' saves files directly in the downloads directory without a subfolder.
+                    /// </remarks>
                     [RelativePath(OperatingSystem.All)]
                     [NonTraversingPath]
                     [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
