@@ -233,6 +233,61 @@ public static class FileSafety
     public static bool IsPathRelative(string path, OperatingSystem? os = null) => !IsPathAbsolute(path, os);
 
     /// <summary>
+    ///     Indicates whether the specified <paramref name="subDirectory"/> is a subdirectory within (or is) the <paramref name="root"/>.
+    /// </summary>
+    /// <param name="root">The potential root path.</param>
+    /// <param name="subDirectory">The path to check.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>A value indicating whether the specified path is a subdirectory of (or is) the root.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if the specified root is null, empty, or consists of only whitespace.</exception>
+    /// <exception cref="ArgumentException">Thrown if the specified root or subdirectories are not absolute or contain traversal segments.</exception>
+    public static bool IsRootDirectoryOf(string root, string subDirectory, OperatingSystem? os = null)
+    {
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(root);
+
+        if (!IsPathAbsolute(root, os))
+        {
+            throw new ArgumentException("Specified root path must be absolute");
+        }
+
+        if (ContainsTraversalSegments(root))
+        {
+            throw new ArgumentException("Specified root path contains traversal segments");
+        }
+
+        if (!IsPathAbsolute(subDirectory, os))
+        {
+            throw new ArgumentException("Specified subdirectory path must be absolute");
+        }
+
+        if (ContainsTraversalSegments(subDirectory))
+        {
+            throw new ArgumentException("Specified subdirectory path contains traversal segments");
+        }
+
+        var stringComparison = StringComparison.Ordinal;
+
+        if (os.HasValue ? os.Value == OperatingSystem.Windows : System.OperatingSystem.IsWindows())
+        {
+            stringComparison = StringComparison.OrdinalIgnoreCase;
+        }
+
+        return subDirectory.TrimEnd('/', '\\').Equals(root.TrimEnd('/', '\\'), stringComparison) ||
+            subDirectory.StartsWith(root.TrimEnd('/', '\\') + Path.DirectorySeparatorChar, stringComparison);
+    }
+
+    /// <summary>
+    ///     Indicates whether the specified <paramref name="root"/> is the parent path of (or is) the <paramref name="subDirectory"/>.
+    /// </summary>
+    /// <param name="subDirectory">The potential subdirectory.</param>
+    /// <param name="root">The path to check.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>A value indicating whether the specified path is the parent of (or is) the subdirectory.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if the specified root is null, empty, or consists of only whitespace.</exception>
+    /// <exception cref="ArgumentException">Thrown if the specified root or subdirectories are not absolute or contain traversal segments.</exception>
+    public static bool IsSubDirectoryOf(string subDirectory, string root, OperatingSystem? os = null) => IsRootDirectoryOf(root, subDirectory, os);
+
+    /// <summary>
     ///     Returns the filename from the specified <paramref name="path"/>, properly
     ///     handling both forward and backslashes and removing invalid characters.
     /// </summary>
