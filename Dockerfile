@@ -4,14 +4,13 @@
 # build static web content
 # note: pin this to amd64 to speed it up, it is prohibitively slow under QEMU
 FROM --platform=$BUILDPLATFORM node:22-alpine AS web
-ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
 
 COPY bin bin/.
 COPY src/web src/web/.
 
-RUN sh ./bin/build --web-only --version $VERSION
+RUN sh ./bin/build --web-only
 
 # build, test, and publish application binaries
 # note: this needs to be pinned to an amd64 image in order to publish armv7 binaries
