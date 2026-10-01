@@ -10,7 +10,7 @@ WORKDIR /slskd
 COPY bin bin/.
 COPY src/web src/web/.
 
-RUN sh ./bin/build --web-only
+RUN sh ./bin/build --web-only --version 0.0.1.65534-local
 
 # build, test, and publish application binaries
 # note: this needs to be pinned to an amd64 image in order to publish armv7 binaries
