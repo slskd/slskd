@@ -81,7 +81,7 @@ ENV SHELL=/usr/bin/bash \
 
 LABEL org.opencontainers.image.title=slskd \
   org.opencontainers.image.description="A modern client-server application for the Soulseek file sharing network" \
-  org.opencontainers.image.authors="JP Dillingham, slskd Contributors" \
+  org.opencontainers.image.authors="JP Dillingham" \
   org.opencontainers.image.vendor="slskd Project" \
   org.opencontainers.image.licenses=AGPL-3.0 \
   org.opencontainers.image.url=https://slskd.org \
