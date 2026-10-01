@@ -1,0 +1,13 @@
+[Unit]
+Description=slskd Daemon
+
+[Service]
+Type=simple
+User=slskd
+Group=slskd
+WorkingDirectory=/var/lib/slskd
+ExecStart=slskd --config /etc/slskd.yml --content-path=../../../usr/share/slskd/wwwroot --app-dir=/var/lib/slskd/.local/share/slskd
+Environment="DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/lib/slskd/.net"
+
+[Install]
+WantedBy=network-online.target
