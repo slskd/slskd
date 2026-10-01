@@ -36,10 +36,6 @@ RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSI
 # application
 FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-noble AS slskd
 ARG TARGETPLATFORM
-ARG TAG=0.0.1
-ARG VERSION=0.0.1.65534-local
-ARG REVISION=0
-ARG BUILD_DATE
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
   jq \
@@ -60,6 +56,11 @@ RUN bash -c 'mkdir -p /.net \
   && chmod 777 /.net'
 
 HEALTHCHECK --interval=60s --timeout=3s --start-period=60m --retries=3 CMD wget -q -O - http://localhost:${SLSKD_HTTP_PORT}/health
+
+ARG TAG=0.0.1
+ARG VERSION=0.0.1.65534-local
+ARG REVISION=0
+ARG BUILD_DATE
 
 ENV SHELL=/usr/bin/bash \
   DOTNET_EnableDiagnostics=0 \
