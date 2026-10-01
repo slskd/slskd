@@ -1342,7 +1342,7 @@ Console colors can be disabled via typical application configuration described b
 
 | Command Line       | Environment Variable           | Description                        |
 | ------------------ | ------------------------------ | ---------------------------------- |
-| `--disk-logger`    | `SLSKD_DISK_LOGGER`            | Enable logging to disk             |
+| `--no-disk-logger` | `SLSKD_NO_DISK_LOGGER`         | Disable logging to disk            |
 | `--no-color`       | `SLSKD_NO_COLOR` or `NO_COLOR` | Disable console log colors         |
 
 Logs can optionally be forwarded to external services, and the targets can be expanded to any service supported by a [Serilog Sink](https://github.com/serilog/serilog/wiki/Provided-Sinks). Support for targets is added on an as-needed basis and within reason.

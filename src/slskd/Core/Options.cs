@@ -1458,11 +1458,11 @@ namespace slskd
             /// <summary>
             ///     Gets a value indicating whether to write logs to disk.
             /// </summary>
-            [Argument(default, "disk-logger")]
-            [EnvironmentVariable("DISK_LOGGER")]
-            [Description("enable logging to disk")]
+            [Argument(default, "no-disk-logger")]
+            [EnvironmentVariable("NO_DISK_LOGGER")]
+            [Description("disable logging to disk")]
             [RequiresRestart]
-            public bool Disk { get; init; } = false;
+            public bool NoDisk { get; init; } = false;
 
             /// <summary>
             ///     Gets a value indicating whether to suppress colorization of console logs.
@@ -1500,8 +1500,8 @@ namespace slskd
             /// <summary>
             ///     Gets the time to retain logs, in days.
             /// </summary>
-            [Range(1, maximum: int.MaxValue)]
-            public int Logs { get; init; } = 180;
+            [Range(7, maximum: int.MaxValue)]
+            public int Logs { get; init; } = 30;
 
             /// <summary>
             ///     Transfer retention options.
