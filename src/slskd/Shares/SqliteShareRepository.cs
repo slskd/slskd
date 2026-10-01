@@ -84,14 +84,58 @@ namespace slskd.Shares
         /// <param name="repository">The destination repository.</param>
         public void BackupTo(IShareRepository repository)
         {
-            using var sourceConn = GetConnection(ConnectionString);
-            using var backupConn = GetConnection(repository.ConnectionString);
-            sourceConn.BackupDatabase(backupConn);
+            using (var sourceConn = GetConnection(ConnectionString))
+            using (var backupConn = GetConnection(repository.ConnectionString))
+            {
+                sourceConn.BackupDatabase(backupConn);
+            }
+
+            using var backupRepository = new SqliteShareRepository(repository.ConnectionString);
 
             Log.Debug("Vacuuming backup");
-            using var cmd = new SqliteCommand("VACUUM", backupConn);
-            cmd.ExecuteNonQuery();
+            backupRepository.Vacuum();
             Log.Debug("Backup vacuumed successfully");
+
+            Log.Debug("Checkpointing backup");
+            backupRepository.Checkpoint();
+            Log.Debug("Backup checkpointed successfully");
+        }
+
+        /// <summary>
+        ///     Checkpoints the current database, flushing the contents of the WAL (write ahead log) into the table(s).
+        /// </summary>
+        public void Checkpoint()
+        {
+            const int maxAttempts = 3;
+
+            using var conn = GetConnection();
+
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                using var cmd = new SqliteCommand("PRAGMA wal_checkpoint(TRUNCATE);", conn);
+                using var reader = cmd.ExecuteReader();
+
+                reader.Read();
+
+                var busy = reader.GetInt32(0); // another operation prevented the checkpoint (true/false)
+                var log = reader.GetInt32(1); // number of frames in the WAL at the start
+                var checkpointed = reader.GetInt32(2); // number of frames moved from the WAL to the db
+
+                if (busy == 0 && checkpointed == log)
+                {
+                    Log.Debug("WAL checkpoint complete; {Log} frames in log, {Checkpointed} checkpointed", log, checkpointed);
+                    return;
+                }
+
+                Log.Warning("WAL checkpoint attempt {Attempt} of {MaxAttempts} did not fully complete; {Log} frames in log, {Checkpointed} checkpointed", attempt, maxAttempts, log, checkpointed);
+
+                if (attempt < maxAttempts)
+                {
+                    System.Threading.Thread.Sleep(TimeSpan.FromSeconds(1));
+                }
+            }
+
+            throw new TimeoutException($"Failed to fully checkpoint the shares database after {maxAttempts} attempts");
         }
 
         /// <summary>
