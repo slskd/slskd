@@ -4,7 +4,7 @@ import {
   formatSeconds,
   getFileName,
 } from '../../lib/util';
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Checkbox, Header, Icon, List, Table } from 'semantic-ui-react';
 
 const FileList = ({
@@ -17,6 +17,41 @@ const FileList = ({
   onSelectionChange,
 }) => {
   const [folded, setFolded] = useState(false);
+  const [lastClickedIndex, setLastClickedIndex] = useState(null);
+
+  const sortedFiles = useMemo(() => {
+    if (!files) {
+      return [];
+    }
+
+    return [...files].sort((a, b) => (a.filename > b.filename ? 1 : -1));
+  }, [files]);
+
+  const handleFileCheck = useCallback(
+    (event, data, clickedIndex) => {
+      const { checked } = data;
+      const { nativeEvent } = event;
+
+      if (nativeEvent.shiftKey && lastClickedIndex !== null) {
+        const start = Math.min(lastClickedIndex, clickedIndex);
+        const end = Math.max(lastClickedIndex, clickedIndex);
+
+        const filesToUpdate = sortedFiles.slice(start, end + 1);
+
+        for (const file of filesToUpdate) {
+          onSelectionChange(file, checked);
+        }
+      } else {
+        const file = sortedFiles[clickedIndex];
+        onSelectionChange(file, checked);
+      }
+
+      if (!nativeEvent.shiftKey) {
+        setLastClickedIndex(clickedIndex);
+      }
+    },
+    [lastClickedIndex, onSelectionChange, sortedFiles],
+  );
 
   return (
     <div style={{ opacity: locked ? 0.5 : 1 }}>
@@ -44,7 +79,7 @@ const FileList = ({
           )}
         </div>
       </Header>
-      {!folded && files && files.length > 0 && (
+      {!folded && sortedFiles && sortedFiles.length > 0 && (
         <List>
           <List.Item>
             <Table>
@@ -52,12 +87,17 @@ const FileList = ({
                 <Table.Row>
                   <Table.HeaderCell className="filelist-selector">
                     <Checkbox
-                      checked={files.filter((f) => !f.selected).length === 0}
+                      checked={
+                        sortedFiles.filter((f) => !f.selected).length === 0
+                      }
                       disabled={disabled}
                       fitted
-                      onChange={(event, data) =>
-                        files.map((f) => onSelectionChange(f, data.checked))
-                      }
+                      onChange={(event, data) => {
+                        sortedFiles.map((f) =>
+                          onSelectionChange(f, data.checked),
+                        );
+                        setLastClickedIndex(null);
+                      }}
                     />
                   </Table.HeaderCell>
                   <Table.HeaderCell className="filelist-filename">
@@ -75,35 +115,33 @@ const FileList = ({
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {files
-                  .sort((a, b) => (a.filename > b.filename ? 1 : -1))
-                  .map((f) => (
-                    <Table.Row key={f.filename}>
-                      <Table.Cell className="filelist-selector">
-                        <Checkbox
-                          checked={f.selected}
-                          disabled={disabled}
-                          fitted
-                          onChange={(event, data) =>
-                            onSelectionChange(f, data.checked)
-                          }
-                        />
-                      </Table.Cell>
-                      <Table.Cell className="filelist-filename">
-                        {locked ? <Icon name="lock" /> : ''}
-                        {getFileName(f.filename)}
-                      </Table.Cell>
-                      <Table.Cell className="filelist-size">
-                        {formatBytes(f.size)}
-                      </Table.Cell>
-                      <Table.Cell className="filelist-attributes">
-                        {formatAttributes(f)}
-                      </Table.Cell>
-                      <Table.Cell className="filelist-length">
-                        {formatSeconds(f.length)}
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
+                {sortedFiles.map((f, index) => (
+                  <Table.Row key={f.filename}>
+                    <Table.Cell className="filelist-selector">
+                      <Checkbox
+                        checked={f.selected}
+                        disabled={disabled}
+                        fitted
+                        onChange={(event, data) =>
+                          handleFileCheck(event, data, index)
+                        }
+                      />
+                    </Table.Cell>
+                    <Table.Cell className="filelist-filename">
+                      {locked ? <Icon name="lock" /> : ''}
+                      {getFileName(f.filename)}
+                    </Table.Cell>
+                    <Table.Cell className="filelist-size">
+                      {formatBytes(f.size)}
+                    </Table.Cell>
+                    <Table.Cell className="filelist-attributes">
+                      {formatAttributes(f)}
+                    </Table.Cell>
+                    <Table.Cell className="filelist-length">
+                      {formatSeconds(f.length)}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
               </Table.Body>
               {footer && (
                 <Table.Footer fullWidth>
