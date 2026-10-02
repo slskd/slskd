@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -e
+set -o pipefail
+
+test_name=""
+
+while test $# -gt 0; do
+  case "$1" in
+    -h|--help)
+      echo ''
+      echo 'usage: benchmark --test <name>'
+      echo ''
+      echo 'options:'
+      echo '-h, --help       show help'
+      echo '--test NAME      name (or substring, case-insensitive) of the benchmark test class to run'
+      echo ''
+      echo 'examples:'
+      echo '  benchmark --test helloworld'
+      echo ''
+      exit 0
+      ;;
+    --test)
+      shift
+      test_name=$1
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [ -z "$test_name" ]; then
+  echo 'error: --test is required'
+  exit 1
+fi
+
+dotnet test tests/slskd.Tests.Benchmarks -c Release -v q --nologo --filter "FullyQualifiedName~$test_name" --logger "console;verbosity=detailed" \
+  | sed -n '/BenchmarkRunner: Start/,/BenchmarkRunner: End/p'

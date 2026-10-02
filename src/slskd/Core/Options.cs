@@ -1462,7 +1462,7 @@ namespace slskd
             [EnvironmentVariable("NO_DISK_LOGGER")]
             [Description("disable logging to disk")]
             [RequiresRestart]
-            public bool Disk { get; init; } = true;
+            public bool NoDisk { get; init; } = false;
 
             /// <summary>
             ///     Gets a value indicating whether to suppress colorization of console logs.

@@ -4,14 +4,13 @@
 # build static web content
 # note: pin this to amd64 to speed it up, it is prohibitively slow under QEMU
 FROM --platform=$BUILDPLATFORM node:22-alpine AS web
-ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
 
 COPY bin bin/.
 COPY src/web src/web/.
 
-RUN sh ./bin/build --web-only --version $VERSION
+RUN sh ./bin/build --web-only --version 0.0.1.65534-local
 
 # build, test, and publish application binaries
 # note: this needs to be pinned to an amd64 image in order to publish armv7 binaries
@@ -37,10 +36,6 @@ RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSI
 # application
 FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-noble AS slskd
 ARG TARGETPLATFORM
-ARG TAG=0.0.1
-ARG VERSION=0.0.1.65534-local
-ARG REVISION=0
-ARG BUILD_DATE
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
   jq \
@@ -62,6 +57,11 @@ RUN bash -c 'mkdir -p /.net \
 
 HEALTHCHECK --interval=60s --timeout=3s --start-period=60m --retries=3 CMD wget -q -O - http://localhost:${SLSKD_HTTP_PORT}/health
 
+ARG TAG=0.0.1
+ARG VERSION=0.0.1.65534-local
+ARG REVISION=0
+ARG BUILD_DATE
+
 ENV SHELL=/usr/bin/bash \
   DOTNET_EnableDiagnostics=0 \
   DOTNET_BUNDLE_EXTRACT_BASE_DIR=/.net \
@@ -81,7 +81,7 @@ ENV SHELL=/usr/bin/bash \
 
 LABEL org.opencontainers.image.title=slskd \
   org.opencontainers.image.description="A modern client-server application for the Soulseek file sharing network" \
-  org.opencontainers.image.authors="JP Dillingham, slskd Contributors" \
+  org.opencontainers.image.authors="JP Dillingham" \
   org.opencontainers.image.vendor="slskd Project" \
   org.opencontainers.image.licenses=AGPL-3.0 \
   org.opencontainers.image.url=https://slskd.org \
