@@ -1,13 +1,25 @@
 import '../Files/Files.css';
 import { getFileBlob, list } from '../../../lib/logs';
 import { downloadFile, formatBytes, formatDate } from '../../../lib/util';
-import { LoaderSegment } from '../../Shared';
+import {
+  ErrorSegment,
+  LoaderSegment,
+  PlaceholderSegment,
+  Switch,
+} from '../../Shared';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Header, Icon, Table } from 'semantic-ui-react';
 
 const view = async (filename) => {
   const tab = window.open('', '_blank');
+
+  if (!tab) {
+    toast.error(
+      'Unable to open a new window; allow pop-ups for this site to view logs',
+    );
+    return;
+  }
 
   try {
     const blob = await getFileBlob({ filename });
@@ -60,17 +72,23 @@ const FileRow = ({ length, modifiedAt, name }) => (
 
 const Explorer = () => {
   const [files, setFiles] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(undefined);
   const [sortColumn, setSortColumn] = useState('date');
   const [sortDirection, setSortDirection] = useState('descending');
 
   const fetch = async () => {
     setLoading(true);
+    setError(undefined);
 
     try {
       setFiles(await list());
-    } catch (error) {
-      toast.error(error?.message ?? error);
+    } catch (fetchError) {
+      if (fetchError?.response?.status === 404) {
+        setFiles([]);
+      } else {
+        setError(fetchError?.message ?? fetchError);
+      }
     } finally {
       setLoading(false);
     }
@@ -112,10 +130,6 @@ const Explorer = () => {
     });
   };
 
-  if (loading) {
-    return <LoaderSegment />;
-  }
-
   const sortedFiles = sortItems(files);
 
   return (
@@ -127,74 +141,74 @@ const Explorer = () => {
         <Icon name="folder open" />
         /logs
       </Header>
-      <Table
-        className="unstackable"
-        size="large"
+      <Switch
+        empty={
+          !loading &&
+          !error &&
+          files.length === 0 && (
+            <PlaceholderSegment
+              caption="No log files"
+              icon="file alternate outline"
+            />
+          )
+        }
+        error={error && <ErrorSegment caption={error} />}
+        loading={loading && <LoaderSegment />}
       >
-        <Table.Header>
-          <Table.Row>
-            <Table.HeaderCell
-              className="explorer-list-name"
-              onClick={() => handleSort('name')}
-              style={{ cursor: 'pointer' }}
-            >
-              Name
-              {sortColumn === 'name' && (
-                <Icon
-                  name={
-                    sortDirection === 'ascending'
-                      ? 'chevron up'
-                      : 'chevron down'
-                  }
-                />
-              )}
-            </Table.HeaderCell>
-            <Table.HeaderCell
-              className="explorer-list-date"
-              onClick={() => handleSort('date')}
-              style={{ cursor: 'pointer' }}
-            >
-              Date Modified
-              {sortColumn === 'date' && (
-                <Icon
-                  name={
-                    sortDirection === 'ascending'
-                      ? 'chevron up'
-                      : 'chevron down'
-                  }
-                />
-              )}
-            </Table.HeaderCell>
-            <Table.HeaderCell className="explorer-list-size">
-              Size
-            </Table.HeaderCell>
-            <Table.HeaderCell className="explorer-list-action" />
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {files.length === 0 ? (
+        <Table
+          className="unstackable"
+          size="large"
+        >
+          <Table.Header>
             <Table.Row>
-              <Table.Cell
-                colSpan={99}
-                style={{
-                  opacity: 0.5,
-                  padding: '10px !important',
-                  textAlign: 'center',
-                }}
+              <Table.HeaderCell
+                className="explorer-list-name"
+                onClick={() => handleSort('name')}
+                style={{ cursor: 'pointer' }}
               >
-                No log files
-              </Table.Cell>
+                Name
+                {sortColumn === 'name' && (
+                  <Icon
+                    name={
+                      sortDirection === 'ascending'
+                        ? 'chevron up'
+                        : 'chevron down'
+                    }
+                  />
+                )}
+              </Table.HeaderCell>
+              <Table.HeaderCell
+                className="explorer-list-date"
+                onClick={() => handleSort('date')}
+                style={{ cursor: 'pointer' }}
+              >
+                Date Modified
+                {sortColumn === 'date' && (
+                  <Icon
+                    name={
+                      sortDirection === 'ascending'
+                        ? 'chevron up'
+                        : 'chevron down'
+                    }
+                  />
+                )}
+              </Table.HeaderCell>
+              <Table.HeaderCell className="explorer-list-size">
+                Size
+              </Table.HeaderCell>
+              <Table.HeaderCell className="explorer-list-action" />
             </Table.Row>
-          ) : (
-            sortedFiles.map((f) => (
+          </Table.Header>
+          <Table.Body>
+            {sortedFiles.map((f) => (
               <FileRow
                 key={f.name}
                 {...f}
               />
-            ))
-          )}
-        </Table.Body>
-      </Table>
+            ))}
+          </Table.Body>
+        </Table>
+      </Switch>
     </>
   );
 };
