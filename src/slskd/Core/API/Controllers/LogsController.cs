@@ -38,6 +38,7 @@ namespace slskd.Core.API
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
     using slskd.Files;
@@ -58,7 +59,7 @@ namespace slskd.Core.API
         }
 
         private FileService Files { get; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<ApplicationController>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<LogsController>();
 
         /// <summary>
         ///     Gets the last few application logs.
@@ -79,6 +80,11 @@ namespace slskd.Core.API
         [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
         public async Task<IActionResult> List()
         {
+            if (!Directory.Exists(Path.GetFullPath(Program.LogDirectory)))
+            {
+                return NotFound();
+            }
+
             var directory = await Files.ListDirectoryContentsAsync(Path.GetFullPath(Program.LogDirectory), enumerationOptions: new EnumerationOptions
             {
                 IgnoreInaccessible = true,
@@ -95,11 +101,12 @@ namespace slskd.Core.API
         ///     Retrieves the requested log file from disk as plain text.
         /// </summary>
         /// <param name="filename">The name of the log file.</param>
-        /// <param name="download">A value indicating whether the file should be sent as an attachment.</param>
         /// <returns></returns>
         [HttpGet("files/{filename}")]
+        [Produces("text/plain")]
+        [ProducesResponseType(typeof(string), StatusCodes.Status200OK, contentType: "text/plain")]
         [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
-        public IActionResult Get(string filename, [FromQuery] bool download = false)
+        public IActionResult Get([FromRoute] string filename)
         {
             if (string.IsNullOrWhiteSpace(filename))
             {
@@ -121,28 +128,22 @@ namespace slskd.Core.API
 
             if (!sanitizedFilename.EndsWith(".log", StringComparison.OrdinalIgnoreCase))
             {
-                return BadRequest("Only .log files may be retrieved");
+                return StatusCode(StatusCodes.Status403Forbidden, "Only .log files may be retrieved");
             }
 
             try
             {
                 var stream = Files.GetFileContents(FileSafety.CombineSafely(Program.LogDirectory, sanitizedFilename));
-                const string contentType = "text/plain; charset=utf-8";
-
-                if (download)
-                {
-                    return File(stream, contentType, filename);
-                }
-
-                return File(stream, contentType);
-            }
-            catch (UnauthorizedException)
-            {
-                return Unauthorized();
+                return File(stream, "text/plain; charset=utf-8", enableRangeProcessing: true);
             }
             catch (NotFoundException)
             {
                 return NotFound();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to retrieve log file {Filename}: {Message}", filename, ex.Message);
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
     }
