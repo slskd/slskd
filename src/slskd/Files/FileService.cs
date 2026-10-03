@@ -59,10 +59,11 @@ namespace slskd.Files
 
         private IEnumerable<string> AllowedDirectories => new[]
         {
-            Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Downloads),
-            Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Incomplete),
-            Path.GetFullPath(Program.LogDirectory),
-        };
+            OptionsMonitor.CurrentValue.Directories.Downloads,
+            OptionsMonitor.CurrentValue.Directories.Incomplete,
+            Program.LogDirectory,
+        }.Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => Path.GetFullPath(x));
 
         private ILogger Log { get; } = Serilog.Log.ForContext<FileService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
