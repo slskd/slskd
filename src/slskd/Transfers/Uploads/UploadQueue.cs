@@ -413,9 +413,7 @@ namespace slskd.Transfers.Uploads
 
             // for FIFO queues, the user will enter the queue at the very back. return the total number of uploads in progress and
             // enqueued, + 1.
-            return uploadsForGroup
-                .SelectMany(group => group.Value)
-                .Count() + 1;
+            return uploadsForGroup.Sum(kvp => kvp.Value.Count) + 1;
         }
 
         private void Configure(Options options)
