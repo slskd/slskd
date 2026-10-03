@@ -54,8 +54,9 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <param name="username">The username of the remote user.</param>
         /// <param name="filename">The filename for which to await the start.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        Task AwaitStartAsync(string username, string filename);
+        Task AwaitStartAsync(string username, string filename, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Signals the completion of an upload.
@@ -150,8 +151,9 @@ namespace slskd.Transfers.Uploads
         /// </remarks>
         /// <param name="username">The username of the remote user.</param>
         /// <param name="filename">The filename for which to await the start.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        public Task AwaitStartAsync(string username, string filename)
+        public Task AwaitStartAsync(string username, string filename, CancellationToken cancellationToken = default)
         {
             SyncRoot.Wait();
 
