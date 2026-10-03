@@ -59,9 +59,11 @@ namespace slskd.Files
 
         private IEnumerable<string> AllowedDirectories => new[]
         {
-            Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Downloads),
-            Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Incomplete),
-        };
+            OptionsMonitor.CurrentValue.Directories.Downloads,
+            OptionsMonitor.CurrentValue.Directories.Incomplete,
+            Program.LogDirectory,
+        }.Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => Path.GetFullPath(x));
 
         private ILogger Log { get; } = Serilog.Log.ForContext<FileService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
@@ -319,7 +321,7 @@ namespace slskd.Files
         /// <exception cref="ArgumentException">Thrown if the specified directory has a relative path.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
         /// <exception cref="UnauthorizedException">Thrown if the specified root directory is restricted.</exception>
-        public virtual async Task<FilesystemDirectory> ListContentsAsync(string directory, EnumerationOptions enumerationOptions = null)
+        public virtual async Task<FilesystemDirectory> ListDirectoryContentsAsync(string directory, EnumerationOptions enumerationOptions = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(directory);
 
@@ -351,7 +353,7 @@ namespace slskd.Files
 
                 try
                 {
-                    var contents = dir.GetFileSystemInfos("*", enumerationOptions);
+                    var contents = dir.GetFileSystemInfos("*", enumerationOptions ?? new EnumerationOptions());
 
                     var files = contents
                         .OfType<FileInfo>()
@@ -381,6 +383,49 @@ namespace slskd.Files
                     throw new UnauthorizedException($"Access to directory '{directory}' was denied: {ex.Message}", ex);
                 }
             });
+        }
+
+        /// <summary>
+        ///     Retrieves the contents of the specified <paramref name="filename"/> as a stream.
+        /// </summary>
+        /// <param name="filename">The file for which contents are to be retrieved.</param>
+        /// <returns>A Stream containing the contents of the file.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified filename is null or contains only whitespace.</exception>
+        /// <exception cref="ArgumentException">Thrown if the specified filename contains path traversal segments.</exception>
+        /// <exception cref="UnauthorizedException">Thrown if the specified file is not within an allowed directory.</exception>
+        /// <exception cref="NotFoundException">Thrown if the specified file does not exist.</exception>
+        /// <exception cref="IOException">Thrown if the file can't be opened for some reason.</exception>
+        public virtual Stream GetFileContents(string filename)
+        {
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(filename, nameof(filename));
+
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                Log.Warning("Suspicious attempt to read a file with a filename containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {File}", filename);
+                throw new ArgumentException("Filenames containing traversal segments are not allowed");
+            }
+
+            // important! we must fully expand the path with GetFullPath() to resolve a given relative directory, like '..'
+            if (!AllowedDirectories.Any(allowed => filename.StartsWith(allowed + Path.DirectorySeparatorChar)))
+            {
+                throw new UnauthorizedException($"Only application-controlled directories can be listed");
+            }
+
+            var info = ResolveFileInfo(filename);
+
+            if (!info.Exists)
+            {
+                throw new NotFoundException();
+            }
+
+            try
+            {
+                return new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            }
+            catch (Exception ex)
+            {
+                throw new IOException($"Failed to open file {Path.GetFileName(filename)} for reading: {ex.Message}", ex);
+            }
         }
 
         /// <summary>

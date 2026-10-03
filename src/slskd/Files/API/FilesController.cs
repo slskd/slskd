@@ -200,7 +200,7 @@ namespace slskd.Files.API
 
             try
             {
-                var response = await Files.ListContentsAsync(
+                var response = await Files.ListDirectoryContentsAsync(
                     directory: requestedDir,
                     enumerationOptions: new EnumerationOptions
                     {
