@@ -306,6 +306,11 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
         /// </summary>
+        /// <remarks>
+        ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
+        ///     because of the amount of data that would need to be processed to compute a number, and how variable it
+        ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
+        /// </remarks>
         /// <param name="username">The username associated with the file.</param>
         /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
         /// <returns>The estimated queue position of the file.</returns>
