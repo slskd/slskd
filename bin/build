@@ -39,7 +39,12 @@ while test $# -gt 0; do
   esac
 done
 
-if [ -z "$version" ]; then 
+if [ -z "$version" ]; then
+  if ! command -v git >/dev/null 2>&1; then
+    echo "💥  error: git is required to compose the version, but the executable couldn't be found"
+    exit 1
+  fi
+
   tag=$(git describe --tags --abbrev=0)
   sha=$(git rev-parse --short HEAD)
   version=$tag+$sha
