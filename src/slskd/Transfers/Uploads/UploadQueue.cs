@@ -326,6 +326,7 @@ namespace slskd.Transfers.Uploads
             var groupRecord = Groups.GetValueOrDefault(groupName);
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
+            // a user's group can change either by user changing the config or updating counts (for leech detection); resist the urge to cache this
             var uploadsForGroup = UploadDictionary.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
 
             SyncRoot.Wait();
@@ -368,16 +369,20 @@ namespace slskd.Transfers.Uploads
                     //     ^
                     //
                     // if we want the position of the file over the carat above, first find the position of it
-                    // within its own queue (= 5). assume uploads will process top down, left to right until reaching
-                    // this one.  that's 5 files from a, 2 from b, 5 from c, and the other 4 from d, putting the file over
-                    // the carat at position 16. the actual number will vary due to many factors, including where in the
-                    // round-robin ordering d is actually positioned (so +/- number of users downloading).
+                    // within its own queue (= 4). assume uploads will process top down, left to right until reaching
+                    // this one.  that's the 4 ahead of it from d, plus 4 from a, 2 from b, and 4 from c in earlier rounds (= 14).
                     foreach (var group in uploadsForGroup.Where(group => group.Key != username))
                     {
                         position += Math.Min(localPosition, group.Value.Count);
                     }
 
-                    return position;
+                    // be pessimistic and assume d is last in the rotation; every other user with a file in the same round
+                    // goes first. in the example, a and c have a 5th file and b doesn't, putting the file over the carat
+                    // at position 16.
+                    var usersWithAtLeastAsManyFiles = uploadsForGroup
+                        .Count(g => g.Key != username && g.Value.Count() >= localPosition + 1); // localPosition is zero-based
+
+                    return position + usersWithAtLeastAsManyFiles;
                 }
 
                 // find the upload
