@@ -243,8 +243,8 @@ namespace slskd.Transfers.Uploads
                 {
                     var group = Groups[upload.Group];
 
-                    group.UsedSlots = Math.Max(0, group.UsedSlots - 1);
-                    Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots, group.Slots);
+                    group.UsedSlots.Remove((username, filename));
+                    Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots.Count, group.Slots);
                 }
 
                 if (list.Count == 0 && UploadDictionary.TryRemove(username, out _))
@@ -455,8 +455,8 @@ namespace slskd.Transfers.Uploads
 
         private void Configure(Options options)
         {
-            int GetExistingUsedSlotsOrDefault(string group)
-                => Groups.ContainsKey(group) ? Groups[group].UsedSlots : 0;
+            HashSet<(string Username, string Filename)> GetExistingUsedSlotsOrDefault(string group)
+                => Groups.ContainsKey(group) ? Groups[group].UsedSlots : [];
 
             SyncRoot.Wait();
 
@@ -537,7 +537,7 @@ namespace slskd.Transfers.Uploads
                 // number of global slots, just exit. we *could* proceed, but uploads would stack up behind the
                 // global semaphore in Soulseek.NET and we wouldn't be able to control the order in which those
                 // were processed, so don't do that.
-                if (Groups.Values.Sum(g => g.UsedSlots) >= GlobalSlots)
+                if (Groups.Values.Sum(g => g.UsedSlots.Count) >= GlobalSlots)
                 {
                     return null;
                 }
@@ -571,7 +571,7 @@ namespace slskd.Transfers.Uploads
                 // process each group in ascending order of priority, and stop after the first ready upload is released.
                 foreach (var group in Groups.Values.OrderBy(g => g.Priority).ThenBy(g => g.Name))
                 {
-                    if (group.UsedSlots >= group.Slots || !readyUploadsByGroup.TryGetValue(group.Name, out var uploads) || !uploads.Any())
+                    if (group.UsedSlots.Count >= group.Slots || !readyUploadsByGroup.TryGetValue(group.Name, out var uploads) || !uploads.Any())
                     {
                         continue;
                     }
@@ -584,7 +584,7 @@ namespace slskd.Transfers.Uploads
                     // returned to the proper place upon completion
                     upload.Started = DateTime.UtcNow;
                     upload.Group = group.Name;
-                    group.UsedSlots++;
+                    group.UsedSlots.Add((upload.Username, upload.Filename));
 
                     // release the upload
                     upload.TaskCompletionSource.SetResult();
@@ -592,7 +592,7 @@ namespace slskd.Transfers.Uploads
                     EmitMetrics();
 
                     Log.Debug("Started: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
-                    Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots, group.Slots);
+                    Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots.Count, group.Slots);
 
                     return upload;
                 }
