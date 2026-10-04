@@ -99,6 +99,11 @@ namespace slskd.Transfers.Uploads
         ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
         ///     or zero if the transfer could start immediately.
         /// </summary>
+        /// <remarks>
+        ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
+        ///     because of the amount of data that would need to be processed to compute a number, and how variable it
+        ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
+        /// </remarks>
         /// <param name="username">The username for which to estimate.</param>
         /// <returns>
         ///     The estimated queue position if the user were to enqueue a file, or zero if the transfer could start immediately.
@@ -387,6 +392,11 @@ namespace slskd.Transfers.Uploads
         ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
         ///     or zero if the transfer could start immediately.
         /// </summary>
+        /// <remarks>
+        ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
+        ///     because of the amount of data that would need to be processed to compute a number, and how variable it
+        ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
+        /// </remarks>
         /// <param name="username">The username for which to estimate.</param>
         /// <returns>
         ///     The estimated queue position if the user were to enqueue a file, or zero if the transfer could start immediately.
@@ -395,23 +405,23 @@ namespace slskd.Transfers.Uploads
         {
             var groupName = Users.GetGroup(username);
 
-            // if there's a slot available, the user will enter the queue at position 0 (will start immediately)
-            if (Groups.TryGetValue(groupName, out var groupRecord) && groupRecord.HasAvailableSlot)
+            if (!Groups.TryGetValue(groupName, out var groupRecord))
             {
-                return (string.Empty, 0, 0, 0);
+                throw new SlskdException($"Upload group {groupName} doesn't have an entry in upload dictionary.  Please report this on GitHub: {Program.IssuesUrl}");
             }
 
-            var totalSlots = groupRecord.Slots;
-            var freeSlots = totalSlots - groupRecord.UsedSlots.Count;
+            var totalSlots = Math.Min(GlobalSlots, groupRecord.Slots);
+            var freeSlots = Math.Max(0, totalSlots - groupRecord.UsedSlots.Count);
+
+            // if there's a slot available, the user will enter the queue at position 0 (will start immediately)
+            if (freeSlots > 0)
+            {
+                return (groupName, totalSlots, freeSlots, 0);
+            }
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
             // a user's group can change either by user changing the config or updating counts (for leech detection); resist the urge to cache this
             var uploadsForGroup = UploadDictionary.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
-
-            if (groupRecord is null)
-            {
-                throw new SlskdException($"Upload group {groupName} doesn't have an entry in upload dictionary.  Please report this on GitHub: {Program.IssuesUrl}");
-            }
 
             // assuming that the queue will be processed in a true round-robin fashion and that the user will be the last in the
             // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting, + 1.
