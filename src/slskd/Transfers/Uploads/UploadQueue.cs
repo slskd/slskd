@@ -302,7 +302,16 @@ namespace slskd.Transfers.Uploads
         {
             if (Groups.TryGetValue(groupName, out var group))
             {
-                return group;
+                SyncRoot.Wait();
+
+                try
+                {
+                    return group with { UsedSlots = [.. group.UsedSlots] };
+                }
+                finally
+                {
+                    SyncRoot.Release();
+                }
             }
 
             throw new NotFoundException($"A group with the name {groupName} could not be found");
