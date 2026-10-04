@@ -38,7 +38,7 @@ namespace slskd.Transfers
     {
         public string Name { get; init; }
         public int Priority { get; set; }
-        public bool SlotAvailable => UsedSlots.Count < Slots;
+        public bool HasAvailableSlot => UsedSlots.Count < Slots;
         public int Slots { get; set; }
         public QueueStrategy Strategy { get; set; }
         public HashSet<(string Username, string Filename)> UsedSlots { get; set; }
