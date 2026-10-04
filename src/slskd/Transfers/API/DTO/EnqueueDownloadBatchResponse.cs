@@ -1,4 +1,4 @@
-// <copyright file="QueueDownloadBatchResponse.cs" company="JP Dillingham">
+// <copyright file="EnqueueDownloadBatchResponse.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █

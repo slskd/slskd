@@ -34,7 +34,7 @@ namespace slskd.Tests.Unit.Files
         [Fact]
         public async Task ListContentsAsync_Throws_ArgumentException_Given_Relative_Path()
         {
-            var ex = await Record.ExceptionAsync(() => FileService.ListContentsAsync(directory: "../"));
+            var ex = await Record.ExceptionAsync(() => FileService.ListDirectoryContentsAsync(directory: "../"));
 
             Assert.NotNull(ex);
             Assert.IsType<ArgumentException>(ex);
@@ -53,7 +53,7 @@ namespace slskd.Tests.Unit.Files
                 }
             });
 
-            var ex = await Record.ExceptionAsync(() => FileService.ListContentsAsync(directory: Path.Combine(Temp, "foo")));
+            var ex = await Record.ExceptionAsync(() => FileService.ListDirectoryContentsAsync(directory: Path.Combine(Temp, "foo")));
 
             Assert.NotNull(ex);
             Assert.IsType<UnauthorizedException>(ex);
@@ -71,7 +71,7 @@ namespace slskd.Tests.Unit.Files
                 }
             });
 
-            var ex = await Record.ExceptionAsync(() => FileService.ListContentsAsync(directory: Path.Combine(Temp, "downloads", "foo")));
+            var ex = await Record.ExceptionAsync(() => FileService.ListDirectoryContentsAsync(directory: Path.Combine(Temp, "downloads", "foo")));
 
             Assert.NotNull(ex);
             Assert.IsType<NotFoundException>(ex);
