@@ -621,19 +621,21 @@ namespace slskd.Tests.Unit.Transfers.Uploads
             }
 
             [Theory, AutoData]
-            public void RoundRobin_Returns_Zero_For_First_File_Regardless_Of_Other_Users(string username, string other)
+            public void RoundRobin_First_File_Is_Behind_Every_Other_User_With_Queued_Files(string username, string other1, string other2)
             {
                 var (queue, _) = GetFixture();
 
                 SetStrategy(queue, QueueStrategy.RoundRobin);
 
                 var uploads = new ConcurrentDictionary<string, List<Upload>>();
-                uploads.TryAdd(other, CreateUploads(other, count: 10, offset: -100));
+                uploads.TryAdd(other1, CreateUploads(other1, count: 10, offset: -100));
+                uploads.TryAdd(other2, CreateUploads(other2, count: 1, offset: -100));
                 uploads.TryAdd(username, CreateUploads(username, count: 3));
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(0, queue.EstimatePosition(username, "file0"));
+                // pessimistic; both other users have a file in round 0, and are assumed to go first
+                Assert.Equal(2, queue.EstimatePosition(username, "file0"));
             }
 
             [Theory, AutoData]
@@ -656,8 +658,30 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                // 4 (local) + min(4, 5) + min(4, 2) + min(4, 12)
-                Assert.Equal(4 + 4 + 2 + 4, queue.EstimatePosition(d, "file4"));
+                // 4 (local) + min(4, 5) + min(4, 2) + min(4, 12), + 1 each for a and c, which have a file in round 4
+                Assert.Equal(4 + 4 + 2 + 4 + 2, queue.EstimatePosition(d, "file4"));
+            }
+
+            [Theory]
+            [InlineAutoData(1, 3)]
+            [InlineAutoData(2, 4)]
+            [InlineAutoData(3, 5)]
+            [InlineAutoData(10, 5)]
+            public void RoundRobin_Counts_Other_User_As_Ahead_Only_If_They_Have_A_File_In_The_Same_Round(int otherCount, int expected, string username, string other)
+            {
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, QueueStrategy.RoundRobin);
+
+                // the requested file is at local position 2 (round 2). the other user contends for round 2 only if they
+                // have more than 2 files: 2 (local) + min(2, otherCount) + (otherCount > 2 ? 1 : 0)
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(username, CreateUploads(username, count: 3));
+                uploads.TryAdd(other, CreateUploads(other, count: otherCount));
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                Assert.Equal(expected, queue.EstimatePosition(username, "file2"));
             }
 
             [Theory, AutoData]
@@ -753,24 +777,150 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 Assert.Equal(2, queue.EstimatePosition(username, "file2"));
             }
+        }
 
-            private static void SetStrategy(UploadQueue queue, QueueStrategy strategy)
+        public class ForecastPosition
+        {
+            [Theory]
+            [InlineAutoData(QueueStrategy.RoundRobin)]
+            [InlineAutoData(QueueStrategy.FirstInFirstOut)]
+            public void Returns_Zero_If_Slot_Is_Available_Regardless_Of_Queue(QueueStrategy strategy, string username, string other)
             {
-                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
-                groups[Application.DefaultGroup].Strategy = strategy;
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, strategy);
+                SetSlotAvailable(queue, true);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(other, CreateUploads(other, count: 10));
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                Assert.Equal(0, queue.ForecastPosition(username));
             }
 
-            // creates uploads named file0..fileN, enqueued at Now + offset + (i * step) seconds, in ascending order
-            private static List<Upload> CreateUploads(string username, int count, int offset = 0, int step = 1)
+            [Theory]
+            [InlineAutoData(QueueStrategy.RoundRobin)]
+            [InlineAutoData(QueueStrategy.FirstInFirstOut)]
+            public void Returns_One_If_No_Slot_Is_Available_And_Queue_Is_Empty(QueueStrategy strategy, string username)
             {
-                return Enumerable.Range(0, count)
-                    .Select(i => new Upload()
-                    {
-                        Username = username,
-                        Filename = $"file{i}",
-                        Enqueued = Now.AddSeconds(offset + (i * step)),
-                    })
-                    .ToList();
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, strategy);
+                SetSlotAvailable(queue, false);
+
+                Assert.Equal(1, queue.ForecastPosition(username));
+            }
+
+            [Theory, AutoData]
+            public void RoundRobin_Returns_Number_Of_Users_In_Group_Plus_One(string username, string other1, string other2)
+            {
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, QueueStrategy.RoundRobin);
+                SetSlotAvailable(queue, false);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(other1, CreateUploads(other1, count: 10));
+                uploads.TryAdd(other2, CreateUploads(other2, count: 1));
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                // worst case; the new file is last in the rotation. file counts don't matter
+                Assert.Equal(3, queue.ForecastPosition(username));
+            }
+
+            [Theory, AutoData]
+            public void RoundRobin_Counts_Requesting_User_Once_Regardless_Of_Their_Queued_Files(string username, string other)
+            {
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, QueueStrategy.RoundRobin);
+                SetSlotAvailable(queue, false);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(username, CreateUploads(username, count: 10));
+                uploads.TryAdd(other, CreateUploads(other, count: 1));
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                Assert.Equal(3, queue.ForecastPosition(username));
+            }
+
+            [Theory, AutoData]
+            public void RoundRobin_Ignores_Users_In_Other_Groups(string username, string other1, string other2)
+            {
+                var (queue, mocks) = GetFixture();
+
+                SetStrategy(queue, QueueStrategy.RoundRobin);
+                SetSlotAvailable(queue, false);
+
+                mocks.UserService.Setup(m => m.GetGroup(other2)).Returns(Application.PrivilegedGroup);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(other1, CreateUploads(other1, count: 1));
+                uploads.TryAdd(other2, CreateUploads(other2, count: 1));
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                Assert.Equal(2, queue.ForecastPosition(username));
+            }
+
+            [Theory, AutoData]
+            public void FirstInFirstOut_Returns_Number_Of_Uploads_In_Group_Plus_One(string username, string other1, string other2)
+            {
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, QueueStrategy.FirstInFirstOut);
+                SetSlotAvailable(queue, false);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(username, CreateUploads(username, count: 2));
+                uploads.TryAdd(other1, CreateUploads(other1, count: 3));
+                uploads.TryAdd(other2, CreateUploads(other2, count: 4));
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                // the new file goes to the back of the queue, behind every upload in the group, including the user's own
+                Assert.Equal(2 + 3 + 4 + 1, queue.ForecastPosition(username));
+            }
+
+            [Theory, AutoData]
+            public void FirstInFirstOut_Counts_Uploads_In_Progress(string username, string other)
+            {
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, QueueStrategy.FirstInFirstOut);
+                SetSlotAvailable(queue, false);
+
+                var started = CreateUploads(other, count: 2);
+                started.ForEach(u => u.Started = Now);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(other, started);
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                Assert.Equal(3, queue.ForecastPosition(username));
+            }
+
+            [Theory, AutoData]
+            public void FirstInFirstOut_Ignores_Users_In_Other_Groups(string username, string other1, string other2)
+            {
+                var (queue, mocks) = GetFixture();
+
+                SetStrategy(queue, QueueStrategy.FirstInFirstOut);
+                SetSlotAvailable(queue, false);
+
+                mocks.UserService.Setup(m => m.GetGroup(other2)).Returns(Application.PrivilegedGroup);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(other1, CreateUploads(other1, count: 3));
+                uploads.TryAdd(other2, CreateUploads(other2, count: 10));
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                Assert.Equal(4, queue.ForecastPosition(username));
             }
         }
 
@@ -973,6 +1123,34 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                 Assert.Equal(user2, result.Username);
                 Assert.Equal(file2, result.Filename);
             }
+        }
+
+        private static readonly DateTime Now = DateTime.UtcNow;
+
+        private static void SetStrategy(UploadQueue queue, QueueStrategy strategy)
+        {
+            var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
+            groups[Application.DefaultGroup].Strategy = strategy;
+        }
+
+        private static void SetSlotAvailable(UploadQueue queue, bool available)
+        {
+            var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
+            groups[Application.DefaultGroup].Slots = 1;
+            groups[Application.DefaultGroup].UsedSlots = available ? 0 : 1;
+        }
+
+        // creates uploads named file0..fileN, enqueued at Now + offset + (i * step) seconds, in ascending order
+        private static List<Upload> CreateUploads(string username, int count, int offset = 0, int step = 1)
+        {
+            return Enumerable.Range(0, count)
+                .Select(i => new Upload()
+                {
+                    Username = username,
+                    Filename = $"file{i}",
+                    Enqueued = Now.AddSeconds(offset + (i * step)),
+                })
+                .ToList();
         }
 
         private static (UploadQueue queue, Mocks mocks) GetFixture(Options options = null)
