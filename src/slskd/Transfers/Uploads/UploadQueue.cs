@@ -419,7 +419,13 @@ namespace slskd.Transfers.Uploads
             }
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
+            // a user's group can change either by user changing the config or updating counts (for leech detection); resist the urge to cache this
             var uploadsForGroup = UploadDictionary.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
+
+            if (groupRecord is null)
+            {
+                throw new SlskdException($"Upload group {groupName} doesn't have an entry in upload dictionary.  Please report this on GitHub: {Program.IssuesUrl}");
+            }
 
             // assuming that the queue will be processed in a true round-robin fashion and that the user will be the last in the
             // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting, + 1.
