@@ -1050,6 +1050,90 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                 Assert.Equal(1, totalSlots);
                 Assert.Equal(0, freeSlots);
             }
+
+            [Theory, AutoData]
+            public void Returns_Group_And_Slot_Counts_If_Slot_Is_Available(string username)
+            {
+                var (queue, _) = GetFixture();
+
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
+                groups[Application.DefaultGroup].Slots = 3;
+                FillSlots(groups[Application.DefaultGroup], 1);
+
+                var (group, totalSlots, freeSlots, position) = queue.ForecastPosition(username);
+
+                Assert.Equal(Application.DefaultGroup, group);
+                Assert.Equal(3, totalSlots);
+                Assert.Equal(2, freeSlots);
+                Assert.Equal(0, position);
+            }
+
+            [Theory, AutoData]
+            public void Ignores_Slots_Used_By_Other_Groups(string username)
+            {
+                var (queue, _) = GetFixture();
+
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
+                var globalSlots = queue.GetProperty<int>("GlobalSlots");
+
+                // every global slot is held by the privileged group, but the default group's own slots are free
+                FillSlots(groups[Application.PrivilegedGroup], globalSlots);
+                groups[Application.DefaultGroup].Slots = 2;
+
+                var (group, totalSlots, freeSlots, position) = queue.ForecastPosition(username);
+
+                Assert.Equal(Application.DefaultGroup, group);
+                Assert.Equal(2, totalSlots);
+                Assert.Equal(2, freeSlots);
+                Assert.Equal(0, position);
+            }
+
+            [Theory, AutoData]
+            public void Limits_Total_Slots_To_Global_Slots(string username)
+            {
+                var (queue, _) = GetFixture();
+
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
+                var globalSlots = queue.GetProperty<int>("GlobalSlots");
+
+                groups[Application.DefaultGroup].Slots = globalSlots + 10;
+
+                var (_, totalSlots, freeSlots, _) = queue.ForecastPosition(username);
+
+                Assert.Equal(globalSlots, totalSlots);
+                Assert.Equal(globalSlots, freeSlots);
+            }
+
+            [Theory, AutoData]
+            public void Free_Slots_Is_Never_Negative(QueueStrategy strategy, string username)
+            {
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, strategy);
+
+                // the group holds more slots than it is allowed, for instance after its slot count was reduced at run time
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
+                groups[Application.DefaultGroup].Slots = 1;
+                FillSlots(groups[Application.DefaultGroup], 3);
+
+                var (_, totalSlots, freeSlots, position) = queue.ForecastPosition(username);
+
+                Assert.Equal(1, totalSlots);
+                Assert.Equal(0, freeSlots);
+                Assert.Equal(1, position);
+            }
+
+            [Theory, AutoData]
+            public void Throws_SlskdException_If_Group_Does_Not_Exist(string username, string groupName)
+            {
+                var (queue, mocks) = GetFixture();
+
+                mocks.UserService.Setup(m => m.GetGroup(username)).Returns(groupName);
+
+                var ex = Record.Exception(() => queue.ForecastPosition(username));
+
+                Assert.IsType<SlskdException>(ex);
+            }
         }
 
         public class Process
