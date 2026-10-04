@@ -54,8 +54,9 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <param name="username">The username of the remote user.</param>
         /// <param name="filename">The filename for which to await the start.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        Task AwaitStartAsync(string username, string filename);
+        Task AwaitStartAsync(string username, string filename, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Signals the completion of an upload.
@@ -90,6 +91,11 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
         /// </summary>
+        /// <remarks>
+        ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
+        ///     because of the amount of data that would need to be processed to compute a number, and how variable it
+        ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
+        /// </remarks>
         /// <param name="username">The username associated with the file.</param>
         /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
         /// <returns>The estimated queue position of the file.</returns>
@@ -150,8 +156,9 @@ namespace slskd.Transfers.Uploads
         /// </remarks>
         /// <param name="username">The username of the remote user.</param>
         /// <param name="filename">The filename for which to await the start.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        public Task AwaitStartAsync(string username, string filename)
+        public Task AwaitStartAsync(string username, string filename, CancellationToken cancellationToken = default)
         {
             SyncRoot.Wait();
 
@@ -265,11 +272,11 @@ namespace slskd.Transfers.Uploads
 
             try
             {
-                var upload = new Upload() { Username = username, Filename = filename };
+                var upload = new Upload() { Username = username, Filename = filename, Enqueued = DateTime.UtcNow };
 
                 UploadDictionary.AddOrUpdate(
                     key: username,
-                    addValue: new List<Upload>(new[] { upload }),
+                    addValue: [upload],
                     updateValueFactory: (key, list) =>
                     {
                         list.Add(upload);
@@ -304,6 +311,11 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
         /// </summary>
+        /// <remarks>
+        ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
+        ///     because of the amount of data that would need to be processed to compute a number, and how variable it
+        ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
+        /// </remarks>
         /// <param name="username">The username associated with the file.</param>
         /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
         /// <returns>The estimated queue position of the file.</returns>
@@ -314,13 +326,12 @@ namespace slskd.Transfers.Uploads
             var groupRecord = Groups.GetValueOrDefault(groupName);
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
+            // a user's group can change either by user changing the config or updating counts (for leech detection); resist the urge to cache this
             var uploadsForGroup = UploadDictionary.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
 
-            // the RoundRobin queue implementation is not strictly fair to all users; only uploads that are ready are candidates
-            // for selection. this means that if Bob downloads files twice as fast as Alice, Bob is going to advance through the
-            // queue twice as fast, too. assume everyone downloads at equal speed for this estimate. also assume that all files
-            // are of equal length.
-            if (groupRecord.Strategy == QueueStrategy.RoundRobin)
+            SyncRoot.Wait();
+
+            try
             {
                 // find this user's uploads
                 if (!UploadDictionary.TryGetValue(username, out var uploadsForUser))
@@ -328,59 +339,70 @@ namespace slskd.Transfers.Uploads
                     throw new NotFoundException($"File {filename} is not enqueued for user {username}");
                 }
 
-                // find the position of the requested file in the user's queue
-                var localPosition = uploadsForUser
-                    .OrderBy(upload => upload.Enqueued)
-                    .ToList()
-                    .FindIndex(upload => upload.Username == username && upload.Filename == filename);
+                // the RoundRobin queue implementation is not strictly fair to all users; only uploads that are ready are candidates
+                // for selection. this means that if Bob downloads files twice as fast as Alice, Bob is going to advance through the
+                // queue twice as fast, too. assume everyone downloads at equal speed for this estimate. also assume that all files
+                // are of equal length.
+                if (groupRecord.Strategy == QueueStrategy.RoundRobin)
+                {
+                    // find the position of the requested file in the user's queue
+                    // note: backed by List<T>, which is stable and already ordered by enqueue time ASC
+                    var localPosition = uploadsForUser
+                        .FindIndex(u => u.Username == username && u.Filename == filename);
 
-                if (localPosition < 0)
+                    if (localPosition < 0)
+                    {
+                        throw new NotFoundException($"File {filename} is not enqueued for user {username}");
+                    }
+
+                    // start the position to the local position within this user's queue; the user's own files must be completed
+                    // before this one can start.
+                    var position = localPosition;
+
+                    // for each other user, add either localPosition or the count of that user's uploads, whichever is less
+                    // example:
+                    //
+                    // aaaaa
+                    // bb
+                    // cccccccccccc
+                    // ddddddd
+                    //     ^
+                    //
+                    // if we want the position of the file over the carat above, first find the position of it
+                    // within its own queue (= 4). assume uploads will process top down, left to right until reaching
+                    // this one.  that's the 4 ahead of it from d, plus 4 from a, 2 from b, and 4 from c in earlier rounds (= 14).
+                    foreach (var group in uploadsForGroup.Where(group => group.Key != username))
+                    {
+                        position += Math.Min(localPosition, group.Value.Count);
+                    }
+
+                    // be pessimistic and assume d is last in the rotation; every other user with a file in the same round
+                    // goes first. in the example, a and c have a 5th file and b doesn't, putting the file over the carat
+                    // at position 16.
+                    var usersWithAtLeastAsManyFiles = uploadsForGroup
+                        .Count(g => g.Key != username && g.Value.Count() >= localPosition + 1); // localPosition is zero-based
+
+                    return position + usersWithAtLeastAsManyFiles;
+                }
+
+                // find the upload
+                var upload = uploadsForUser.SingleOrDefault(u => u.Username == username && u.Filename == filename);
+
+                if (upload is null)
                 {
                     throw new NotFoundException($"File {filename} is not enqueued for user {username}");
                 }
 
-                // start the position to the local position within this user's queue; the user's own files must be completed
-                // before this one can start.
-                var position = localPosition;
+                // the place in queue is simply the sum of all uploads across all other users in the group that were
+                // enqueued before this upload.
+                var globalPosition = uploadsForGroup.Sum(kvp => kvp.Value.Count(c => c.Enqueued < upload.Enqueued));
 
-                // for each other user, add either localPosition or the count of that user's uploads, whichever is less
-                // example:
-                //
-                // aaaaa
-                // bb
-                // cccccccccccc
-                // ddddddd
-                //     ^
-                //
-                // if we want the position of the file over the carat above, first find the position of it
-                // within its own queue (= 5). assume uploads will process top down, left to right until reaching
-                // this one.  that's 5 files from a, 2 from b, 5 from c, and the other 4 from d, putting the file over
-                // the carat at position 16. the actual number will vary due to many factors, including where in the
-                // round-robin ordering d is actually positioned (so +/- number of users downloading).
-                foreach (var group in uploadsForGroup.Where(group => group.Key != username))
-                {
-                    position += Math.Min(localPosition, group.Value.Count);
-                }
-
-                return position;
+                return globalPosition;
             }
-
-            // for FIFO queues, files are uploaded in the order they are enqueued, so the position should be pretty good estimate.
-            // List ordering is guaranteed, so we are getting an accurate portrayal of where this file is in the queue by order of
-            // time enqueued. this includes uploads that are in progress.
-            var flattenedSortedUploadsForGroup = uploadsForGroup
-                .SelectMany(group => group.Value)
-                .OrderBy(upload => upload.Enqueued)
-                .ToList();
-
-            var globalPosition = flattenedSortedUploadsForGroup.FindIndex(upload => upload.Username == username && upload.Filename == filename);
-
-            if (globalPosition < 0)
+            finally
             {
-                throw new NotFoundException($"File {filename} is not enqueued for user {username}");
+                SyncRoot.Release();
             }
-
-            return globalPosition;
         }
 
         /// <summary>
@@ -402,7 +424,13 @@ namespace slskd.Transfers.Uploads
             }
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
+            // a user's group can change either by user changing the config or updating counts (for leech detection); resist the urge to cache this
             var uploadsForGroup = UploadDictionary.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
+
+            if (groupRecord is null)
+            {
+                throw new SlskdException($"Upload group {groupName} doesn't have an entry in upload dictionary.  Please report this on GitHub: {Program.IssuesUrl}");
+            }
 
             // assuming that the queue will be processed in a true round-robin fashion and that the user will be the last in the
             // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting, + 1.
@@ -413,9 +441,7 @@ namespace slskd.Transfers.Uploads
 
             // for FIFO queues, the user will enter the queue at the very back. return the total number of uploads in progress and
             // enqueued, + 1.
-            return uploadsForGroup
-                .SelectMany(group => group.Value)
-                .Count() + 1;
+            return uploadsForGroup.Sum(kvp => kvp.Value.Count) + 1;
         }
 
         private void Configure(Options options)
