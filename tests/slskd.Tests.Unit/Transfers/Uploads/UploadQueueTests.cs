@@ -715,6 +715,23 @@ namespace slskd.Tests.Unit.Transfers.Uploads
             }
 
             [Theory, AutoData]
+            public void Throws_SlskdException_If_Group_Does_Not_Exist(string username, string filename, string groupName)
+            {
+                var (queue, mocks) = GetFixture();
+
+                mocks.UserService.Setup(m => m.GetGroup(username)).Returns(groupName);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(username, CreateUploads(username, count: 1));
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                var ex = Record.Exception(() => queue.EstimatePosition(username, "file0"));
+
+                Assert.IsType<SlskdException>(ex);
+            }
+
+            [Theory, AutoData]
             public void RoundRobin_Returns_Local_Position_If_User_Is_Alone_In_Group(string username)
             {
                 var (queue, _) = GetFixture();

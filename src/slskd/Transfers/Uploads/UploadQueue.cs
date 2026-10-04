@@ -306,7 +306,11 @@ namespace slskd.Transfers.Uploads
         public int EstimatePosition(string username, string filename)
         {
             var groupName = Users.GetGroup(username);
-            var groupRecord = Groups.GetValueOrDefault(groupName);
+
+            if (!Groups.TryGetValue(groupName, out var groupRecord))
+            {
+                throw new SlskdException($"Upload group {groupName} doesn't have an entry in upload dictionary.  Please report this on GitHub: {Program.IssuesUrl}");
+            }
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
             // a user's group can change either by user changing the config or updating counts (for leech detection); resist the urge to cache this
