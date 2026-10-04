@@ -562,6 +562,8 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 Assert.Equal(task, uploads[username][0].TaskCompletionSource.Task);
             }
+        }
+
         public class EstimatePosition
         {
             private static readonly DateTime Now = DateTime.UtcNow;
