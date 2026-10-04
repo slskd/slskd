@@ -1,0 +1,36 @@
+pkgname=slskd
+pkgver=0.17.5
+pkgrel=1
+arch=("x86_64")
+url="https://github.com/slskd/slskd"
+license=("GPL3")
+options=("!strip")
+depends=("dotnet-runtime")
+conflicts=("slskd-bin")
+makedepends=("npm" "dotnet-sdk" "aspnet-targeting-pack")
+source=("$url/archive/$pkgver.tar.gz")
+sha256sums=("b2977108abdcd854ea81df7d022c6d712c512fdbc38a77e90f7295fe42c4796e")
+
+build() {
+  cd "$pkgname-$pkgver"
+  bin/build --web-only
+  bin/publish --no-prebuild --runtime linux-x64 --version $pkgver
+}
+
+package() {
+  install -Dm644 ../slskd.service "${pkgdir}/usr/lib/systemd/system/slskd.service"
+  install -Dm644 ../slskd.conf $pkgdir/usr/lib/sysusers.d/slskd.conf
+
+  cd "$pkgname-$pkgver/dist/linux-x64"
+
+  install -Dm755 slskd "${pkgdir}/usr/bin/slskd"
+  install -Dm644 etc/slskd.xml "${pkgdir}/etc/slskd.xml"
+
+  mkdir -p "${pkgdir}/usr/share/slskd/"
+  mkdir -p "${pkgdir}/var/lib/slskd/"
+  chown -R slskd:slskd "${pkgdir}/var/lib/slskd/"
+
+  install -Dm644 LICENSE "${pkgdir}/usr/share/slskd/LICENSE"
+  install -Dm644 config/slskd.example.yml "${pkgdir}/usr/share/slskd/slskd.example.yml"
+  cp -r wwwroot "${pkgdir}/usr/share/slskd/"
+}
