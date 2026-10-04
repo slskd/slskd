@@ -272,11 +272,11 @@ namespace slskd.Transfers.Uploads
 
             try
             {
-                var upload = new Upload() { Username = username, Filename = filename };
+                var upload = new Upload() { Username = username, Filename = filename, Enqueued = DateTime.UtcNow };
 
                 UploadDictionary.AddOrUpdate(
                     key: username,
-                    addValue: new List<Upload>(new[] { upload }),
+                    addValue: [upload],
                     updateValueFactory: (key, list) =>
                     {
                         list.Add(upload);
