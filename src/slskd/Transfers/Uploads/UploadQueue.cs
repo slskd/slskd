@@ -233,6 +233,13 @@ namespace slskd.Transfers.Uploads
                 }
 
                 list.Remove(upload);
+
+                if (!upload.TaskCompletionSource.Task.IsCompleted)
+                {
+                    Log.Warning("Upload {File} for {User} was removed without being completed, so it has been cancelled.  Please report this on GitHub: {IssuesUrl}", Path.GetFileName(upload.Filename), upload.Username, Program.IssuesUrl);
+                    upload.TaskCompletionSource.TrySetCanceled();
+                }
+
                 Log.Debug("Complete: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
 
                 // ensure the slot is returned to the group from which it was acquired the group may have been removed during the

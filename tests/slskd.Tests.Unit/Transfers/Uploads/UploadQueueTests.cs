@@ -551,6 +551,60 @@ namespace slskd.Tests.Unit.Transfers.Uploads
             }
 
             [Theory, AutoData]
+            public async Task Cancels_Task_Of_Upload_That_Is_Waiting_For_A_Slot(string username, string filename, string other, string otherFilename)
+            {
+                var (queue, _) = GetFixture();
+
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
+                groups[Application.DefaultGroup].Slots = 1;
+
+                queue.Enqueue(other, otherFilename);
+                await queue.AwaitStartAsync(other, otherFilename);
+
+                // no slot available; the caller is left waiting on this task
+                queue.Enqueue(username, filename);
+                var task = queue.AwaitStartAsync(username, filename);
+
+                Assert.False(task.IsCompleted);
+
+                queue.Complete(username, filename);
+
+                // continuations run asynchronously, but the task's status is set synchronously
+                Assert.True(task.IsCanceled);
+            }
+
+            [Theory, AutoData]
+            public void Cancels_Task_Of_Upload_That_Was_Never_Ready(string username, string filename)
+            {
+                var (queue, _) = GetFixture();
+
+                queue.Enqueue(username, filename);
+
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("UploadDictionary");
+                var task = uploads[username][0].TaskCompletionSource.Task;
+
+                Assert.False(task.IsCompleted);
+
+                queue.Complete(username, filename);
+
+                Assert.True(task.IsCanceled);
+            }
+
+            [Theory, AutoData]
+            public async Task Does_Not_Cancel_Task_Of_Upload_That_Started(string username, string filename)
+            {
+                var (queue, _) = GetFixture();
+
+                queue.Enqueue(username, filename);
+                var task = queue.AwaitStartAsync(username, filename);
+                await task;
+
+                queue.Complete(username, filename);
+
+                Assert.True(task.IsCompletedSuccessfully);
+            }
+
+            [Theory, AutoData]
             public async Task Releasing_A_Slot_Starts_The_Next_Ready_Upload(string username, string filename, string other, string otherFilename)
             {
                 var (queue, _) = GetFixture();
