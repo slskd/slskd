@@ -97,7 +97,7 @@ namespace slskd.Transfers.Uploads
 
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
-        ///     or zero if the transfer could start immediately.
+        ///     along with the slot counts for the user's group.
         /// </summary>
         /// <remarks>
         ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
@@ -106,7 +106,7 @@ namespace slskd.Transfers.Uploads
         /// </remarks>
         /// <param name="username">The username for which to estimate.</param>
         /// <returns>
-        ///     The estimated queue position if the user were to enqueue a file, or zero if the transfer could start immediately.
+        ///     The user's group, the group's total and free slots, and the estimated position if the user were to enqueue a file.
         /// </returns>
         (string Group, int TotalSlots, int FreeSlots, int Position) ForecastPosition(string username);
     }
@@ -394,7 +394,7 @@ namespace slskd.Transfers.Uploads
 
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
-        ///     or zero if the transfer could start immediately.
+        ///     along with the slot counts for the user's group.
         /// </summary>
         /// <remarks>
         ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
@@ -403,7 +403,7 @@ namespace slskd.Transfers.Uploads
         /// </remarks>
         /// <param name="username">The username for which to estimate.</param>
         /// <returns>
-        ///     The estimated queue position if the user were to enqueue a file, or zero if the transfer could start immediately.
+        ///     The user's group, the group's total and free slots, and the estimated position if the user were to enqueue a file.
         /// </returns>
         public (string Group, int TotalSlots, int FreeSlots, int Position) ForecastPosition(string username)
         {
@@ -428,15 +428,15 @@ namespace slskd.Transfers.Uploads
             var uploadsForGroup = UploadDictionary.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
 
             // assuming that the queue will be processed in a true round-robin fashion and that the user will be the last in the
-            // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting, + 1.
+            // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting.
             if (groupRecord.Strategy == QueueStrategy.RoundRobin)
             {
-                return (groupName, totalSlots, freeSlots, uploadsForGroup.Count() + 1);
+                return (groupName, totalSlots, freeSlots, uploadsForGroup.Count());
             }
 
             // for FIFO queues, the user will enter the queue at the very back. return the total number of uploads in progress and
-            // enqueued, + 1.
-            return (groupName, totalSlots, freeSlots, uploadsForGroup.Sum(kvp => kvp.Value.Count) + 1);
+            // enqueued.
+            return (groupName, totalSlots, freeSlots, uploadsForGroup.Sum(kvp => kvp.Value.Count));
         }
 
         private void Configure(Options options)

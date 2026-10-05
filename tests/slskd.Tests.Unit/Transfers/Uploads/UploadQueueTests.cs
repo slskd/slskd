@@ -930,18 +930,22 @@ namespace slskd.Tests.Unit.Transfers.Uploads
             [Theory]
             [InlineAutoData(QueueStrategy.RoundRobin)]
             [InlineAutoData(QueueStrategy.FirstInFirstOut)]
-            public void Returns_One_If_No_Slot_Is_Available_And_Queue_Is_Empty(QueueStrategy strategy, string username)
+            public void Returns_Zero_Without_Free_Slot_If_No_Slot_Is_Available_And_Queue_Is_Empty(QueueStrategy strategy, string username)
             {
                 var (queue, _) = GetFixture();
 
                 SetStrategy(queue, strategy);
                 SetSlotAvailable(queue, false);
 
-                Assert.Equal(1, queue.ForecastPosition(username).Position);
+                var (_, _, freeSlots, position) = queue.ForecastPosition(username);
+
+                // nothing is ahead, but the transfer can't start immediately; callers use FreeSlots to tell the difference
+                Assert.Equal(0, position);
+                Assert.Equal(0, freeSlots);
             }
 
             [Theory, AutoData]
-            public void RoundRobin_Returns_Number_Of_Users_In_Group_Plus_One(string username, string other1, string other2)
+            public void RoundRobin_Returns_Number_Of_Users_In_Group(string username, string other1, string other2)
             {
                 var (queue, _) = GetFixture();
 
@@ -955,7 +959,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                 queue.SetProperty("UploadDictionary", uploads);
 
                 // worst case; the new file is last in the rotation. file counts don't matter
-                Assert.Equal(3, queue.ForecastPosition(username).Position);
+                Assert.Equal(2, queue.ForecastPosition(username).Position);
             }
 
             [Theory, AutoData]
@@ -972,7 +976,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(3, queue.ForecastPosition(username).Position);
+                Assert.Equal(2, queue.ForecastPosition(username).Position);
             }
 
             [Theory, AutoData]
@@ -991,11 +995,11 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(2, queue.ForecastPosition(username).Position);
+                Assert.Equal(1, queue.ForecastPosition(username).Position);
             }
 
             [Theory, AutoData]
-            public void FirstInFirstOut_Returns_Number_Of_Uploads_In_Group_Plus_One(string username, string other1, string other2)
+            public void FirstInFirstOut_Returns_Number_Of_Uploads_In_Group(string username, string other1, string other2)
             {
                 var (queue, _) = GetFixture();
 
@@ -1010,7 +1014,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                 queue.SetProperty("UploadDictionary", uploads);
 
                 // the new file goes to the back of the queue, behind every upload in the group, including the user's own
-                Assert.Equal(2 + 3 + 4 + 1, queue.ForecastPosition(username).Position);
+                Assert.Equal(2 + 3 + 4, queue.ForecastPosition(username).Position);
             }
 
             [Theory, AutoData]
@@ -1029,7 +1033,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(3, queue.ForecastPosition(username).Position);
+                Assert.Equal(2, queue.ForecastPosition(username).Position);
             }
 
             [Theory, AutoData]
@@ -1048,7 +1052,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(4, queue.ForecastPosition(username).Position);
+                Assert.Equal(3, queue.ForecastPosition(username).Position);
             }
 
             [Theory]
@@ -1137,7 +1141,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 Assert.Equal(1, totalSlots);
                 Assert.Equal(0, freeSlots);
-                Assert.Equal(1, position);
+                Assert.Equal(0, position);
             }
 
             [Theory, AutoData]
