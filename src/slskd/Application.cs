@@ -1749,7 +1749,7 @@ namespace slskd
                         // note: the following uses cached user data to determine group, so if the user's data
                         // isn't cached they may get a forecast based on the wrong group.  this is a hot path though,
                         // and we don't want to incur the massive penalties that would caching data for each request.
-                        var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+                        var (groupName, totalSlots, freeSlots, forecastedPosition) = Transfers.Uploads.Queue.ForecastPosition(username);
 
                         Log.Debug("Sending search response with {Count} files to {Username} for query '{Query}'", results.Count(), username, query.SearchText);
 
@@ -1757,7 +1757,7 @@ namespace slskd
                             Client.Username,
                             token,
                             uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                            hasFreeUploadSlot: forecastedPosition == 0,
+                            hasFreeUploadSlot: freeSlots > 0,
                             queueLength: forecastedPosition,
                             fileList: results);
                     }
@@ -1957,12 +1957,11 @@ namespace slskd
                 // we are deliberately skipping it here; if the username is watched
                 // leech detection works and they get accurate info, if not, they won't
                 var groupName = await Users.GetOrFetchGroupAsync(username);
-                var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
 
                 // forecast the position at which this user would enter the queue if they were to request
                 // a file at this moment. this will be zero if a slot is available and the transfer would
                 // begin immediately
-                var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+                var (group, totalSlots, freeSlots, forecastedPosition) = Transfers.Uploads.Queue.ForecastPosition(username);
 
                 // if i get a user's info to determine whether i want to download files from them,
                 // i want to know how many slots they have, which gives me an idea of how fast their
@@ -1971,9 +1970,9 @@ namespace slskd
                 // revisited 3 years later: why was it important to leave this comment??
                 var info = new UserInfo(
                     description: Options.Soulseek.Description,
-                    uploadSlots: group.Slots,
+                    uploadSlots: totalSlots,
                     queueLength: forecastedPosition,
-                    hasFreeUploadSlot: forecastedPosition == 0,
+                    hasFreeUploadSlot: freeSlots > 0,
                     picture: pictureBytes);
 
                 return info;

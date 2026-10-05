@@ -82,13 +82,6 @@ namespace slskd.Transfers.Uploads
         void Enqueue(string username, string filename);
 
         /// <summary>
-        ///     Gets information about the specified <paramref name="groupName"/>.
-        /// </summary>
-        /// <param name="groupName">The name of the group.</param>
-        /// <returns>The group information.</returns>
-        UploadGroup GetGroupInfo(string groupName);
-
-        /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
         /// </summary>
         /// <remarks>
@@ -104,13 +97,18 @@ namespace slskd.Transfers.Uploads
 
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
-        ///     or zero if the transfer could start immediately.
+        ///     along with the slot counts for the user's group.
         /// </summary>
+        /// <remarks>
+        ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
+        ///     because of the amount of data that would need to be processed to compute a number, and how variable it
+        ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
+        /// </remarks>
         /// <param name="username">The username for which to estimate.</param>
         /// <returns>
-        ///     The estimated queue position if the user were to enqueue a file, or zero if the transfer could start immediately.
+        ///     The user's group, the group's total and free slots, and the estimated position if the user were to enqueue a file.
         /// </returns>
-        int ForecastPosition(string username);
+        (string Group, int TotalSlots, int FreeSlots, int Position) ForecastPosition(string username);
     }
 
     /// <summary>
@@ -235,6 +233,13 @@ namespace slskd.Transfers.Uploads
                 }
 
                 list.Remove(upload);
+
+                if (!upload.TaskCompletionSource.Task.IsCompleted)
+                {
+                    Log.Debug("Upload {File} for {User} was removed without being completed, so it has been cancelled", Path.GetFileName(upload.Filename));
+                    upload.TaskCompletionSource.TrySetCanceled();
+                }
+
                 Log.Debug("Complete: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
 
                 // ensure the slot is returned to the group from which it was acquired the group may have been removed during the
@@ -294,30 +299,6 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Gets information about the specified <paramref name="groupName"/>.
-        /// </summary>
-        /// <param name="groupName">The name of the group.</param>
-        /// <returns>The group information.</returns>
-        public UploadGroup GetGroupInfo(string groupName)
-        {
-            if (Groups.TryGetValue(groupName, out var group))
-            {
-                SyncRoot.Wait();
-
-                try
-                {
-                    return group with { UsedSlots = [.. group.UsedSlots] };
-                }
-                finally
-                {
-                    SyncRoot.Release();
-                }
-            }
-
-            throw new NotFoundException($"A group with the name {groupName} could not be found");
-        }
-
-        /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
         /// </summary>
         /// <remarks>
@@ -332,7 +313,11 @@ namespace slskd.Transfers.Uploads
         public int EstimatePosition(string username, string filename)
         {
             var groupName = Users.GetGroup(username);
-            var groupRecord = Groups.GetValueOrDefault(groupName);
+
+            if (!Groups.TryGetValue(groupName, out var groupRecord))
+            {
+                throw new SlskdException($"Upload group {groupName} doesn't have an entry in upload dictionary.  Please report this on GitHub: {Program.IssuesUrl}");
+            }
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
             // a user's group can change either by user changing the config or updating counts (for leech detection); resist the urge to cache this
@@ -416,41 +401,49 @@ namespace slskd.Transfers.Uploads
 
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
-        ///     or zero if the transfer could start immediately.
+        ///     along with the slot counts for the user's group.
         /// </summary>
+        /// <remarks>
+        ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
+        ///     because of the amount of data that would need to be processed to compute a number, and how variable it
+        ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
+        /// </remarks>
         /// <param name="username">The username for which to estimate.</param>
         /// <returns>
-        ///     The estimated queue position if the user were to enqueue a file, or zero if the transfer could start immediately.
+        ///     The user's group, the group's total and free slots, and the estimated position if the user were to enqueue a file.
         /// </returns>
-        public int ForecastPosition(string username)
+        public (string Group, int TotalSlots, int FreeSlots, int Position) ForecastPosition(string username)
         {
             var groupName = Users.GetGroup(username);
 
-            // if there's a slot available, the user will enter the queue at position 0 (will start immediately)
-            if (Groups.TryGetValue(groupName, out var groupRecord) && groupRecord.SlotAvailable)
+            if (!Groups.TryGetValue(groupName, out var groupRecord))
             {
-                return 0;
+                throw new SlskdException($"Upload group {groupName} doesn't have an entry in upload dictionary.  Please report this on GitHub: {Program.IssuesUrl}");
+            }
+
+            var totalSlots = Math.Min(GlobalSlots, groupRecord.Slots);
+            var freeSlots = Math.Max(0, totalSlots - groupRecord.UsedSlots.Count);
+
+            // if there's a slot available, the user will enter the queue at position 0 (will start immediately)
+            if (freeSlots > 0)
+            {
+                return (groupName, totalSlots, freeSlots, 0);
             }
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
             // a user's group can change either by user changing the config or updating counts (for leech detection); resist the urge to cache this
             var uploadsForGroup = UploadDictionary.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
 
-            if (groupRecord is null)
-            {
-                throw new SlskdException($"Upload group {groupName} doesn't have an entry in upload dictionary.  Please report this on GitHub: {Program.IssuesUrl}");
-            }
-
             // assuming that the queue will be processed in a true round-robin fashion and that the user will be the last in the
-            // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting, + 1.
+            // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting.
             if (groupRecord.Strategy == QueueStrategy.RoundRobin)
             {
-                return uploadsForGroup.Count() + 1;
+                return (groupName, totalSlots, freeSlots, uploadsForGroup.Count());
             }
 
             // for FIFO queues, the user will enter the queue at the very back. return the total number of uploads in progress and
-            // enqueued, + 1.
-            return uploadsForGroup.Sum(kvp => kvp.Value.Count) + 1;
+            // enqueued.
+            return (groupName, totalSlots, freeSlots, uploadsForGroup.Sum(kvp => kvp.Value.Count));
         }
 
         private void Configure(Options options)
