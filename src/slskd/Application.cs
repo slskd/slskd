@@ -1757,7 +1757,7 @@ namespace slskd
                             Client.Username,
                             token,
                             uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                            hasFreeUploadSlot: forecastedPosition == 0,
+                            hasFreeUploadSlot: freeSlots > 0,
                             queueLength: forecastedPosition,
                             fileList: results);
                     }
@@ -1972,7 +1972,7 @@ namespace slskd
                     description: Options.Soulseek.Description,
                     uploadSlots: totalSlots,
                     queueLength: forecastedPosition,
-                    hasFreeUploadSlot: forecastedPosition == 0,
+                    hasFreeUploadSlot: freeSlots > 0,
                     picture: pictureBytes);
 
                 return info;
