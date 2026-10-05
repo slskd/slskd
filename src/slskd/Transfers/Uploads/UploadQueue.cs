@@ -236,7 +236,7 @@ namespace slskd.Transfers.Uploads
 
                 if (!upload.TaskCompletionSource.Task.IsCompleted)
                 {
-                    Log.Warning("Upload {File} for {User} was removed without being completed, so it has been cancelled.  Please report this on GitHub: {IssuesUrl}", Path.GetFileName(upload.Filename), upload.Username, Program.IssuesUrl);
+                    Log.Debug("Upload {File} for {User} was removed without being completed, so it has been cancelled", Path.GetFileName(upload.Filename));
                     upload.TaskCompletionSource.TrySetCanceled();
                 }
 
