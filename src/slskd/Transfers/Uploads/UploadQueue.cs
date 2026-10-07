@@ -438,7 +438,7 @@ namespace slskd.Transfers.Uploads
 
         private void Configure(Options options)
         {
-            HashSet<(string Username, string Filename)> GetExistingUsedSlotsOrDefault(string group)
+            HashSet<Guid> GetExistingUsedSlotsOrDefault(string group)
                 => Groups.ContainsKey(group) ? Groups[group].UsedSlots : [];
 
             SyncRoot.Wait();
@@ -567,7 +567,7 @@ namespace slskd.Transfers.Uploads
                     // returned to the proper place upon completion
                     upload.Started = DateTime.UtcNow;
                     upload.Group = group.Name;
-                    group.UsedSlots.Add((upload.Username, upload.Filename));
+                    group.UsedSlots.Add(upload.Id);
 
                     // release the upload
                     upload.TaskCompletionSource.SetResult();
