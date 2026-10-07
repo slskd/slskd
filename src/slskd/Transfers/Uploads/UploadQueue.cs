@@ -351,7 +351,7 @@ namespace slskd.Transfers.Uploads
                     // find the position of the requested file in the user's queue
                     // note: backed by List<T>, which is stable and already ordered by enqueue time ASC
                     var localPosition = uploadsForUser
-                        .FindIndex(u => u.Username == transfer.Username && u.Filename == transfer.Filename);
+                        .FindIndex(u => u.Id == transfer.Id);
 
                     if (localPosition < 0)
                     {
@@ -389,7 +389,7 @@ namespace slskd.Transfers.Uploads
                 }
 
                 // find the upload
-                var upload = uploadsForUser.SingleOrDefault(u => u.Username == transfer.Username && u.Filename == transfer.Filename);
+                var upload = uploadsForUser.SingleOrDefault(u => u.Id == transfer.Id);
 
                 if (upload is null)
                 {
