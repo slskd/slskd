@@ -77,9 +77,8 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Enqueues an upload.
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename to enqueue.</param>
-        void Enqueue(string username, string filename);
+        /// <param name="transfer">The upload to enqueue.</param>
+        void Enqueue(Transfer transfer);
 
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
@@ -269,18 +268,23 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Enqueues an upload.
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename to enqueue.</param>
-        public void Enqueue(string username, string filename)
+        /// <param name="transfer">The upload to enqueue.</param>
+        public void Enqueue(Transfer transfer)
         {
             SyncRoot.Wait();
 
             try
             {
-                var upload = new Upload() { Username = username, Filename = filename, Enqueued = DateTime.UtcNow };
+                var upload = new Upload()
+                {
+                    Id = transfer.Id,
+                    Username = transfer.Username,
+                    Filename = transfer.Filename,
+                    Enqueued = DateTime.UtcNow,
+                };
 
                 UploadDictionary.AddOrUpdate(
-                    key: username,
+                    key: transfer.Username,
                     addValue: [upload],
                     updateValueFactory: (key, list) =>
                     {
@@ -289,7 +293,7 @@ namespace slskd.Transfers.Uploads
                     });
 
                 EmitMetrics();
-                Log.Debug("Enqueued: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
+                Log.Debug("Enqueued: {File} for {User} at {Time} (id: {Id})", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued, upload.Id);
             }
             finally
             {
