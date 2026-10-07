@@ -50,13 +50,12 @@ namespace slskd.Transfers.Uploads
     public interface IUploadQueue
     {
         /// <summary>
-        ///     Awaits the start of an upload.
+        ///     Awaits the start of an upload by returning a <see cref="Task"/> that is completed when the queue initiates it.
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename for which to await the start.</param>
+        /// <param name="transfer">The transfer to await.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        Task AwaitStartAsync(string username, string filename, CancellationToken cancellationToken = default);
+        Task AwaitStartAsync(Transfer transfer, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Signals the completion of an upload.
@@ -143,38 +142,31 @@ namespace slskd.Transfers.Uploads
         private IUserService Users { get; }
 
         /// <summary>
-        ///     Returns a <see cref="Task"/> that, when complete, signals the underlying Soulseek.NET logic that
-        ///     the 'wait for a free slot' permissive has been obtained.  When the <see cref="Process"/> method is
-        ///     ready, it will complete the Task and the upload will start.
+        ///     Awaits the start of an upload by returning a <see cref="Task"/> that is completed when the queue initiates it.
         /// </summary>
-        /// <remarks>
-        ///     This is the mechanism we use to control the queue; the Task we return here is completed in the
-        ///     <see cref="Process"/> method once we have determined that this transfer is next to go.
-        /// </remarks>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename for which to await the start.</param>
+        /// <param name="transfer">The transfer to await.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        public Task AwaitStartAsync(string username, string filename, CancellationToken cancellationToken = default)
+        public Task AwaitStartAsync(Transfer transfer, CancellationToken cancellationToken = default)
         {
-            SyncRoot.Wait();
+            SyncRoot.Wait(cancellationToken);
 
             try
             {
-                if (!UploadDictionary.TryGetValue(username, out var list))
+                if (!UploadDictionary.TryGetValue(transfer.Username, out var list))
                 {
-                    throw new SlskdException($"No enqueued uploads for user {username}");
+                    throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
                 }
 
-                var upload = list.FirstOrDefault(e => e.Filename == filename);
+                var upload = list.FirstOrDefault(e => e.Id == transfer.Id);
 
                 if (upload == default)
                 {
-                    throw new SlskdException($"File {filename} is not enqueued for user {username}");
+                    throw new SlskdException($"Transfer {transfer.Id} is not enqueued for user {transfer.Username}");
                 }
 
                 upload.Ready = DateTime.UtcNow;
-                Log.Debug("Ready: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
+                Log.Debug("Ready: {File} for {User} at {Time} (id: {Id})", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued, upload.Id);
 
                 return upload.TaskCompletionSource.Task;
             }
