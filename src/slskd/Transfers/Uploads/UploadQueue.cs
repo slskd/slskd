@@ -52,29 +52,33 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Awaits the start of an upload by returning a <see cref="Task"/> that is completed when the queue initiates it.
         /// </summary>
-        /// <param name="transfer">The transfer to await.</param>
+        /// <param name="transfer">The Transfer to await.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         Task AwaitStartAsync(Transfer transfer, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Signals the completion of an upload.
         /// </summary>
-        /// <param name="transfer">The transfer to complete.</param>
+        /// <param name="transfer">The Transfer to complete.</param>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         void Complete(Transfer transfer);
 
         /// <summary>
         ///     Gracefully attempts to signal the completion of an upload, returning false if a problem is encountered
         ///     (such as the upload not being tracked currently).
         /// </summary>
-        /// <param name="transfer">The transfer to complete.</param>
-        /// <returns>A value indicating whether a problem was encountered.</returns>
+        /// <param name="transfer">The Transfer to complete.</param>
+        /// <returns>A value indicating whether a problem was encountered.</return>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         bool TryComplete(Transfer transfer);
 
         /// <summary>
         ///     Enqueues an upload.
         /// </summary>
-        /// <param name="transfer">The upload to enqueue.</param>
+        /// <param name="transfer">The Transfer to enqueue.</param>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         void Enqueue(Transfer transfer);
 
         /// <summary>
@@ -104,6 +108,7 @@ namespace slskd.Transfers.Uploads
         /// <returns>
         ///     The user's group, the group's total and free slots, and the estimated position if the user were to enqueue a file.
         /// </returns>
+        /// <exception cref="ArgumentException">Thrown if the specified username is null or consists only of whitespace.</exception>
         (string Group, int TotalSlots, int FreeSlots, int Position) ForecastPosition(string username);
     }
 
@@ -142,11 +147,14 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Awaits the start of an upload by returning a <see cref="Task"/> that is completed when the queue initiates it.
         /// </summary>
-        /// <param name="transfer">The transfer to await.</param>
+        /// <param name="transfer">The Transfer to await.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         public Task AwaitStartAsync(Transfer transfer, CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(transfer);
+
             SyncRoot.Wait(cancellationToken);
 
             try
@@ -179,10 +187,13 @@ namespace slskd.Transfers.Uploads
         ///     Gracefully attempts to signal the completion of an upload, returning false if a problem is encountered
         ///     (such as the upload not being tracked currently).
         /// </summary>
-        /// <param name="transfer">The transfer to complete.</param>
+        /// <param name="transfer">The Transfer to complete.</param>
         /// <returns>A value indicating whether a problem was encountered.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         public bool TryComplete(Transfer transfer)
         {
+            ArgumentNullException.ThrowIfNull(transfer);
+
             try
             {
                 Complete(transfer);
@@ -197,9 +208,12 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Signals the completion of an upload.
         /// </summary>
-        /// <param name="transfer">The transfer to complete.</param>
+        /// <param name="transfer">The Transfer to complete.</param>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         public void Complete(Transfer transfer)
         {
+            ArgumentNullException.ThrowIfNull(transfer);
+
             SyncRoot.Wait();
 
             try
@@ -254,9 +268,12 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Enqueues an upload.
         /// </summary>
-        /// <param name="transfer">The upload to enqueue.</param>
+        /// <param name="transfer">The Transfer to enqueue.</param>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         public void Enqueue(Transfer transfer)
         {
+            ArgumentNullException.ThrowIfNull(transfer);
+
             SyncRoot.Wait();
 
             try
@@ -404,8 +421,11 @@ namespace slskd.Transfers.Uploads
         /// <returns>
         ///     The user's group, the group's total and free slots, and the estimated position if the user were to enqueue a file.
         /// </returns>
+        /// <exception cref="ArgumentException">Thrown if the specified username is null or consists only of whitespace.</exception>
         public (string Group, int TotalSlots, int FreeSlots, int Position) ForecastPosition(string username)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(username);
+
             var groupName = Users.GetGroup(username);
 
             if (!Groups.TryGetValue(groupName, out var groupRecord))
