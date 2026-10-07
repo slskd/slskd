@@ -78,18 +78,18 @@ namespace slskd.Transfers.Uploads
         void Enqueue(Transfer transfer);
 
         /// <summary>
-        ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
+        ///     Computes the estimated queue position of the specified <paramref name="transfer"/>.
         /// </summary>
         /// <remarks>
         ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
         ///     because of the amount of data that would need to be processed to compute a number, and how variable it
         ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
         /// </remarks>
-        /// <param name="username">The username associated with the file.</param>
-        /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
+        /// <param name="transfer">The Tranfer for which to estimate the position.</param>
         /// <returns>The estimated queue position of the file.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified filename is not enqueued.</exception>
-        int EstimatePosition(string username, string filename);
+        int EstimatePosition(Transfer transfer);
 
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
@@ -289,20 +289,22 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
+        ///     Computes the estimated queue position of the specified <paramref name="transfer"/>.
         /// </summary>
         /// <remarks>
         ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
         ///     because of the amount of data that would need to be processed to compute a number, and how variable it
         ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
         /// </remarks>
-        /// <param name="username">The username associated with the file.</param>
-        /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
+        /// <param name="transfer">The Tranfer for which to estimate the position.</param>
         /// <returns>The estimated queue position of the file.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified filename is not enqueued.</exception>
-        public int EstimatePosition(string username, string filename)
+        public int EstimatePosition(Transfer transfer)
         {
-            var groupName = Users.GetGroup(username);
+            ArgumentNullException.ThrowIfNull(transfer);
+
+            var groupName = Users.GetGroup(transfer.Username);
 
             if (!Groups.TryGetValue(groupName, out var groupRecord))
             {
@@ -318,9 +320,9 @@ namespace slskd.Transfers.Uploads
             try
             {
                 // find this user's uploads
-                if (!UploadDictionary.TryGetValue(username, out var uploadsForUser))
+                if (!UploadDictionary.TryGetValue(transfer.Username, out var uploadsForUser))
                 {
-                    throw new NotFoundException($"File {filename} is not enqueued for user {username}");
+                    throw new NotFoundException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
                 }
 
                 // the RoundRobin queue implementation is not strictly fair to all users; only uploads that are ready are candidates
@@ -332,11 +334,11 @@ namespace slskd.Transfers.Uploads
                     // find the position of the requested file in the user's queue
                     // note: backed by List<T>, which is stable and already ordered by enqueue time ASC
                     var localPosition = uploadsForUser
-                        .FindIndex(u => u.Username == username && u.Filename == filename);
+                        .FindIndex(u => u.Username == transfer.Username && u.Filename == transfer.Filename);
 
                     if (localPosition < 0)
                     {
-                        throw new NotFoundException($"File {filename} is not enqueued for user {username}");
+                        throw new NotFoundException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
                     }
 
                     // start the position to the local position within this user's queue; the user's own files must be completed
@@ -355,7 +357,7 @@ namespace slskd.Transfers.Uploads
                     // if we want the position of the file over the carat above, first find the position of it
                     // within its own queue (= 4). assume uploads will process top down, left to right until reaching
                     // this one.  that's the 4 ahead of it from d, plus 4 from a, 2 from b, and 4 from c in earlier rounds (= 14).
-                    foreach (var group in uploadsForGroup.Where(group => group.Key != username))
+                    foreach (var group in uploadsForGroup.Where(group => group.Key != transfer.Username))
                     {
                         position += Math.Min(localPosition, group.Value.Count);
                     }
@@ -364,17 +366,17 @@ namespace slskd.Transfers.Uploads
                     // goes first. in the example, a and c have a 5th file and b doesn't, putting the file over the carat
                     // at position 16.
                     var usersWithAtLeastAsManyFiles = uploadsForGroup
-                        .Count(g => g.Key != username && g.Value.Count() >= localPosition + 1); // localPosition is zero-based
+                        .Count(g => g.Key != transfer.Username && g.Value.Count() >= localPosition + 1); // localPosition is zero-based
 
                     return position + usersWithAtLeastAsManyFiles;
                 }
 
                 // find the upload
-                var upload = uploadsForUser.SingleOrDefault(u => u.Username == username && u.Filename == filename);
+                var upload = uploadsForUser.SingleOrDefault(u => u.Username == transfer.Username && u.Filename == transfer.Filename);
 
                 if (upload is null)
                 {
-                    throw new NotFoundException($"File {filename} is not enqueued for user {username}");
+                    throw new NotFoundException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
                 }
 
                 // the place in queue is simply the sum of all uploads across all other users in the group that were
