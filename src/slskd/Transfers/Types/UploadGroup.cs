@@ -30,15 +30,17 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
+using System.Collections.Generic;
+
 namespace slskd.Transfers
 {
     public sealed record UploadGroup
     {
         public string Name { get; init; }
         public int Priority { get; set; }
-        public bool SlotAvailable => UsedSlots < Slots;
+        public bool HasAvailableSlot => UsedSlots.Count < Slots;
         public int Slots { get; set; }
         public QueueStrategy Strategy { get; set; }
-        public int UsedSlots { get; set; }
+        public HashSet<(string Username, string Filename)> UsedSlots { get; set; }
     }
 }

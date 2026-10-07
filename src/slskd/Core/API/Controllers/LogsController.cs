@@ -32,9 +32,16 @@
 
 namespace slskd.Core.API
 {
+    using System;
+    using System.IO;
+    using System.Linq;
+    using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
+    using Serilog;
+    using slskd.Files;
 
     /// <summary>
     ///     Logs.
@@ -46,15 +53,98 @@ namespace slskd.Core.API
     [Consumes("application/json")]
     public class LogsController : ControllerBase
     {
+        public LogsController(FileService fileService)
+        {
+            Files = fileService;
+        }
+
+        private FileService Files { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<LogsController>();
+
         /// <summary>
         ///     Gets the last few application logs.
         /// </summary>
         /// <returns></returns>
-        [HttpGet]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [HttpGet("live")]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
         public IActionResult Logs()
         {
             return Ok(Program.LogBuffer);
+        }
+
+        /// <summary>
+        ///     Lists the log files currently on disk.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("files")]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
+        public async Task<IActionResult> List()
+        {
+            if (!Directory.Exists(Path.GetFullPath(Program.LogDirectory)))
+            {
+                return NotFound();
+            }
+
+            var directory = await Files.ListDirectoryContentsAsync(Path.GetFullPath(Program.LogDirectory), enumerationOptions: new EnumerationOptions
+            {
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.System | FileAttributes.Hidden | FileAttributes.ReparsePoint,
+                RecurseSubdirectories = false,
+            });
+
+            var logs = directory.Files.Where(f => f.Name.EndsWith(".log", StringComparison.OrdinalIgnoreCase));
+
+            return Ok(logs);
+        }
+
+        /// <summary>
+        ///     Retrieves the requested log file from disk as plain text.
+        /// </summary>
+        /// <param name="filename">The name of the log file.</param>
+        /// <returns></returns>
+        [HttpGet("files/{filename}")]
+        [Produces("text/plain")]
+        [ProducesResponseType(typeof(string), StatusCodes.Status200OK, contentType: "text/plain")]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
+        public IActionResult Get([FromRoute] string filename)
+        {
+            if (string.IsNullOrWhiteSpace(filename))
+            {
+                return BadRequest("Filename is required");
+            }
+
+            if (filename.ContainsAny('/', '\\'))
+            {
+                return BadRequest("Filename must not contain a path");
+            }
+
+            var sanitizedFilename = FileSafety.GetFileNameSafely(filename, sanitize: true);
+
+            if (!sanitizedFilename.Equals(filename, StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Warning("Input filename {Filename} sanitized to {Sanitized}", filename, sanitizedFilename);
+                return BadRequest("Filename contains one or more invalid characters");
+            }
+
+            if (!sanitizedFilename.EndsWith(".log", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "Only .log files may be retrieved");
+            }
+
+            try
+            {
+                var stream = Files.GetFileContents(FileSafety.CombineSafely(Program.LogDirectory, sanitizedFilename));
+                return File(stream, "text/plain; charset=utf-8", enableRangeProcessing: true);
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to retrieve log file {Filename}: {Message}", filename, ex.Message);
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
         }
     }
 }

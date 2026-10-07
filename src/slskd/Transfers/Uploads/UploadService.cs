@@ -413,7 +413,6 @@ namespace slskd.Transfers.Uploads
 
                                         lastReportedAverageSpeed = now;
                                     }
-
                                 }
                                 finally
                                 {
@@ -430,7 +429,7 @@ namespace slskd.Transfers.Uploads
                     disposeInputStreamOnCompletion: true, // note: don't set this to false!
                     governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                     reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
-                    slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
+                    slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename, ct),
                     slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
                 // register the cancellation token

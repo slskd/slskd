@@ -509,7 +509,7 @@ namespace slskd.Transfers.Downloads
                             add this to the dictionary before inserting the record, so we are guaranteed to have it
                             in the right place once the transfer hits the UI
                         */
-                        var enqueuedTcs = new TaskCompletionSource<Transfer>();
+                        var enqueuedTcs = new TaskCompletionSource<Transfer>(TaskCreationOptions.RunContinuationsAsynchronously);
 
                         // satisfies condition #3; CancellationTokenSource set cancelled by the user (via API call)
                         var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
