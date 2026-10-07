@@ -60,18 +60,16 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Signals the completion of an upload.
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
-        void Complete(string username, string filename);
+        /// <param name="transfer">The transfer to complete.</param>
+        void Complete(Transfer transfer);
 
         /// <summary>
         ///     Gracefully attempts to signal the completion of an upload, returning false if a problem is encountered
         ///     (such as the upload not being tracked currently).
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
+        /// <param name="transfer">The transfer to complete.</param>
         /// <returns>A value indicating whether a problem was encountered.</returns>
-        bool TryComplete(string username, string filename);
+        bool TryComplete(Transfer transfer);
 
         /// <summary>
         ///     Enqueues an upload.
@@ -181,14 +179,13 @@ namespace slskd.Transfers.Uploads
         ///     Gracefully attempts to signal the completion of an upload, returning false if a problem is encountered
         ///     (such as the upload not being tracked currently).
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
+        /// <param name="transfer">The transfer to complete.</param>
         /// <returns>A value indicating whether a problem was encountered.</returns>
-        public bool TryComplete(string username, string filename)
+        public bool TryComplete(Transfer transfer)
         {
             try
             {
-                Complete(username, filename);
+                Complete(transfer);
                 return true;
             }
             catch (SlskdException)
@@ -200,31 +197,28 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Signals the completion of an upload.
         /// </summary>
-        /// <remarks>
-        ///     Will not throw on repeated attempts.
-        /// </remarks>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
-        public void Complete(string username, string filename)
+        /// <param name="transfer">The transfer to complete.</param>
+        public void Complete(Transfer transfer)
         {
             SyncRoot.Wait();
 
             try
             {
-                if (!UploadDictionary.TryGetValue(username, out var list))
+                if (!UploadDictionary.TryGetValue(transfer.Username, out var list))
                 {
-                    throw new SlskdException($"No enqueued uploads for user {username}");
+                    throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
                 }
 
-                var upload = list.FirstOrDefault(e => e.Filename == filename);
+                var upload = list.FirstOrDefault(e => e.Id == transfer.Id);
 
                 if (upload == default)
                 {
-                    throw new SlskdException($"File {filename} is not enqueued for user {username}");
+                    throw new SlskdException($"Transfer {transfer.Id} is not enqueued for user {transfer.Username}");
                 }
 
                 list.Remove(upload);
 
+                // todo: deprecate this with improved cancellation handling; it shouldn't be needed
                 if (!upload.TaskCompletionSource.Task.IsCompleted)
                 {
                     Log.Debug("Upload {File} for {User} was removed without being completed, so it has been cancelled", Path.GetFileName(upload.Filename));
@@ -239,13 +233,13 @@ namespace slskd.Transfers.Uploads
                 {
                     var group = Groups[upload.Group];
 
-                    group.UsedSlots.Remove((username, filename));
+                    group.UsedSlots.Remove(transfer.Id);
                     Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots.Count, group.Slots);
                 }
 
-                if (list.Count == 0 && UploadDictionary.TryRemove(username, out _))
+                if (list.Count == 0 && UploadDictionary.TryRemove(transfer.Username, out _))
                 {
-                    Log.Debug("Cleaned up tracking list for {User}; no more queued uploads to track", username);
+                    Log.Debug("Cleaned up tracking list for {User}; no more queued uploads to track", transfer.Username);
                 }
 
                 EmitMetrics();
