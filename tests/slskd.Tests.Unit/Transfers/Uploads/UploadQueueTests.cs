@@ -1048,7 +1048,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
             [Theory]
             [InlineAutoData(QueueStrategy.RoundRobin)]
             [InlineAutoData(QueueStrategy.FirstInFirstOut)]
-            public void Throws_NotFoundException_If_File_Is_Not_Enqueued(QueueStrategy strategy, string username, string filename, string otherFilename)
+            public void Throws_NotFoundException_If_Transfer_Is_Not_Enqueued(QueueStrategy strategy, string username, string filename, string otherFilename)
             {
                 var (queue, _) = GetFixture();
 
@@ -1080,9 +1080,49 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                var ex = Record.Exception(() => queue.EstimatePosition(CreateTransfer(username, "file0")));
+                var ex = Record.Exception(() => queue.EstimatePosition(TransferFor(uploads[username][0])));
 
                 Assert.IsType<SlskdException>(ex);
+            }
+
+            [Theory]
+            [InlineAutoData(QueueStrategy.RoundRobin)]
+            [InlineAutoData(QueueStrategy.FirstInFirstOut)]
+            public void Throws_NotFoundException_If_Same_File_Is_Enqueued_Under_A_Different_Transfer(QueueStrategy strategy, string username, string filename)
+            {
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, strategy);
+
+                var transfer = CreateTransfer(username, filename);
+                queue.Enqueue(transfer);
+
+                // same user and file, but a different transfer
+                var ex = Record.Exception(() => queue.EstimatePosition(CreateTransfer(username, filename)));
+
+                Assert.IsType<NotFoundException>(ex);
+            }
+
+            [Theory]
+            [InlineAutoData(QueueStrategy.RoundRobin)]
+            [InlineAutoData(QueueStrategy.FirstInFirstOut)]
+            public void Returns_Position_Of_Matching_Transfer_When_Same_File_Is_Enqueued_Twice(QueueStrategy strategy, string username, string filename)
+            {
+                var (queue, _) = GetFixture();
+
+                SetStrategy(queue, strategy);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                uploads.TryAdd(username, new List<Upload>()
+                {
+                    new Upload() { Id = Guid.NewGuid(), Enqueued = Now, Username = username, Filename = filename },
+                    new Upload() { Id = Guid.NewGuid(), Enqueued = Now.AddSeconds(1), Username = username, Filename = filename },
+                });
+
+                queue.SetProperty("UploadDictionary", uploads);
+
+                Assert.Equal(0, queue.EstimatePosition(TransferFor(uploads[username][0])));
+                Assert.Equal(1, queue.EstimatePosition(TransferFor(uploads[username][1])));
             }
 
             [Theory, AutoData]
@@ -1097,9 +1137,9 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(0, queue.EstimatePosition(CreateTransfer(username, "file0")));
-                Assert.Equal(1, queue.EstimatePosition(CreateTransfer(username, "file1")));
-                Assert.Equal(2, queue.EstimatePosition(CreateTransfer(username, "file2")));
+                Assert.Equal(0, queue.EstimatePosition(TransferFor(uploads[username][0])));
+                Assert.Equal(1, queue.EstimatePosition(TransferFor(uploads[username][1])));
+                Assert.Equal(2, queue.EstimatePosition(TransferFor(uploads[username][2])));
             }
 
             [Theory, AutoData]
@@ -1117,7 +1157,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                 queue.SetProperty("UploadDictionary", uploads);
 
                 // pessimistic; both other users have a file in round 0, and are assumed to go first
-                Assert.Equal(2, queue.EstimatePosition(CreateTransfer(username, "file0")));
+                Assert.Equal(2, queue.EstimatePosition(TransferFor(uploads[username][0])));
             }
 
             [Theory, AutoData]
@@ -1141,7 +1181,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
                 queue.SetProperty("UploadDictionary", uploads);
 
                 // 4 (local) + min(4, 5) + min(4, 2) + min(4, 12), + 1 each for a and c, which have a file in round 4
-                Assert.Equal(4 + 4 + 2 + 4 + 2, queue.EstimatePosition(CreateTransfer(d, "file4")));
+                Assert.Equal(4 + 4 + 2 + 4 + 2, queue.EstimatePosition(TransferFor(uploads[d][4])));
             }
 
             [Theory]
@@ -1163,7 +1203,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(expected, queue.EstimatePosition(CreateTransfer(username, "file2")));
+                Assert.Equal(expected, queue.EstimatePosition(TransferFor(uploads[username][2])));
             }
 
             [Theory, AutoData]
@@ -1181,7 +1221,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(2, queue.EstimatePosition(CreateTransfer(username, "file2")));
+                Assert.Equal(2, queue.EstimatePosition(TransferFor(uploads[username][2])));
             }
 
             [Theory, AutoData]
@@ -1197,7 +1237,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(0, queue.EstimatePosition(CreateTransfer(username, "file0")));
+                Assert.Equal(0, queue.EstimatePosition(TransferFor(uploads[username][0])));
             }
 
             [Theory, AutoData]
@@ -1218,9 +1258,9 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(0, queue.EstimatePosition(CreateTransfer(a, "file0")));
-                Assert.Equal(4, queue.EstimatePosition(CreateTransfer(b, "file1")));
-                Assert.Equal(8, queue.EstimatePosition(CreateTransfer(c, "file2")));
+                Assert.Equal(0, queue.EstimatePosition(TransferFor(uploads[a][0])));
+                Assert.Equal(4, queue.EstimatePosition(TransferFor(uploads[b][1])));
+                Assert.Equal(8, queue.EstimatePosition(TransferFor(uploads[c][2])));
             }
 
             [Theory, AutoData]
@@ -1239,7 +1279,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(2, queue.EstimatePosition(CreateTransfer(username, "file0")));
+                Assert.Equal(2, queue.EstimatePosition(TransferFor(uploads[username][0])));
             }
 
             [Theory, AutoData]
@@ -1257,7 +1297,7 @@ namespace slskd.Tests.Unit.Transfers.Uploads
 
                 queue.SetProperty("UploadDictionary", uploads);
 
-                Assert.Equal(2, queue.EstimatePosition(CreateTransfer(username, "file2")));
+                Assert.Equal(2, queue.EstimatePosition(TransferFor(uploads[username][2])));
             }
         }
 
@@ -1784,6 +1824,16 @@ namespace slskd.Tests.Unit.Transfers.Uploads
             groups[Application.DefaultGroup].UsedSlots.Clear();
             FillSlots(groups[Application.DefaultGroup], available ? 0 : 1);
         }
+
+        // creates a transfer that matches an upload already in the queue
+        private static Transfer TransferFor(Upload upload)
+            => new()
+            {
+                Id = upload.Id,
+                Username = upload.Username,
+                Filename = upload.Filename,
+                Direction = Soulseek.TransferDirection.Upload,
+            };
 
         private static Transfer CreateTransfer(string username, string filename)
             => new()
