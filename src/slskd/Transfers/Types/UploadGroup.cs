@@ -30,10 +30,11 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-using System.Collections.Generic;
-
 namespace slskd.Transfers
 {
+    using System;
+    using System.Collections.Generic;
+
     public sealed record UploadGroup
     {
         public string Name { get; init; }
@@ -41,6 +42,6 @@ namespace slskd.Transfers
         public bool HasAvailableSlot => UsedSlots.Count < Slots;
         public int Slots { get; set; }
         public QueueStrategy Strategy { get; set; }
-        public HashSet<(string Username, string Filename)> UsedSlots { get; set; }
+        public HashSet<Guid> UsedSlots { get; set; }
     }
 }

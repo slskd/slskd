@@ -1408,10 +1408,17 @@ namespace slskd
 
             try
             {
-                var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
+                var upload = Transfers.Uploads.Find(u => u.Username == username && u.Filename == filename);
+
+                if (upload is null) // transfer doesn't exist at all
+                {
+                    return Task.FromResult<int?>(null);
+                }
+
+                var place = Transfers.Uploads.Queue.EstimatePosition(upload);
                 return Task.FromResult((int?)place);
             }
-            catch (NotFoundException)
+            catch (NotFoundException) // transfer is not in the queue
             {
                 return Task.FromResult<int?>(null);
             }

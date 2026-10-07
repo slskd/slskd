@@ -50,50 +50,50 @@ namespace slskd.Transfers.Uploads
     public interface IUploadQueue
     {
         /// <summary>
-        ///     Awaits the start of an upload.
+        ///     Awaits the start of an upload by returning a <see cref="Task"/> that is completed when the queue initiates it.
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename for which to await the start.</param>
+        /// <param name="transfer">The Transfer to await.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        Task AwaitStartAsync(string username, string filename, CancellationToken cancellationToken = default);
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        Task AwaitStartAsync(Transfer transfer, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Signals the completion of an upload.
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
-        void Complete(string username, string filename);
+        /// <param name="transfer">The Transfer to complete.</param>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        void Complete(Transfer transfer);
 
         /// <summary>
         ///     Gracefully attempts to signal the completion of an upload, returning false if a problem is encountered
         ///     (such as the upload not being tracked currently).
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
-        /// <returns>A value indicating whether a problem was encountered.</returns>
-        bool TryComplete(string username, string filename);
+        /// <param name="transfer">The Transfer to complete.</param>
+        /// <returns>A value indicating whether a problem was encountered.</return>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        bool TryComplete(Transfer transfer);
 
         /// <summary>
         ///     Enqueues an upload.
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename to enqueue.</param>
-        void Enqueue(string username, string filename);
+        /// <param name="transfer">The Transfer to enqueue.</param>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        void Enqueue(Transfer transfer);
 
         /// <summary>
-        ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
+        ///     Computes the estimated queue position of the specified <paramref name="transfer"/>.
         /// </summary>
         /// <remarks>
         ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
         ///     because of the amount of data that would need to be processed to compute a number, and how variable it
         ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
         /// </remarks>
-        /// <param name="username">The username associated with the file.</param>
-        /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
+        /// <param name="transfer">The Tranfer for which to estimate the position.</param>
         /// <returns>The estimated queue position of the file.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified filename is not enqueued.</exception>
-        int EstimatePosition(string username, string filename);
+        int EstimatePosition(Transfer transfer);
 
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
@@ -108,6 +108,7 @@ namespace slskd.Transfers.Uploads
         /// <returns>
         ///     The user's group, the group's total and free slots, and the estimated position if the user were to enqueue a file.
         /// </returns>
+        /// <exception cref="ArgumentException">Thrown if the specified username is null or consists only of whitespace.</exception>
         (string Group, int TotalSlots, int FreeSlots, int Position) ForecastPosition(string username);
     }
 
@@ -144,38 +145,34 @@ namespace slskd.Transfers.Uploads
         private IUserService Users { get; }
 
         /// <summary>
-        ///     Returns a <see cref="Task"/> that, when complete, signals the underlying Soulseek.NET logic that
-        ///     the 'wait for a free slot' permissive has been obtained.  When the <see cref="Process"/> method is
-        ///     ready, it will complete the Task and the upload will start.
+        ///     Awaits the start of an upload by returning a <see cref="Task"/> that is completed when the queue initiates it.
         /// </summary>
-        /// <remarks>
-        ///     This is the mechanism we use to control the queue; the Task we return here is completed in the
-        ///     <see cref="Process"/> method once we have determined that this transfer is next to go.
-        /// </remarks>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename for which to await the start.</param>
+        /// <param name="transfer">The Transfer to await.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        public Task AwaitStartAsync(string username, string filename, CancellationToken cancellationToken = default)
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        public Task AwaitStartAsync(Transfer transfer, CancellationToken cancellationToken = default)
         {
-            SyncRoot.Wait();
+            ArgumentNullException.ThrowIfNull(transfer);
+
+            SyncRoot.Wait(cancellationToken);
 
             try
             {
-                if (!UploadDictionary.TryGetValue(username, out var list))
+                if (!UploadDictionary.TryGetValue(transfer.Username, out var list))
                 {
-                    throw new SlskdException($"No enqueued uploads for user {username}");
+                    throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
                 }
 
-                var upload = list.FirstOrDefault(e => e.Filename == filename);
+                var upload = list.FirstOrDefault(e => e.Id == transfer.Id);
 
                 if (upload == default)
                 {
-                    throw new SlskdException($"File {filename} is not enqueued for user {username}");
+                    throw new SlskdException($"Transfer {transfer.Id} is not enqueued for user {transfer.Username}");
                 }
 
                 upload.Ready = DateTime.UtcNow;
-                Log.Debug("Ready: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
+                Log.Debug("Ready: {File} for {User} at {Time} (id: {Id})", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued, upload.Id);
 
                 return upload.TaskCompletionSource.Task;
             }
@@ -190,14 +187,16 @@ namespace slskd.Transfers.Uploads
         ///     Gracefully attempts to signal the completion of an upload, returning false if a problem is encountered
         ///     (such as the upload not being tracked currently).
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
+        /// <param name="transfer">The Transfer to complete.</param>
         /// <returns>A value indicating whether a problem was encountered.</returns>
-        public bool TryComplete(string username, string filename)
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        public bool TryComplete(Transfer transfer)
         {
+            ArgumentNullException.ThrowIfNull(transfer);
+
             try
             {
-                Complete(username, filename);
+                Complete(transfer);
                 return true;
             }
             catch (SlskdException)
@@ -209,31 +208,31 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Signals the completion of an upload.
         /// </summary>
-        /// <remarks>
-        ///     Will not throw on repeated attempts.
-        /// </remarks>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
-        public void Complete(string username, string filename)
+        /// <param name="transfer">The Transfer to complete.</param>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        public void Complete(Transfer transfer)
         {
+            ArgumentNullException.ThrowIfNull(transfer);
+
             SyncRoot.Wait();
 
             try
             {
-                if (!UploadDictionary.TryGetValue(username, out var list))
+                if (!UploadDictionary.TryGetValue(transfer.Username, out var list))
                 {
-                    throw new SlskdException($"No enqueued uploads for user {username}");
+                    throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
                 }
 
-                var upload = list.FirstOrDefault(e => e.Filename == filename);
+                var upload = list.FirstOrDefault(e => e.Id == transfer.Id);
 
                 if (upload == default)
                 {
-                    throw new SlskdException($"File {filename} is not enqueued for user {username}");
+                    throw new SlskdException($"Transfer {transfer.Id} is not enqueued for user {transfer.Username}");
                 }
 
                 list.Remove(upload);
 
+                // todo: deprecate this with improved cancellation handling; it shouldn't be needed
                 if (!upload.TaskCompletionSource.Task.IsCompleted)
                 {
                     Log.Debug("Upload {File} for {User} was removed without being completed, so it has been cancelled", Path.GetFileName(upload.Filename));
@@ -248,13 +247,13 @@ namespace slskd.Transfers.Uploads
                 {
                     var group = Groups[upload.Group];
 
-                    group.UsedSlots.Remove((username, filename));
+                    group.UsedSlots.Remove(transfer.Id);
                     Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots.Count, group.Slots);
                 }
 
-                if (list.Count == 0 && UploadDictionary.TryRemove(username, out _))
+                if (list.Count == 0 && UploadDictionary.TryRemove(transfer.Username, out _))
                 {
-                    Log.Debug("Cleaned up tracking list for {User}; no more queued uploads to track", username);
+                    Log.Debug("Cleaned up tracking list for {User}; no more queued uploads to track", transfer.Username);
                 }
 
                 EmitMetrics();
@@ -269,18 +268,26 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Enqueues an upload.
         /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename to enqueue.</param>
-        public void Enqueue(string username, string filename)
+        /// <param name="transfer">The Transfer to enqueue.</param>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        public void Enqueue(Transfer transfer)
         {
+            ArgumentNullException.ThrowIfNull(transfer);
+
             SyncRoot.Wait();
 
             try
             {
-                var upload = new Upload() { Username = username, Filename = filename, Enqueued = DateTime.UtcNow };
+                var upload = new Upload()
+                {
+                    Id = transfer.Id,
+                    Username = transfer.Username,
+                    Filename = transfer.Filename,
+                    Enqueued = DateTime.UtcNow,
+                };
 
                 UploadDictionary.AddOrUpdate(
-                    key: username,
+                    key: transfer.Username,
                     addValue: [upload],
                     updateValueFactory: (key, list) =>
                     {
@@ -289,7 +296,7 @@ namespace slskd.Transfers.Uploads
                     });
 
                 EmitMetrics();
-                Log.Debug("Enqueued: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
+                Log.Debug("Enqueued: {File} for {User} at {Time} (id: {Id})", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued, upload.Id);
             }
             finally
             {
@@ -299,20 +306,22 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
+        ///     Computes the estimated queue position of the specified <paramref name="transfer"/>.
         /// </summary>
         /// <remarks>
         ///     The returned position is relative to the user's group only.  Higher priority groups are not factored in
         ///     because of the amount of data that would need to be processed to compute a number, and how variable it
         ///     would be due to the interplay of slot availability, number of higher priority users waiting, etc.
         /// </remarks>
-        /// <param name="username">The username associated with the file.</param>
-        /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
+        /// <param name="transfer">The Tranfer for which to estimate the position.</param>
         /// <returns>The estimated queue position of the file.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified filename is not enqueued.</exception>
-        public int EstimatePosition(string username, string filename)
+        public int EstimatePosition(Transfer transfer)
         {
-            var groupName = Users.GetGroup(username);
+            ArgumentNullException.ThrowIfNull(transfer);
+
+            var groupName = Users.GetGroup(transfer.Username);
 
             if (!Groups.TryGetValue(groupName, out var groupRecord))
             {
@@ -328,9 +337,9 @@ namespace slskd.Transfers.Uploads
             try
             {
                 // find this user's uploads
-                if (!UploadDictionary.TryGetValue(username, out var uploadsForUser))
+                if (!UploadDictionary.TryGetValue(transfer.Username, out var uploadsForUser))
                 {
-                    throw new NotFoundException($"File {filename} is not enqueued for user {username}");
+                    throw new NotFoundException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
                 }
 
                 // the RoundRobin queue implementation is not strictly fair to all users; only uploads that are ready are candidates
@@ -342,11 +351,11 @@ namespace slskd.Transfers.Uploads
                     // find the position of the requested file in the user's queue
                     // note: backed by List<T>, which is stable and already ordered by enqueue time ASC
                     var localPosition = uploadsForUser
-                        .FindIndex(u => u.Username == username && u.Filename == filename);
+                        .FindIndex(u => u.Id == transfer.Id);
 
                     if (localPosition < 0)
                     {
-                        throw new NotFoundException($"File {filename} is not enqueued for user {username}");
+                        throw new NotFoundException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
                     }
 
                     // start the position to the local position within this user's queue; the user's own files must be completed
@@ -365,7 +374,7 @@ namespace slskd.Transfers.Uploads
                     // if we want the position of the file over the carat above, first find the position of it
                     // within its own queue (= 4). assume uploads will process top down, left to right until reaching
                     // this one.  that's the 4 ahead of it from d, plus 4 from a, 2 from b, and 4 from c in earlier rounds (= 14).
-                    foreach (var group in uploadsForGroup.Where(group => group.Key != username))
+                    foreach (var group in uploadsForGroup.Where(group => group.Key != transfer.Username))
                     {
                         position += Math.Min(localPosition, group.Value.Count);
                     }
@@ -374,17 +383,17 @@ namespace slskd.Transfers.Uploads
                     // goes first. in the example, a and c have a 5th file and b doesn't, putting the file over the carat
                     // at position 16.
                     var usersWithAtLeastAsManyFiles = uploadsForGroup
-                        .Count(g => g.Key != username && g.Value.Count() >= localPosition + 1); // localPosition is zero-based
+                        .Count(g => g.Key != transfer.Username && g.Value.Count() >= localPosition + 1); // localPosition is zero-based
 
                     return position + usersWithAtLeastAsManyFiles;
                 }
 
                 // find the upload
-                var upload = uploadsForUser.SingleOrDefault(u => u.Username == username && u.Filename == filename);
+                var upload = uploadsForUser.SingleOrDefault(u => u.Id == transfer.Id);
 
                 if (upload is null)
                 {
-                    throw new NotFoundException($"File {filename} is not enqueued for user {username}");
+                    throw new NotFoundException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
                 }
 
                 // the place in queue is simply the sum of all uploads across all other users in the group that were
@@ -412,8 +421,11 @@ namespace slskd.Transfers.Uploads
         /// <returns>
         ///     The user's group, the group's total and free slots, and the estimated position if the user were to enqueue a file.
         /// </returns>
+        /// <exception cref="ArgumentException">Thrown if the specified username is null or consists only of whitespace.</exception>
         public (string Group, int TotalSlots, int FreeSlots, int Position) ForecastPosition(string username)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(username);
+
             var groupName = Users.GetGroup(username);
 
             if (!Groups.TryGetValue(groupName, out var groupRecord))
@@ -448,7 +460,7 @@ namespace slskd.Transfers.Uploads
 
         private void Configure(Options options)
         {
-            HashSet<(string Username, string Filename)> GetExistingUsedSlotsOrDefault(string group)
+            HashSet<Guid> GetExistingUsedSlotsOrDefault(string group)
                 => Groups.ContainsKey(group) ? Groups[group].UsedSlots : [];
 
             SyncRoot.Wait();
@@ -577,7 +589,7 @@ namespace slskd.Transfers.Uploads
                     // returned to the proper place upon completion
                     upload.Started = DateTime.UtcNow;
                     upload.Group = group.Name;
-                    group.UsedSlots.Add((upload.Username, upload.Filename));
+                    group.UsedSlots.Add(upload.Id);
 
                     // release the upload
                     upload.TaskCompletionSource.SetResult();
