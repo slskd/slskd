@@ -37,12 +37,13 @@ namespace slskd.Transfers
 
     public sealed class Upload
     {
-        public DateTime Enqueued { get; set; } = DateTime.UtcNow;
-        public string Filename { get; set; }
+        public required Guid Id { get; init; }
+        public required DateTime Enqueued { get; init; }
+        public required string Filename { get; init; }
         public string Group { get; set; }
         public DateTime? Ready { get; set; } = null;
         public DateTime? Started { get; set; } = null;
         public TaskCompletionSource TaskCompletionSource { get; set; } = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        public string Username { get; set; }
+        public required string Username { get; init; }
     }
 }

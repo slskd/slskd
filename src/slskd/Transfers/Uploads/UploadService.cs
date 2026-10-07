@@ -429,14 +429,14 @@ namespace slskd.Transfers.Uploads
                     disposeInputStreamOnCompletion: true, // note: don't set this to false!
                     governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                     reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
-                    slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename, ct),
-                    slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
+                    slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(transfer, ct),
+                    slotReleased: (tx) => Queue.Complete(transfer));
 
                 // register the cancellation token
                 CancellationTokens.TryAdd(transfer.Id, cts);
 
                 // add the transfer to the UploadQueue so that it can become eligible for selection
-                Queue.Enqueue(transfer.Username, transfer.Filename);
+                Queue.Enqueue(transfer);
                 transfer.EnqueuedAt = DateTime.UtcNow;
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
 
@@ -598,7 +598,7 @@ namespace slskd.Transfers.Uploads
                     // if for some reason this logic exits without the slotReleased delegate and Complete() being invoked,
                     // the file will get stuck in the queue and prevent any further uploads to the user. be extra cautious
                     // and ensure it gets removed
-                    Queue.TryComplete(username: transfer.Username, filename: transfer.Filename);
+                    Queue.TryComplete(transfer);
                 }
                 catch (Exception ex)
                 {
