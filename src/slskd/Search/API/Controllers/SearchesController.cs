@@ -78,7 +78,7 @@ namespace slskd.Search.API
         /// <response code="400">The specified <paramref name="request"/> was malformed.</response>
         /// <response code="500">The search terminated abnormally.</response>
         [HttpPost("")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         public async Task<IActionResult> Post([FromBody] SearchRequest request)
         {
             if (Program.IsRelayAgent)
@@ -207,7 +207,7 @@ namespace slskd.Search.API
         /// <response code="304">The search was not in progress.</response>
         /// <returns></returns>
         [HttpPut("{id}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(200)]
         [ProducesResponseType(304)]
         public async Task<IActionResult> Cancel([FromRoute] Guid id)
@@ -236,7 +236,7 @@ namespace slskd.Search.API
         /// <response code="404">A search with the specified id could not be found.</response>
         /// <returns></returns>
         [HttpDelete("{id}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Delete([FromRoute] Guid id)
