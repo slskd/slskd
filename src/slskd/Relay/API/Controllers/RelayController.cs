@@ -294,6 +294,7 @@ namespace slskd.Relay
         [HttpPost("controller/shares/{token}")]
         [RequestSizeLimit(ONE_TEBIBYTE)]
         [RequestFormLimits(MultipartBodyLengthLimit = ONE_TEBIBYTE)]
+        [DisableFormValueModelBinding]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly, Roles = AuthRole.ReadWriteOrAdministrator)]
         public async Task<IActionResult> UploadShares(string token)
         {
@@ -322,13 +323,20 @@ namespace slskd.Relay
                 return Unauthorized();
             }
 
+            if (!Relay.TryValidateShareUploadCredential(token: guid, agentName, credential))
+            {
+                Log.Warning("Failed to authenticate share upload from caller claiming to be agent {Agent} using token {Token}", agentName, guid);
+                return Unauthorized();
+            }
+
             IEnumerable<Share> shares;
             IFormFile database;
 
             try
             {
-                shares = Request.Form["shares"].ToString().FromJson<IEnumerable<Share>>();
-                database = Request.Form.Files[0];
+                var form = await Request.ReadFormAsync();
+                shares = form["shares"].ToString().FromJson<IEnumerable<Share>>();
+                database = form.Files[0];
             }
             catch (Exception ex)
             {
@@ -337,12 +345,6 @@ namespace slskd.Relay
             }
 
             Log.Information("Handling share upload ({Token}) from a caller claiming to be agent {Agent}", token, agentName);
-
-            if (!Relay.TryValidateShareUploadCredential(token: guid, agentName, credential))
-            {
-                Log.Warning("Failed to authenticate share upload from caller claiming to be agent {Agent} using token {Token}", agentName, guid);
-                return Unauthorized();
-            }
 
             Directory.CreateDirectory(FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName));
             var temp = FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName, $"share_{FileSafety.SanitizeFilename(agentName)}_{Path.GetRandomFileName()}.db");
