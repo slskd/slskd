@@ -57,6 +57,13 @@ namespace slskd.Search
     public interface ISearchService
     {
         /// <summary>
+        ///     Returns the number of searches matching the optional <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to match searches.</param>
+        /// <returns>The number of matching searches.</returns>
+        Task<int> CountAsync(Expression<Func<Search, bool>> expression = null);
+
+        /// <summary>
         ///     Deletes the specified search.
         /// </summary>
         /// <param name="search">The search to delete.</param>
@@ -78,6 +85,15 @@ namespace slskd.Search
         /// <param name="expression">An optional expression used to match searches.</param>
         /// <returns>The list of searches matching the specified expression, or all searches if no expression is specified.</returns>
         Task<List<Search>> ListAsync(Expression<Func<Search, bool>> expression = null);
+
+        /// <summary>
+        ///     Returns a page of completed and in-progress searches, with responses omitted, in reverse chronological order.
+        /// </summary>
+        /// <param name="offset">The number of searches to skip.</param>
+        /// <param name="limit">The maximum number of searches to return, or null to return all remaining searches.</param>
+        /// <param name="expression">An optional expression used to match searches.</param>
+        /// <returns>The requested page of searches.</returns>
+        Task<List<Search>> ListAsync(int offset, int? limit, Expression<Func<Search, bool>> expression = null);
 
         /// <summary>
         ///     Updates the specified <paramref name="search"/>.
@@ -147,6 +163,22 @@ namespace slskd.Search
         private IHubContext<SearchHub> SearchHub { get; set; }
 
         /// <summary>
+        ///     Returns the number of searches matching the optional <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to match searches.</param>
+        /// <returns>The number of matching searches.</returns>
+        public async Task<int> CountAsync(Expression<Func<Search, bool>> expression = null)
+        {
+            expression ??= s => true;
+            using var context = ContextFactory.CreateDbContext();
+
+            return await context.Searches
+                .AsNoTracking()
+                .Where(expression)
+                .CountAsync();
+        }
+
+        /// <summary>
         ///     Deletes the specified search.
         /// </summary>
         /// <param name="search">The search to delete.</param>
@@ -213,6 +245,41 @@ namespace slskd.Search
                 .Where(expression)
                 .WithoutResponses()
                 .ToListAsync();
+        }
+
+        /// <summary>
+        ///     Returns a page of completed and in-progress searches, with responses omitted, in reverse chronological order.
+        /// </summary>
+        /// <param name="offset">The number of searches to skip.</param>
+        /// <param name="limit">The maximum number of searches to return, or null to return all remaining searches.</param>
+        /// <param name="expression">An optional expression used to match searches.</param>
+        /// <returns>The requested page of searches.</returns>
+        public async Task<List<Search>> ListAsync(int offset, int? limit, Expression<Func<Search, bool>> expression = null)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(offset);
+
+            if (limit <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be greater than zero");
+            }
+
+            expression ??= s => true;
+            using var context = ContextFactory.CreateDbContext();
+
+            var selector = context.Searches
+                .AsNoTracking()
+                .Where(expression)
+                .WithoutResponses()
+                .OrderByDescending(search => search.StartedAt)
+                .ThenByDescending(search => search.Id)
+                .Skip(offset);
+
+            if (limit.HasValue)
+            {
+                selector = selector.Take(limit.Value);
+            }
+
+            return await selector.ToListAsync();
         }
 
         /// <summary>

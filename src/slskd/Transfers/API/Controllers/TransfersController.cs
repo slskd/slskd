@@ -440,30 +440,35 @@ namespace slskd.Transfers.API
         /// <summary>
         ///     Gets all downloads.
         /// </summary>
+        /// <param name="includeRemoved">A value indicating whether to include removed downloads.</param>
+        /// <param name="offset">The optional number of user groups to skip.</param>
+        /// <param name="limit">The optional maximum number of user groups to return.</param>
         /// <returns></returns>
+        /// <response code="400">The offset is less than zero, or the limit is less than one.</response>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("downloads")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public IActionResult GetDownloadsAsync([FromQuery] bool includeRemoved = false)
+        public IActionResult GetDownloadsAsync([FromQuery] bool includeRemoved = false, [FromQuery] int? offset = null, [FromQuery] int? limit = null)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
-            var downloads = Transfers.Downloads.List(includeRemoved: includeRemoved);
+            var paginationError = ValidatePagination(offset, limit);
 
-            var response = downloads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
+            if (paginationError is not null)
             {
-                Username = grouping.Key,
-                Directories = grouping.GroupBy(g => g.Filename.DirectoryName()).Select(d => new DirectoryResponse()
-                {
-                    Directory = d.Key,
-                    FileCount = d.Count(),
-                    Files = d.ToList(),
-                }),
-            });
+                return paginationError;
+            }
+
+            var paginated = offset.HasValue || limit.HasValue;
+            var (response, count) = paginated
+                ? GetTransferGroups(TransferDirection.Download, includeRemoved, offset ?? 0, limit)
+                : GetAllTransferGroups(TransferDirection.Download, includeRemoved);
+
+            Response.Headers.Append("X-Total-Count", count.ToString());
 
             return Ok(response);
         }
@@ -620,32 +625,35 @@ namespace slskd.Transfers.API
         /// <summary>
         ///     Gets all uploads.
         /// </summary>
+        /// <param name="includeRemoved">A value indicating whether to include removed uploads.</param>
+        /// <param name="offset">The optional number of user groups to skip.</param>
+        /// <param name="limit">The optional maximum number of user groups to return.</param>
         /// <returns></returns>
+        /// <response code="400">The offset is less than zero, or the limit is less than one.</response>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("uploads")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public IActionResult GetUploads([FromQuery] bool includeRemoved = false)
+        public IActionResult GetUploads([FromQuery] bool includeRemoved = false, [FromQuery] int? offset = null, [FromQuery] int? limit = null)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
-            // todo: refactor this so it doesn't return the world. start and end time params
-            // should be required.  consider pagination.
-            var uploads = Transfers.Uploads.List(t => true, includeRemoved: includeRemoved);
+            var paginationError = ValidatePagination(offset, limit);
 
-            var response = uploads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
+            if (paginationError is not null)
             {
-                Username = grouping.Key,
-                Directories = grouping.GroupBy(g => g.Filename.DirectoryName()).Select(d => new DirectoryResponse()
-                {
-                    Directory = d.Key,
-                    FileCount = d.Count(),
-                    Files = d.ToList(),
-                }),
-            });
+                return paginationError;
+            }
+
+            var paginated = offset.HasValue || limit.HasValue;
+            var (response, count) = paginated
+                ? GetTransferGroups(TransferDirection.Upload, includeRemoved, offset ?? 0, limit)
+                : GetAllTransferGroups(TransferDirection.Upload, includeRemoved);
+
+            Response.Headers.Append("X-Total-Count", count.ToString());
 
             return Ok(response);
         }
@@ -717,6 +725,83 @@ namespace slskd.Transfers.API
             }
 
             return Ok(upload);
+        }
+
+        private (IEnumerable<UserResponse> Response, int Count) GetAllTransferGroups(TransferDirection direction, bool includeRemoved)
+        {
+            var transfers = direction == TransferDirection.Download
+                ? Transfers.Downloads.List(includeRemoved: includeRemoved)
+                : Transfers.Uploads.List(t => true, includeRemoved: includeRemoved);
+
+            return (GroupTransfers(transfers), transfers.Select(transfer => transfer.Username).Distinct().Count());
+        }
+
+        private (IEnumerable<UserResponse> Response, int Count) GetTransferGroups(TransferDirection direction, bool includeRemoved, int offset, int? limit)
+        {
+            var page = Transfers.Query(transfers =>
+            {
+                var filtered = transfers
+                    .Where(transfer => transfer.Direction == direction)
+                    .Where(transfer => !transfer.Removed || includeRemoved);
+                var groups = filtered
+                    .GroupBy(transfer => transfer.Username)
+                    .Select(group => new
+                    {
+                        Username = group.Key,
+                        LastRequestedAt = group.Max(transfer => transfer.RequestedAt),
+                    });
+                var count = groups.Count();
+                var ordered = groups
+                    .OrderByDescending(group => group.LastRequestedAt)
+                    .ThenBy(group => group.Username)
+                    .Skip(offset);
+
+                if (limit.HasValue)
+                {
+                    ordered = ordered.Take(limit.Value);
+                }
+
+                var usernames = ordered.Select(group => group.Username).ToList();
+                var pageTransfers = filtered
+                    .Where(transfer => usernames.Contains(transfer.Username))
+                    .ToList();
+
+                return (Count: count, Usernames: usernames, Transfers: pageTransfers);
+            });
+
+            var transfersByUsername = page.Transfers.ToLookup(transfer => transfer.Username);
+            var response = page.Usernames.Select(username => GroupTransfers(transfersByUsername[username]).Single());
+
+            return (response, page.Count);
+        }
+
+        private IEnumerable<UserResponse> GroupTransfers(IEnumerable<slskd.Transfers.Transfer> transfers)
+        {
+            return transfers.GroupBy(transfer => transfer.Username).Select(grouping => new UserResponse()
+            {
+                Username = grouping.Key,
+                Directories = grouping.GroupBy(transfer => transfer.Filename.DirectoryName()).Select(directory => new DirectoryResponse()
+                {
+                    Directory = directory.Key,
+                    FileCount = directory.Count(),
+                    Files = directory.ToList(),
+                }),
+            });
+        }
+
+        private BadRequestObjectResult ValidatePagination(int? offset, int? limit)
+        {
+            if (offset < 0)
+            {
+                return BadRequest("Offset must be greater than or equal to zero");
+            }
+
+            if (limit <= 0)
+            {
+                return BadRequest("Limit must be greater than zero");
+            }
+
+            return null;
         }
     }
 }
