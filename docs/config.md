@@ -1351,7 +1351,7 @@ instance_name: default
 
 ## Logging Options and Configurable Loggers
 
-By default, the application logs to console with colors enabled.  Logging to disk is optional, and if enabled, logs will be written to `/logs` in the application directory.
+By default, the application logs to console with colors enabled, and logging to disk is enabled, with logs being written to `/logs` in the application directory.
 
 Console colors can be disabled via typical application configuration described below, or by setting the environment variable `NO_COLOR` in accordance with https://no-color.org/.
 
@@ -1372,7 +1372,7 @@ The current list of available targets is:
 ```yaml
 logger:
   loki: ~
-  disk: false
+  no_disk: false
   no_color: false
 ```
 
