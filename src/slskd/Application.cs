@@ -568,6 +568,35 @@ namespace slskd
             }
         }
 
+        private void ConfigureSocketMtu(Socket socket, int mtu)
+        {
+            /*
+                limits the size of the packets sent and received on this connection to the given MTU. there's no per-socket MTU setting,
+                so this is done by setting TCP_MAXSEG to the MTU minus the IPv4 and TCP headers (20 bytes each)
+
+                Windows is skipped because it only supports reading TCP_MAXSEG, not setting it
+                see: https://learn.microsoft.com/en-us/windows/win32/winsock/ipproto-tcp-socket-options
+                and: https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-getsockopt
+            */
+            if (!(System.OperatingSystem.IsLinux() || System.OperatingSystem.IsMacOS() || System.OperatingSystem.IsFreeBSD()))
+            {
+                return;
+            }
+
+            try
+            {
+                const int IPPROTO_TCP = 6;
+                const int TCP_MAXSEG = 2;
+                const int IPV4_AND_TCP_HEADER_SIZE = 40;
+
+                socket.SetRawSocketOption(IPPROTO_TCP, TCP_MAXSEG, BitConverter.GetBytes(mtu - IPV4_AND_TCP_HEADER_SIZE));
+            }
+            catch (SocketException ex)
+            {
+                Log.Warning("Failed to set the MTU of the server connection to {MTU}: {Message}", mtu, ex.Message);
+            }
+        }
+
         private async Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
             Metrics.Enqueue.RequestsReceived.Inc(1);
