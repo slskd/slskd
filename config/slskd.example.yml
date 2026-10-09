@@ -233,6 +233,7 @@
 #       write: 16384
 #       transfer: 262144
 #       write_queue: 250
+#     mtu: 1500
 #     proxy:
 #       enabled: false
 #       address: ~

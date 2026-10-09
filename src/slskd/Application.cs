@@ -418,7 +418,15 @@ namespace slskd
             // os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
             var serverOptions = connectionOptions.With(
                 inactivityTimeout: -1, // don't disconnect due to inactivity
-                configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, OptionsAtStartup.Soulseek.Connection));
+                configureSocket: socket =>
+                {
+                    ConfigureSocketKeepaliveOptions(socket, OptionsAtStartup.Soulseek.Connection);
+
+                    if (OptionsAtStartup.Soulseek.Connection.Mtu.HasValue)
+                    {
+                        ConfigureSocketMtu(socket, OptionsAtStartup.Soulseek.Connection.Mtu.Value);
+                    }
+                });
 
             var distributedOptions = connectionOptions.With(
                 writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance
@@ -565,6 +573,35 @@ namespace slskd
             catch (SocketException ex)
             {
                 Log.Warning("Failed to configure connection keepalive settings: \"{Message}\". Performance is degraded. Set the configuration flag \"Legacy Windows TCP Keepalive\" to avoid this.", ex.Message);
+            }
+        }
+
+        private void ConfigureSocketMtu(Socket socket, int mtu)
+        {
+            /*
+                limits the size of the packets sent and received on this connection to the given MTU. there's no per-socket MTU setting,
+                so this is done by setting TCP_MAXSEG to the MTU minus the IPv4 and TCP headers (20 bytes each)
+
+                Windows is skipped because it only supports reading TCP_MAXSEG, not setting it
+                see: https://learn.microsoft.com/en-us/windows/win32/winsock/ipproto-tcp-socket-options
+                and: https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-getsockopt
+            */
+            if (!(System.OperatingSystem.IsLinux() || System.OperatingSystem.IsMacOS() || System.OperatingSystem.IsFreeBSD()))
+            {
+                return;
+            }
+
+            try
+            {
+                const int IPPROTO_TCP = 6;
+                const int TCP_MAXSEG = 2;
+                const int IPV4_AND_TCP_HEADER_SIZE = 40;
+
+                socket.SetRawSocketOption(IPPROTO_TCP, TCP_MAXSEG, BitConverter.GetBytes(mtu - IPV4_AND_TCP_HEADER_SIZE));
+            }
+            catch (SocketException ex)
+            {
+                Log.Warning("Failed to set the MTU of the server connection to {MTU}: {Message}", mtu, ex.Message);
             }
         }
 
@@ -1585,7 +1622,15 @@ namespace slskd
 
                         serverPatch = connectionPatch.With(
                             inactivityTimeout: -1, // don't disconnect due to inactivity
-                            configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, options: connection));
+                            configureSocket: socket =>
+                            {
+                                ConfigureSocketKeepaliveOptions(socket, options: connection);
+
+                                if (connection.Mtu.HasValue)
+                                {
+                                    ConfigureSocketMtu(socket, connection.Mtu.Value);
+                                }
+                            });
 
                         distributedPatch = connectionPatch.With(
                             writeQueueSize: connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance

@@ -834,6 +834,21 @@ soulseek:
       password: ~   
 ```
 
+### MTU
+
+If needed, the MTU advertised to the server can be set.
+
+| Command-Line        | Environment Variable    | Description                                                                        |
+| ------------------- | ----------------------- | ---------------------------------------------------------------------------------- |
+| `--slsk-server-mtu` | `SLSKD_SLSK_SERVER_MTU` | The maximum TCP transmission unit size advertised to the server (0 for OS default) |
+
+#### **YAML**
+```yaml
+soulseek:
+  connection:
+    mtu: 1500
+```
+
 ## Diagnostic Level
 
 The diagnostic level option is passed to the Soulseek.NET configuration and determines the level of detail the library produces diagnostic messages. This option should generally be left to `Info` or `Warning` but can be set to `Debug` if more verbose logging is desired.
