@@ -1351,7 +1351,7 @@ instance_name: default
 
 ## Logging Options and Configurable Loggers
 
-By default, the application logs to console with colors enabled, and logging to disk is enabled, with logs being written to `/logs` in the application directory.
+By default, the application logs to console with colors enabled, and to files in the `/logs` subdirectory of the application directory with extended timestamps and colors disabled.
 
 Console colors can be disabled via typical application configuration described below, or by setting the environment variable `NO_COLOR` in accordance with https://no-color.org/.
 
