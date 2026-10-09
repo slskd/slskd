@@ -418,7 +418,15 @@ namespace slskd
             // os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
             var serverOptions = connectionOptions.With(
                 inactivityTimeout: -1, // don't disconnect due to inactivity
-                configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, OptionsAtStartup.Soulseek.Connection));
+                configureSocket: socket =>
+                {
+                    ConfigureSocketKeepaliveOptions(socket, OptionsAtStartup.Soulseek.Connection);
+
+                    if (OptionsAtStartup.Soulseek.Connection.Mtu.HasValue)
+                    {
+                        ConfigureSocketMtu(socket, OptionsAtStartup.Soulseek.Connection.Mtu.Value);
+                    }
+                });
 
             var distributedOptions = connectionOptions.With(
                 writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance
@@ -1614,7 +1622,15 @@ namespace slskd
 
                         serverPatch = connectionPatch.With(
                             inactivityTimeout: -1, // don't disconnect due to inactivity
-                            configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, options: connection));
+                            configureSocket: socket =>
+                            {
+                                ConfigureSocketKeepaliveOptions(socket, options: connection);
+
+                                if (connection.Mtu.HasValue)
+                                {
+                                    ConfigureSocketMtu(socket, connection.Mtu.Value);
+                                }
+                            });
 
                         distributedPatch = connectionPatch.With(
                             writeQueueSize: connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance
