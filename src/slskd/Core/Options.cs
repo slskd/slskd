@@ -1815,6 +1815,16 @@ namespace slskd
                 public ProxyOptions Proxy { get; init; } = new ProxyOptions();
 
                 /// <summary>
+                ///     Gets the MTU to use for the server connection, or null to use the OS default.
+                /// </summary>
+                [Argument(default, "slsk-server-mtu")]
+                [EnvironmentVariable("SLSK_SERVER_MTU")]
+                [Description("MTU to use for the server connection")]
+                [Range(576, 65535)]
+                [RequiresReconnect]
+                public int? Mtu { get; init; } = null;
+
+                /// <summary>
                 ///     Connection buffer options.
                 /// </summary>
                 public class BufferOptions
