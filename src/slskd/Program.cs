@@ -52,7 +52,7 @@ namespace slskd
     using Asp.Versioning.ApiExplorer;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
-    using Microsoft.AspNetCore.DataProtection;
+    using Microsoft.AspNetCore.DataProtection.KeyManagement;
     using Microsoft.AspNetCore.Diagnostics;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
@@ -835,8 +835,15 @@ namespace slskd
 
             services.ConfigureTelemetry();
 
-            services.AddDataProtection()
-                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, "misc", ".DataProtection-Keys")));
+            /*
+                by default, adding authentication of any kind adds data protection, and the default configuration for
+                data protection drops .DataProtection-Keys on the filesystem. we're not using data protection, but this
+                can't be suppressed.
+
+                instead, we must fake the key manager into using a dummy repository to stop it from using the filesystem
+            */
+            services.AddDataProtection();
+            services.Configure<KeyManagementOptions>(options => options.XmlRepository = new DataProtectionKeyRepository());
 
             var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
