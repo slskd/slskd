@@ -1,0 +1,34 @@
+#!/bin/bash
+set -e
+
+output=dist/openapi.yaml
+
+while test $# -gt 0; do
+  case "$1" in
+    -h|--help)
+      echo 'options:'
+      echo '-h, --help          show help'
+      echo '--output            output file. defaults to openapi.yaml'
+      exit 0
+      ;;
+    --output)
+      shift
+      output=$1
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+# dotnet run executes from the project directory, so resolve the output path against the current directory
+output=$(realpath -m "$output")
+
+# create the destination directory (and any parents) if it doesn't exist
+mkdir -p "$(dirname "$output")"
+
+echo $'\n\t🛠️  dotnet run --project src/slskd --configuration Release -- --swagger --generate-openapi '$output$'\n'
+dotnet run --project src/slskd --configuration Release -- --swagger --generate-openapi "$output"
+
+echo $'\n\t🎉  OpenAPI spec written to '$output$'\n'
