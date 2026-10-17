@@ -1024,25 +1024,11 @@ namespace slskd
                     // avoid conflicts with clashing class names; use the fully qualified name
                     options.CustomSchemaIds(type => type.FullName.Replace("+", "."));
 
-                    options.SwaggerDoc("v0", new OpenApiInfo
-                    {
-                        Version = "v0",
-                        Title = AppName,
-                        Description = "A modern client-server application for the Soulseek file sharing network",
-                        Contact = new OpenApiContact
-                        {
-                            Name = "GitHub",
-                            Url = new Uri("https://github.com/slskd/slskd"),
-                        },
-                        License = new OpenApiLicense
-                        {
-                            Name = "AGPL-3.0 license",
-                            Url = new Uri("https://github.com/slskd/slskd/blob/master/LICENSE"),
-                        },
-                    });
-
                     // allow endpoints marked with multiple content types in [Produces] to generate properly
                     options.OperationFilter<ContentNegotiationOperationFilter>();
+
+                    // the 'all' document includes every endpoint; each versioned document includes only its own
+                    options.DocInclusionPredicate((documentName, description) => documentName == "all" || description.GroupName == documentName);
 
                     if (IOFile.Exists(XmlDocumentationFile))
                     {
@@ -1053,6 +1039,39 @@ namespace slskd
                         Log.Warning($"Unable to find XML documentation in {XmlDocumentationFile}, Swagger will not include metadata");
                     }
                 });
+
+                services.AddOptions<SwaggerGenOptions>()
+                    .Configure<IApiVersionDescriptionProvider>((options, provider) =>
+                    {
+                        var info = new OpenApiInfo
+                        {
+                            Title = AppName,
+                            Description = "A modern client-server application for the Soulseek file sharing network",
+                            Contact = new OpenApiContact
+                            {
+                                Name = "GitHub",
+                                Url = new Uri("https://github.com/slskd/slskd"),
+                            },
+                            License = new OpenApiLicense
+                            {
+                                Name = "AGPL-3.0-only",
+                                Url = new Uri("https://github.com/slskd/slskd/blob/master/LICENSE"),
+                            },
+                        };
+
+                        foreach (var description in provider.ApiVersionDescriptions)
+                        {
+                            options.SwaggerDoc(description.GroupName, new OpenApiInfo(info)
+                            {
+                                Version = description.GroupName,
+                            });
+                        }
+
+                        options.SwaggerDoc("all", new OpenApiInfo(info)
+                        {
+                            Version = string.Join(", ", provider.ApiVersionDescriptions.Select(description => description.GroupName)),
+                        });
+                    });
             }
 
             return services;
