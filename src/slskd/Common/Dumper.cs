@@ -84,7 +84,7 @@ namespace slskd
 
             await Download(url, BinFile);
 
-            if (!OperatingSystem.IsWindows())
+            if (!System.OperatingSystem.IsWindows())
             {
                 await ExecAsync("/bin/sh", $"-c \"chmod +x {BinFile}\"");
             }
@@ -139,15 +139,15 @@ namespace slskd
             string os = default;
 
             // seems like there should be a way to just retrieve this, but there is not as of .NET 6
-            if (OperatingSystem.IsLinux())
+            if (System.OperatingSystem.IsLinux())
             {
                 os = "linux";
             }
-            else if (OperatingSystem.IsWindows())
+            else if (System.OperatingSystem.IsWindows())
             {
                 os = "win";
             }
-            else if (OperatingSystem.IsMacOS() || OperatingSystem.IsFreeBSD())
+            else if (System.OperatingSystem.IsMacOS() || System.OperatingSystem.IsFreeBSD())
             {
                 os = "osx";
             }

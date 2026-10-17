@@ -45,4 +45,9 @@ public record BatchOptions
     ///     If specified, takes precedence over other configured placement rules.
     /// </remarks>
     public string Destination { get; init; }
+
+    /// <summary>
+    ///     Gets an optional external ID for the batch.
+    /// </summary>
+    public string ExternalId { get; init; }
 }

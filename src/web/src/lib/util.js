@@ -19,8 +19,13 @@ export const formatBytesAsUnit = (bytes, unit, decimals = 2) => {
   return Number.parseFloat((bytes / k ** sizes[unit]).toFixed(dm));
 };
 
-export const formatBytes = (bytes, decimals = 2) => {
-  if (bytes === 0) return '0 B';
+export const formatBytes = (
+  bytes,
+  decimals = 2,
+  padding = 0,
+  paddingCharacter = ' ',
+) => {
+  if (bytes === 0 || bytes < 1) return '0 B';
 
   const k = 1_024;
   const dm = decimals < 0 ? 0 : decimals;
@@ -28,13 +33,31 @@ export const formatBytes = (bytes, decimals = 2) => {
 
   const index = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return (
-    Number.parseFloat((bytes / k ** index).toFixed(dm)) + ' ' + sizes[index]
-  );
+  const number = Number.parseFloat((bytes / k ** index).toFixed(dm));
+  const padded = number.toString().padStart(padding, paddingCharacter);
+
+  return padded + ' ' + sizes[index];
+};
+
+export const formatSpeed = (bytesPerSecond, decimals = 1) => {
+  if (!bytesPerSecond || bytesPerSecond === 0) return '0 B/s';
+  return `${formatBytes(bytesPerSecond, decimals)}/s`;
+};
+
+export const formatWait = (seconds) => {
+  if (!seconds || seconds === 0) return '0s';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  return `${(seconds / 60).toFixed(1)}m`;
 };
 
 export const formatDate = (date) => {
   return new Date(date).toLocaleString();
+};
+
+export const truncate = (text, maxLength) => {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
 };
 
 export const getFileName = (fullPath) => {
@@ -100,7 +123,6 @@ export const sleep = (milliseconds) => {
  */
 export const downloadFile = (data, filename, mime) => {
   const blob = new Blob([data], { type: mime || 'application/octet-stream' });
-  // eslint-disable-next-line no-negated-condition
   if (typeof window.navigator.msSaveBlob !== 'undefined') {
     // IE workaround for "HTML7007: One or more blob URLs were
     // revoked by closing the blob for which they were created.

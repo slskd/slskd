@@ -137,32 +137,80 @@ public class ReportsService
     }
 
     /// <summary>
-    ///     Returns a histogram of all transfer data, aggregated into fixed size time intervals and grouped by
-    ///     direction and final transfer state. Includes only completed transfers.
+    ///     Returns a histogram of all transfer data, aggregated into either fixed size time intervals or a fixed
+    ///     number of evenly sized buckets, and grouped by direction and final transfer state. Includes only
+    ///     completed transfers.
     /// </summary>
     /// <param name="start">The start time of the histogram window.</param>
     /// <param name="end">The end time of the histogram window.</param>
-    /// <param name="interval">The interval for the histogram.</param>
+    /// <param name="interval">
+    ///     The interval for the histogram. Mutually exclusive with <paramref name="buckets"/>; exactly one must
+    ///     be specified.
+    /// </param>
+    /// <param name="buckets">
+    ///     The number of evenly sized buckets into which the histogram window should be divided. Mutually
+    ///     exclusive with <paramref name="interval"/>; exactly one must be specified.
+    /// </param>
     /// <param name="direction">The optional direction (Upload or Download) by which to filter results.</param>
     /// <param name="username">The optional username by which to filter results.</param>
     /// <returns>A nested dictionary keyed by direction and state and containing summary information.</returns>
-    /// <exception cref="ArgumentException">Thrown if end time is not later than start time.</exception>
+    /// <exception cref="ArgumentException">
+    ///     Thrown if either <paramref name="start"/> or <paramref name="end"/> is default, if both <paramref name="interval"/>
+    ///     and <paramref name="buckets"/> are specified, if neither is specified.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    ///     Thrown if <paramref name="end"/> is not later than <paramref name="start"/>, or if <paramref name="buckets"/>
+    ///     is outside of the allowed range.
+    /// </exception>
     public Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>> GetTransferHistogram(
         DateTime start,
         DateTime end,
-        TimeSpan interval,
+        TimeSpan? interval = null,
+        int? buckets = null,
         TransferDirection? direction = null,
         string username = null)
     {
+        if (start == default || end == default)
+        {
+            throw new ArgumentException("Start and end times are both required");
+        }
+
         if (end <= start)
         {
-            throw new ArgumentException("End time must be later than start time");
+            throw new ArgumentOutOfRangeException(nameof(end), "End time must be later than start time");
         }
+
+        if (interval.HasValue && buckets.HasValue)
+        {
+            throw new ArgumentException("Interval and buckets are mutually exclusive, provide one or the other, not both");
+        }
+
+        if (!interval.HasValue && !buckets.HasValue)
+        {
+            throw new ArgumentException("Either interval or buckets must be supplied");
+        }
+
+        if (buckets.HasValue && (buckets.Value > 1000 || buckets.Value < 1))
+        {
+            throw new ArgumentOutOfRangeException(nameof(buckets), buckets, "Buckets must be between 1 and 1000");
+        }
+
+        if (interval.HasValue && interval.Value <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(interval), interval, "Interval must be greater than zero");
+        }
+
+        // if interval was provided, just use that. otherwise, compute the interval from the seconds between start and end
+        // divided by the desired buckets
+        var effectiveInterval = interval ?? TimeSpan.FromSeconds(Math.Max(1, (long)(end - start).TotalSeconds / buckets!.Value));
 
         var dict = new Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>();
 
         // fill the dictionary with gapless intervals and empty dictionaries
-        var currentInterval = new DateTime(start.Ticks / interval.Ticks * interval.Ticks, DateTimeKind.Utc);
+        // snap to Unix epoch to match the SQL bucket formula: strftime('%s', ...) / interval * interval, otherwise
+        // we may end up with an empty/partial first bucket
+        var intervalSeconds = (long)effectiveInterval.TotalSeconds;
+        var currentInterval = DateTime.UnixEpoch.AddSeconds((long)(start - DateTime.UnixEpoch).TotalSeconds / intervalSeconds * intervalSeconds);
 
         while (currentInterval < end)
         {
@@ -171,7 +219,7 @@ public class ReportsService
                 { TransferDirection.Download, new Dictionary<TransferStates, TransferSummary>() },
                 { TransferDirection.Upload, new Dictionary<TransferStates, TransferSummary>() },
             };
-            currentInterval = currentInterval.Add(interval);
+            currentInterval = currentInterval.Add(effectiveInterval);
         }
 
         var sql = @$"
@@ -181,8 +229,8 @@ public class ReportsService
                 StateDescription,
                 SUM(Size) AS TotalBytes,
                 COUNT(*) AS Count,
-                COUNT(DISTINCT Username) AS Users,
-                AVG(AverageSpeed) AS AverageSpeed,
+                COUNT(DISTINCT Username) AS DistinctUsers,
+                COALESCE(CAST(SUM(Size) AS REAL) / NULLIF(SUM(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0), 0.0) AS AverageSpeed,
                 COALESCE(AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)), 0.0) AS AverageWait,
                 COALESCE(AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0.0) AS AverageDuration
             FROM Transfers
@@ -203,7 +251,7 @@ public class ReportsService
             Username = username,
             Start = start,
             End = end,
-            Interval = (int)interval.TotalSeconds,
+            Interval = (int)effectiveInterval.TotalSeconds,
         };
 
         var results = connection.Query<TransferSummaryRow>(sql, param);
@@ -222,8 +270,7 @@ public class ReportsService
 
             if (result.Interval.HasValue)
             {
-                // normalize the result interval to match the bucket interval
-                var bucketInterval = new DateTime(result.Interval.Value.Ticks / interval.Ticks * interval.Ticks, DateTimeKind.Utc);
+                var bucketInterval = DateTime.SpecifyKind(result.Interval.Value, DateTimeKind.Utc);
 
                 if (dict.TryGetValue(bucketInterval, out var intervalDict))
                 {
@@ -361,22 +408,23 @@ public class ReportsService
                 Direction,
                 Filename,
                 Size,
-                StartOffset,
                 State,
-                RequestedAt
+                RequestedAt,
                 EnqueuedAt,
                 StartedAt,
                 EndedAt,
                 BytesTransferred,
                 AverageSpeed,
-                CASE 
-                    WHEN INSTR(Exception, ':') > 0 
+                CASE
+                    WHEN INSTR(Exception, ':') > 0
                     THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
                     ELSE Exception
                 END as Exception
-            FROM transfers 
+            FROM transfers
             WHERE state & ~48
                 AND Direction = @Direction
+                AND EndedAt IS NOT NULL
+                AND EndedAt BETWEEN @Start AND @End
                 {(username is not null ? "AND Username = @Username" : string.Empty)}
             ORDER BY EndedAt {sortOrder}
             LIMIT @Limit
@@ -434,21 +482,23 @@ public class ReportsService
         }
 
         var sql = @$"
-            SELECT 
-                CASE 
-                    WHEN INSTR(Exception, ':') > 0 
+            SELECT
+                CASE
+                    WHEN INSTR(Exception, ':') > 0
                     THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
                     ELSE Exception
                 END as Exception,
                 COUNT(*) as Count,
                 COUNT(DISTINCT Username) as DistinctUsers
-            FROM transfers 
+            FROM transfers
             WHERE state & ~48
                 AND Direction = @Direction
+                AND EndedAt IS NOT NULL
+                AND EndedAt BETWEEN @Start AND @End
                 {(username is not null ? "AND Username = @Username" : string.Empty)}
             GROUP BY Direction,
-            CASE 
-                WHEN INSTR(Exception, ':') > 0 
+            CASE
+                WHEN INSTR(Exception, ':') > 0
                 THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
                 ELSE Exception
             END

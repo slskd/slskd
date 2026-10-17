@@ -1,8 +1,8 @@
 using System;
-using System.Runtime.InteropServices;
-using Xunit;
 
 namespace slskd.Tests.Unit.Common;
+
+using Xunit;
 
 public partial class FileSafetyTests
 {
@@ -66,7 +66,7 @@ public partial class FileSafetyTests
         [InlineData("пользователь", "пользователь")]
         public void Linux_ReturnsUnchanged_Given_Safe_Segment(string input, string expected)
         {
-            var result = FileSafety.SanitizePathSegment(input, '_', OSPlatform.Linux);
+            var result = FileSafety.SanitizePathSegment(input, '_', OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -77,7 +77,7 @@ public partial class FileSafetyTests
         [InlineData("has/both\\types", "has_both_types")]
         public void Linux_Replaces_Slashes(string input, string expected)
         {
-            var result = FileSafety.SanitizePathSegment(input, '_', OSPlatform.Linux);
+            var result = FileSafety.SanitizePathSegment(input, '_', OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -91,7 +91,7 @@ public partial class FileSafetyTests
         [InlineData("file\\name", "file_name")]
         public void Windows_Replaces_InvalidCharacters(string input, string expected)
         {
-            var result = FileSafety.SanitizePathSegment(input, '_', OSPlatform.Windows);
+            var result = FileSafety.SanitizePathSegment(input, '_', OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -102,6 +102,41 @@ public partial class FileSafetyTests
             var result = FileSafety.SanitizePathSegment(null);
 
             Assert.Null(result);
+        }
+
+        [Fact]
+        public void Returns_EmptyString_Given_EmptyString()
+        {
+            var result = FileSafety.SanitizePathSegment(string.Empty);
+
+            Assert.Equal(string.Empty, result);
+        }
+
+        [Fact]
+        public void NullOs_UsesPlatformDefault_DoesNotThrow()
+        {
+            var result = FileSafety.SanitizePathSegment("safe_segment");
+
+            Assert.NotNull(result);
+        }
+
+        [Theory]
+        [InlineData("*")]
+        [InlineData("*?")]
+        [InlineData("*.")]   // one invalid char + one period → ".."
+        public void Windows_Returns_EmptyString_When_Period_Replacement_Produces_Traversal(string input)
+        {
+            var result = FileSafety.SanitizePathSegment(input, replacement: '.', os: OperatingSystem.Windows);
+
+            Assert.Equal(string.Empty, result);
+        }
+
+        [Fact]
+        public void Linux_Returns_EmptyString_When_Period_Replacement_Produces_Traversal()
+        {
+            var result = FileSafety.SanitizePathSegment("\0", replacement: '.', os: OperatingSystem.Linux);
+
+            Assert.Equal(string.Empty, result);
         }
     }
 }

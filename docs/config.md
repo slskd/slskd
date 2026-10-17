@@ -117,21 +117,11 @@ Users wishing to create files with different permissions can change the umask va
 
 When running within a docker container the environment variable `SLSKD_UMASK` can be used to change the umask for the process within the container, and this will in turn change the resulting file mode on a mounted volume.
 
-Users can optionally configure alternative permissions for files by setting the file permission mode option.  It's not possible to supersede the configured umask value; setting a mode of 777, for example, will have no effect with a umask of 022.
-
-These options have no effect on Windows.
+This option has no effect on Windows.
 
 | Command-Line             | Environment Variable         | Description                                                                      |
 | ------------------------ | -----------------------------| -------------------------------------------------------------------------------- |
 | n/a                      | `SLSKD_UMASK`                | When running within the slskd Docker container, the umask for the process        |
-| `--file-permission-mode` | `SLSKD_FILE_PERMISSION_MODE` | The permissions to apply to newly created files (chmod syntax, non-Windows only) |
-
-#### **YAML**
-```yaml
-permissions:
-  file:
-    mode: 644 # not for Windows, chmod syntax, e.g. 644, 777. can't escalate beyond umask
-```
 
 # Application Directory Configuration
 
@@ -375,6 +365,25 @@ transfers:
       attempts: 3
       delay: 5000 # initial time between retries, in milliseconds
       max_delay: 60000 # maximum time between retries, in milliseconds
+```
+
+## Destination
+
+### Permissions
+
+On [Unix-like](https://en.wikipedia.org/wiki/Unix-like) operating systems, downloaded files will be created according to the [umask](https://en.wikipedia.org/wiki/Umask) of the process (see [Permissions](#permissions) for more info).
+
+Users can optionally configure alternative permissions by setting the permission mode option which, when enabled, effectively causes slskd to `chmod` files and directories with the configured mode immediately after creation.
+
+This option has no effect on Windows.
+
+#### **YAML**
+```yaml
+transfers:
+  download:
+    destination:
+      permissions:
+        mode: 644 # chmod syntax, e.g. 644, 777.  has no effect on Windows
 ```
 
 ## Global Upload Limits
@@ -823,6 +832,21 @@ soulseek:
       port: ~
       username: ~
       password: ~   
+```
+
+### MTU
+
+If needed, the MTU advertised to the server can be set.
+
+| Command-Line        | Environment Variable    | Description                                                                        |
+| ------------------- | ----------------------- | ---------------------------------------------------------------------------------- |
+| `--slsk-server-mtu` | `SLSKD_SLSK_SERVER_MTU` | The maximum TCP transmission unit size advertised to the server (0 for OS default) |
+
+#### **YAML**
+```yaml
+soulseek:
+  connection:
+    mtu: 1500
 ```
 
 ## Diagnostic Level
@@ -1290,8 +1314,8 @@ Notification API calls are made up to the maximum configured retry count and the
 | Command-Line                          | Environment Variable                         | Description                                                                                        |
 | ------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `--pushbullet`                        | `SLSKD_PUSHBULLET`                           | Determines whether Pushbullet integration is enabled                                               |
-| `--pushbullet-token`                  | `SLSKD_PUSHBULLET_TOKEN`                     | The Pushbullet API access token                                                                    |
-| `--pushbullet-prefix`                 | `SLSKD_PUSHBULLET_PREFIX`                    | The prefix for notification titles                                                                 |
+| `--pushbullet-token`                  | `SLSKD_PUSHBULLET_ACCESS_TOKEN`              | The Pushbullet API access token                                                                    |
+| `--pushbullet-prefix`                 | `PUSHBULLET_NOTIFICATION_PREFIX`             | The prefix for notification titles                                                                 |
 | `--pushbullet-notify-on-pm`           | `SLSKD_PUSHBULLET_NOTIFY_ON_PRIVATE_MESSAGE` | Determines whether to send a notification when a private message is received                       |
 | `--pushbullet-notify-on-room-mention` | `SLSKD_PUSHBULLET_NOTIFY_ON_ROOM_MENTION`    | Determines whether to send a notification when the current user's name is mentioned in a chat room |
 | `--pushbullet-retry-attempts`         | `SLSKD_PUSHBULLET_RETRY_ATTEMPTS`            | The number of times failing API calls will be retried                                              |
@@ -1327,13 +1351,13 @@ instance_name: default
 
 ## Logging Options and Configurable Loggers
 
-By default, the application logs to console with colors enabled.  Logging to disk is optional, and if enabled, logs will be written to `/logs` in the application directory.
+By default, the application logs to console with colors enabled, and to files in the `/logs` subdirectory of the application directory with extended timestamps and colors disabled.
 
 Console colors can be disabled via typical application configuration described below, or by setting the environment variable `NO_COLOR` in accordance with https://no-color.org/.
 
 | Command Line       | Environment Variable           | Description                        |
 | ------------------ | ------------------------------ | ---------------------------------- |
-| `--disk-logger`    | `SLSKD_DISK_LOGGER`            | Enable logging to disk             |
+| `--no-disk-logger` | `SLSKD_NO_DISK_LOGGER`         | Disable logging to disk            |
 | `--no-color`       | `SLSKD_NO_COLOR` or `NO_COLOR` | Disable console log colors         |
 
 Logs can optionally be forwarded to external services, and the targets can be expanded to any service supported by a [Serilog Sink](https://github.com/serilog/serilog/wiki/Provided-Sinks). Support for targets is added on an as-needed basis and within reason.
@@ -1348,7 +1372,7 @@ The current list of available targets is:
 ```yaml
 logger:
   loki: ~
-  disk: false
+  no_disk: false
   no_color: false
 ```
 

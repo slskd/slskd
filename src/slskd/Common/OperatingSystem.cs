@@ -1,4 +1,4 @@
-// <copyright file="QueueDownloadBatchResponse.cs" company="JP Dillingham">
+// <copyright file="OperatingSystem.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,18 +30,14 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-using System.Collections.Generic;
+namespace slskd;
 
-namespace slskd.Transfers.API;
-
-public record QueueDownloadBatchResponse
+public enum OperatingSystem
 {
-    public Batch Batch { get; init; }
-    public IReadOnlyCollection<QueueDownloadBatchResponseFailure> Failures { get; init; } = [];
-}
-
-public record QueueDownloadBatchResponseFailure
-{
-    public string Filename { get; init; }
-    public string Message { get; init; }
+    None = 0,
+    Linux = 1,
+    Windows = 2,
+    Current = 3,
+    Any = 4,
+    All = 5,
 }

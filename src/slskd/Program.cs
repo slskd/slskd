@@ -46,12 +46,13 @@ namespace slskd
     using System.Security.Cryptography.X509Certificates;
     using System.Text;
     using System.Text.Json.Serialization;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Asp.Versioning.ApiExplorer;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
-    using Microsoft.AspNetCore.DataProtection;
+    using Microsoft.AspNetCore.DataProtection.KeyManagement;
     using Microsoft.AspNetCore.Diagnostics;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
@@ -62,9 +63,12 @@ namespace slskd
     using Microsoft.Extensions.FileProviders;
     using Microsoft.Extensions.FileProviders.Physical;
     using Microsoft.IdentityModel.Tokens;
-    using Microsoft.OpenApi.Models;
+    using Microsoft.Net.Http.Headers;
+    using Microsoft.OpenApi;
+    using Prometheus;
     using Prometheus.DotNetRuntime;
     using Prometheus.SystemMetrics;
+    using Prometheus.SystemMetrics.Collectors;
     using Serilog;
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
@@ -508,7 +512,7 @@ namespace slskd
 
             Log.Information("Storing application data in {DataDirectory}", DataDirectory);
 
-            if (OptionsAtStartup.Logger.Disk)
+            if (!OptionsAtStartup.Logger.NoDisk)
             {
                 Log.Information("Saving application logs to {LogDirectory}", LogDirectory);
             }
@@ -626,6 +630,7 @@ namespace slskd
                 _ = app.Services.GetService<ScriptService>();
                 _ = app.Services.GetService<WebhookService>();
                 _ = app.Services.GetService<VPNService>();
+                _ = app.Services.GetService<TelemetryService>();
 
                 app.ConfigureAspDotNetPipeline();
 
@@ -756,6 +761,7 @@ namespace slskd
 
             services.AddSingleton<PrometheusService>();
             services.AddSingleton<ReportsService>();
+            services.AddSingleton<MetricsService>();
             services.AddSingleton<TelemetryService>();
 
             services.AddSingleton<VPNService>();
@@ -777,7 +783,7 @@ namespace slskd
 
             services.AddSingleton<IRoomService, RoomService>();
 
-            services.AddSingleton<ITransferService, TransferService>();
+            services.AddSingleton<TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
             services.AddSingleton<IBatchService, BatchService>();
@@ -827,13 +833,17 @@ namespace slskd
                 .AllowCredentials()
                 .WithExposedHeaders("X-URL-Base", "X-Total-Count")));
 
-            // note: don't dispose this (or let it be disposed) or some of the stats, like those related
-            // to the thread pool won't work
-            DotNetRuntimeStats = DotNetRuntimeStatsBuilder.Default().StartCollecting();
-            services.AddSystemMetrics();
+            services.ConfigureTelemetry();
 
-            services.AddDataProtection()
-                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, "misc", ".DataProtection-Keys")));
+            /*
+                by default, adding authentication of any kind adds data protection, and the default configuration for
+                data protection drops .DataProtection-Keys on the filesystem. we're not using data protection, but this
+                can't be suppressed.
+
+                instead, we must fake the key manager into using a dummy repository to stop it from using the filesystem
+            */
+            services.AddDataProtection();
+            services.Configure<KeyManagementOptions>(options => options.XmlRepository = new DataProtectionKeyRepository());
 
             var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
@@ -1071,12 +1081,17 @@ namespace slskd
             var urlBase = OptionsAtStartup.Web.UrlBase;
             urlBase = urlBase.StartsWith("/") ? urlBase : "/" + urlBase;
 
-            // use urlBase. this effectively just removes urlBase from the path.
-            // inject urlBase into any html files we serve, and rewrite links to ./static or /static to
-            // prepend the url base.
+            // use urlBase. this effectively just removes urlBase from the path before sending it to the next middleware
             app.UsePathBase(urlBase);
+
+            // rewrite relative html links to ./static or ./favicon.ico to absolute links that include urlBase
+            // this is necessary because SPA routers (like React Router) mess with the browser's current address
             app.UseHTMLRewrite("((\\.)?\\/static)", $"{(urlBase == "/" ? string.Empty : urlBase)}/static");
+            app.UseHTMLRewrite("((\\.)?\\/favicon\\.ico)", $"{(urlBase == "/" ? string.Empty : urlBase)}/favicon.ico");
+
+            // inject urlBase and port into any html files we serve as a window-scoped javascript variable
             app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\";window.port={OptionsAtStartup.Web.Port}</script>", excludedRoutes: new[] { "/api", "/swagger" });
+
             Log.Information("Using base url {UrlBase}", urlBase);
 
             // serve static content from the configured path
@@ -1089,6 +1104,16 @@ namespace slskd
                 RequestPath = string.Empty,
                 EnableDirectoryBrowsing = false,
                 EnableDefaultFiles = true,
+                StaticFileOptions =
+                {
+                    OnPrepareResponse = ctx =>
+                    {
+                        if (ctx.File.Name == "index.html" || ctx.File.Name == "default.html")
+                        {
+                            ctx.Context.Response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue { NoCache = true };
+                        }
+                    },
+                },
             };
 
             if (!OptionsAtStartup.Headless)
@@ -1120,6 +1145,7 @@ namespace slskd
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
                 endpoints.MapHub<RelayHub>("/hub/relay");
+                endpoints.MapHub<MetricsHub>("/hub/metrics");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
@@ -1224,6 +1250,7 @@ namespace slskd
                 .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
                 .MinimumLevel.Override("slskd.Authentication.ApiKeyAuthenticationHandler", LogEventLevel.Warning)
                 .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning) // bump this down to Information to show SQL
+                .Enrich.WithProperty("App", AppName)
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
@@ -1234,17 +1261,22 @@ namespace slskd
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.Conditional(
-                        e => OptionsAtStartup.Logger.Disk,
+                        e => !OptionsAtStartup.Logger.NoDisk,
                         config => config.File(
                             Path.Combine(LogDirectory, $"{AppName}-.log"),
-                            outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                            outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:yyyy-MM-ddTHH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day,
-                            retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs))))
+                            retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs),
+                            shared: true))) // allow log file to be read concurrently
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
-                    config => config.GrafanaLoki(
-                        OptionsAtStartup.Logger.Loki ?? string.Empty,
-                        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                    config =>
+                    {
+                        if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
+                        {
+                            config.GrafanaLoki(OptionsAtStartup.Logger.Loki);
+                        }
+                    })
                 .WriteTo.Sink(new DelegatingSink(logEvent =>
                 {
                     string message = default;
@@ -1300,6 +1332,134 @@ namespace slskd
                     Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception.Message);
                 }
             };
+        }
+
+        private static IServiceCollection ConfigureTelemetry(this IServiceCollection services)
+        {
+            Prometheus.Metrics.SuppressDefaultMetrics(new SuppressDefaultMetricOptions
+            {
+                SuppressDebugMetrics = true, // prometheus_net_metric_families/instances/timeseries
+                SuppressProcessMetrics = false, // dotnet_collection_count_total, dotnet_total_memory_bytes, process_*
+                SuppressMeters = true, // system_
+                SuppressEventCounters = true, // more system_
+            });
+
+            Regex[] sources =
+            [
+                new Regex("^System.*", RegexOptions.Compiled),
+                new Regex("^Microsoft-Windows-DotNETRuntime", RegexOptions.Compiled),
+                new Regex("^Microsoft-Diagnostics-DiagnosticSource", RegexOptions.Compiled),
+                new Regex("^Private.InternalDiagnostics.System.Net.Sockets$", RegexOptions.Compiled),
+            ];
+
+            /*
+                Meter bridge - uses new .NET Meters
+
+                included:
+
+                System.Runtime
+
+                excluded:
+
+                Microsoft.AspNetCore.MemoryPool
+                Microsoft.AspNetCore.Server.Kestrel
+                Microsoft.AspNetCore.Http.Connections
+                Microsoft.AspNetCore.Hosting
+                Microsoft.AspNetCore.Routing
+                Microsoft.AspNetCore.Diagnostics
+                Microsoft.AspNetCore.Authentication
+                Microsoft.EntityFrameworkCore
+                Private.InternalDiagnostics.System.Net.Quic.MsQuic
+            */
+            Prometheus.Metrics.ConfigureMeterAdapter(options =>
+            {
+                options.InstrumentFilterPredicate = instrument => sources.Any(s => instrument?.Meter?.Name is string name && s.IsMatch(name));
+            });
+
+            /*
+                EventCounter bridge - uses 'legacy' EventSource counters
+
+                included:
+
+                System.Runtime
+                System.Data.DataCommonEventSource
+                System.Transactions.TransactionsEventSource
+                System.Diagnostics.Metrics
+                System.Buffers.ArrayPoolEventSource
+                System.Diagnostics.Eventing.FrameworkEventSource
+                System.Threading.Tasks.TplEventSource
+                System.Collections.Concurrent.ConcurrentCollectionsEventSource
+                System.Net.Sockets
+                Private.InternalDiagnostics.System.Net.Sockets
+
+                excluded:
+
+                Microsoft.AspNetCore.Hosting
+                Microsoft-AspNetCore-Server-Kestrel
+                Microsoft-Windows-DotNETRuntime
+                Microsoft-Diagnostics-DiagnosticSource
+                Microsoft-Extensions-Logging
+                Microsoft-Extensions-DependencyInjection
+                Microsoft.EntityFrameworkCore
+                Private.InternalDiagnostics.System.Net.Quic
+            */
+            Prometheus.Metrics.ConfigureEventCounterAdapter(options =>
+            {
+                options.EventSourceFilterPredicate = name => sources.Any(s => name is string n && s.IsMatch(n));
+            });
+
+            /*
+                https://github.com/djluck/prometheus-net.DotNetRuntime
+
+                this package overlaps nearly completely with the built in stats, but it offers a slightly different
+                calculation for memory, and a thread pool throughput stat that's fairly important to me.
+
+                this has been enabled for many years and it should be included because it may break people's stuff.
+                i may make it optional in the future. it honestly might make more sense to disable the meters above
+                and keep this.
+
+                included:
+
+                dotnet_build_info
+                dotnet_collection
+                dotnet_contention
+                dotnet_exceptions
+                dotnet_jit
+                dotnet_gc
+                dotnet_sockets
+                dotnet_threadpool
+            */
+            DotNetRuntimeStats = DotNetRuntimeStatsBuilder
+                .Customize()
+                .WithGcStats()
+                .WithThreadPoolStats()
+                .WithContentionStats()
+                .WithJitStats()
+                .WithExceptionStats()
+                .WithSocketStats()
+                .StartCollecting();
+
+            /*
+                https://github.com/Daniel15/prometheus-net.SystemMetrics
+
+                this package adds information about the host machine slskd is running on, including CPU, RAM, disks,
+                and network interfaces.
+
+                included:
+
+                node_filesystem_avail/size
+                node_network_receive_
+                node_network_transmit_
+                node_cpu_seconds_total (detailed user/syste/irq/idle for ALL cores)
+                node_memory_
+            */
+            services.AddSystemMetrics(registerDefaultCollectors: true);
+
+            // exclude tmpfs/overlay noise in containers
+            services.Configure<DiskCollectorConfig>(cfg =>
+                cfg.DriveTypes = new HashSet<DriveType> { DriveType.Fixed });
+
+            return services;
         }
 
         private static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile, bool reloadOnChange)

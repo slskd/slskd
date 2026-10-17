@@ -109,7 +109,7 @@ namespace slskd.Integrations.FTP
         private async Task AttemptUploadAsync(string filename)
         {
             var fileAndParentDirectory = GetFileAndParentDirectoryFromFilename(filename);
-            var remotePath = FtpOptions.RemotePath.TrimEnd('/').TrimEnd('\\');
+            var remotePath = FtpOptions.RemotePath.TrimEnd('/', '\\');
             var remoteFilename = $"{remotePath}/{fileAndParentDirectory}";
 
             var existsMode = FtpOptions.OverwriteExisting ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;

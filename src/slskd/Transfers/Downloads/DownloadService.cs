@@ -38,9 +38,11 @@ namespace slskd.Transfers.Downloads
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Net;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
@@ -49,6 +51,7 @@ namespace slskd.Transfers.Downloads
     using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Relay;
+    using slskd.Search;
 
     /// <summary>
     ///     Manages downloads.
@@ -66,6 +69,26 @@ namespace slskd.Transfers.Downloads
         /// <remarks>This should generally not be called; use EnqueueAsync() instead.</remarks>
         /// <param name="transfer"></param>
         void AddOrSupersede(Transfer transfer);
+
+        /// <summary>
+        ///     Derives the destination subdirectory for the specified <paramref name="transfer"/> based on user and batch
+        ///     configuration.
+        /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         Output is guaranteed to be a localized, sanitized, relative path with no traversal segments.
+        ///         Otherwise, an instance of <see cref="SlskdException"/> will be thrown as a backstop.
+        ///     </para>
+        ///     <para>
+        ///         Empty segments may be present in the output, which more closely aligns with user intent. The
+        ///         <see cref="Path.Combine(string, string)"/> method drops them silently, so there's no functional impact.
+        ///     </para>
+        /// </remarks>
+        /// <param name="transfer">The transfer.</param>
+        /// <returns>The derived destination directory.</returns>
+        /// <exception cref="NotFoundException">Thrown if the specified download doesn't exist.</exception>
+        /// <exception cref="SlskdException">Thrown if the derivation logic produces an absolute path, or one with traversal segments.</exception>
+        Task<string> DeriveDestination(Transfer transfer);
 
         /// <summary>
         ///     Enqueues the requested list of <paramref name="files"/>.
@@ -165,6 +188,7 @@ namespace slskd.Transfers.Downloads
     {
         public DownloadService(
             IBatchService batchService,
+            ISearchService searchService,
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IDbContextFactory<TransfersDbContext> contextFactory,
@@ -174,6 +198,7 @@ namespace slskd.Transfers.Downloads
             EventBus eventBus)
         {
             Batches = batchService;
+            Searches = searchService;
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
@@ -183,6 +208,7 @@ namespace slskd.Transfers.Downloads
             EventBus = eventBus;
 
             Clock.EveryMinute += (_, _) => Task.Run(() => CleanupEnqueueSemaphoresAsync());
+            Clock.EveryFiveSeconds += (_, _) => Task.Run(() => EmitMetrics());
         }
 
         /// <summary>
@@ -213,10 +239,12 @@ namespace slskd.Transfers.Downloads
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private IFTPService FTP { get; }
         private FileService Files { get; }
+        private ISearchService Searches { get; }
         private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private EventBus EventBus { get; }
+        private Regex SubdirectoryPatternTokenRegex { get; } = new Regex(@"\$\{([^\{\}]*)\}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         ///     Allow only one enqueue operation for a given user at a time. Entries are added on the fly if they
@@ -481,7 +509,7 @@ namespace slskd.Transfers.Downloads
                             add this to the dictionary before inserting the record, so we are guaranteed to have it
                             in the right place once the transfer hits the UI
                         */
-                        var enqueuedTcs = new TaskCompletionSource<Transfer>();
+                        var enqueuedTcs = new TaskCompletionSource<Transfer>(TaskCreationOptions.RunContinuationsAsynchronously);
 
                         // satisfies condition #3; CancellationTokenSource set cancelled by the user (via API call)
                         var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -522,6 +550,12 @@ namespace slskd.Transfers.Downloads
                                 {
                                     Log.Warning("Download of {Filename} from {Username} failed to enqueue remotely after hard time limit of {Duration} seconds. State transition history: {History}", transfer.Filename, username, maxTimeToWaitForEnqueueRequestAck.TotalSeconds, string.Join(", ", transitions));
                                     enqueuedTcs.TrySetException(new TimeoutException($"Download failed to enqueue remotely after hard time limit of {maxTimeToWaitForEnqueueRequestAck.TotalSeconds} secs"));
+
+                                    // cancel the download attempt so that it doesn't keep running and cause the internal
+                                    // state of slskd to diverge from the internal state of Soulseek.NET.
+                                    // the transfer record is recorded as being cancelled when this happens and there's not
+                                    // an easy/good way to stop it.
+                                    cts.Cancel();
                                 });
 
                                 // satisfies conditions #1 and #2
@@ -705,6 +739,152 @@ namespace slskd.Transfers.Downloads
                 Log.Error(ex, "Failed to get place in queue for download {Id}: {Message}", id, ex.Message);
                 throw;
             }
+        }
+
+        /// <summary>
+        ///     Derives the destination subdirectory for the specified <paramref name="transfer"/> based on user and
+        ///     batch configuration.
+        /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         Output is guaranteed to be a localized, sanitized, relative path with no traversal segments.
+        ///         Otherwise, an instance of <see cref="SlskdException"/> will be thrown as a backstop.
+        ///     </para>
+        ///     <para>
+        ///         Empty segments may be present in the output, which more closely aligns with user intent. The
+        ///         <see cref="Path.Combine(string, string)"/> method drops them silently, so there's no functional impact.
+        ///     </para>
+        /// </remarks>
+        /// <param name="transfer">The transfer.</param>
+        /// <returns>The derived destination directory.</returns>
+        /// <exception cref="SlskdException">Thrown if the derivation logic produces an absolute path, or one with traversal segments.</exception>
+        public async Task<string> DeriveDestination(Transfer transfer)
+        {
+            // validation should ensure this is a relative path and that it contains no traversal segments
+            // we accept any type of slash in the pattern and convert it to the correct variant for the local OS
+            var pattern = OptionsMonitor.CurrentValue.Transfers.Download.Destination.Subdirectory;
+
+            // users can enter '{}' if they want the files to go directly into the root of the downloads directory
+            if (pattern.Equals("{}", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Empty;
+            }
+
+            string source_username;
+            string source_path;
+            string source_directory;
+            string batch_id;
+            string batch_external_id;
+            string search_id;
+            string search_text;
+
+            /*
+                fetch/extract/derive and sanitize each of the values we're going to replace
+
+                when flow leaves this block we can expect that all of the string values
+                defined above have a value that can be safely substituted for its placeholder
+            */
+            try
+            {
+                Batch batch = null;
+
+                if (transfer.BatchId is not null)
+                {
+                    batch = await Batches.FindAsync(b => b.Id == transfer.BatchId);
+                }
+
+                // destination supplied with the batch enqueue request takes precedence over all; return early
+                if (!string.IsNullOrWhiteSpace(batch?.Options?.Destination))
+                {
+                    var explicitDestination = FileSafety.SanitizePath(batch.Options.Destination, replacement: '_');
+
+                    // the only way to get here is through a regression in the logic above; if we are seeing this, ensure we are
+                    // properly sanitizing user input both via the API and in the logic above
+                    if (FileSafety.IsPathAbsolute(explicitDestination) || FileSafety.ContainsTraversalSegments(explicitDestination))
+                    {
+                        throw new SlskdException("Derived a transfer destination that is either not relative or contains traversal segments; neither is allowed.  Please report this on GitHub.");
+                    }
+
+                    return explicitDestination;
+                }
+
+                Search search = null;
+
+                if (batch?.SearchId is not null)
+                {
+                    search = await Searches.FindAsync(s => s.Id == batch.SearchId);
+                }
+
+                source_username = FileSafety.SanitizeFilename(transfer.Username, replacement: '_');
+
+                var filename = FileSafety.SanitizePath(transfer.Filename, replacement: '_');
+
+                // full remote path, e.g. '@@abcd\Foo\Bar\Baz\Qux.ext' => '@@abcd\Foo\Bar\Baz'
+                // retains the path root, if there is one (Soulseek NS does this), which may not be what
+                // people want, so possibly revisit and add StripPathRoot()
+                source_path = (FileSafety.GetDirectoryNameSafely(filename, retainRoot: false) ?? string.Empty).TrimEnd('/', '\\');
+
+                // name of the remote parent directory, so using the example above, 'Baz'
+                source_directory = (FileSafety.GetFileNameSafely(source_path) ?? string.Empty).TrimEnd('/', '\\');
+
+                batch_id = (batch?.Id ?? Guid.Empty) == Guid.Empty ? "unknown_batch_id" : batch.Id.ToString();
+
+                // the external id can be any string (it is supplied via API call) so we have to sanitize it just like the destination,
+                // except we don't want to allow it to tack on directories; that's not what it is for and it could be unintended
+                batch_external_id = FileSafety.SanitizeFilename(
+                    filename: string.IsNullOrWhiteSpace(batch?.Options?.ExternalId) ? "unknown_batch_external_id" : batch.Options.ExternalId,
+                    replacement: '_');
+
+                search_id = (search?.Id ?? Guid.Empty) == Guid.Empty ? "unknown_search_id" : search.Id.ToString();
+                search_text = FileSafety.SanitizeFilename(
+                    filename: string.IsNullOrWhiteSpace(search?.SearchText) ? "unknown_search_text" : search.SearchText,
+                    replacement: '_');
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed fetch information for download {Id}: {Message}", transfer.Id, ex.Message);
+                throw;
+            }
+
+            var args = new Dictionary<string, string>(
+                StringComparer.OrdinalIgnoreCase) // important!
+            {
+                ["SOURCE_USERNAME"] = source_username,
+                ["SOURCE_PATH"] = source_path,
+                ["SOURCE_DIRECTORY"] = source_directory,
+                ["BATCH_ID"] = batch_id,
+                ["BATCH_EXTERNAL_ID"] = batch_external_id,
+                ["SEARCH_ID"] = search_id,
+                ["SEARCH_TEXT"] = search_text,
+            };
+
+            // use Regex.Replace here because it makes one pass; if we chained .Replace() calls the output from one could
+            // cascade into others and produce unintended results
+            var destination = SubdirectoryPatternTokenRegex.Replace(
+                input: pattern,
+                evaluator: match =>
+                {
+                    if (args.TryGetValue(match.Groups[1].Value, out var value))
+                    {
+                        return value;
+                    }
+
+                    return match.Value;
+                });
+
+            destination = FileSafety.SanitizePath(destination, replacement: '_');
+
+            Log.Debug("Derived destination for download of {Filename} from {User}: {Destination} (id: {Id}, configuration: {Pattern}, args: {Args})", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, destination, transfer.Id, pattern, new { source_username, source_path, source_directory, batch_id, batch_external_id, search_id, search_text });
+
+            // the only way to get here is through a regression in the logic above; if we are seeing this, ensure we are
+            // properly sanitizing the final output to strip leading slashes and replace traversal segments
+            if (FileSafety.IsPathAbsolute(destination) || FileSafety.ContainsTraversalSegments(destination))
+            {
+                Log.Error("Derived destination for download of {Filename} from {User}: {Destination} (id: {Id}, configuration: {Pattern}, args: {Args})", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, destination, transfer.Id, pattern, new { source_username, source_path, source_directory, batch_id, batch_external_id, search_id, search_text });
+                throw new SlskdException("Derived a transfer destination that is either not relative or contains traversal segments; neither is allowed.  Please report this on GitHub.");
+            }
+
+            return destination;
         }
 
         /// <summary>
@@ -918,6 +1098,57 @@ namespace slskd.Transfers.Downloads
             context.SaveChanges();
         }
 
+        protected virtual void EmitMetrics()
+        {
+            void EmitQueuedMetrics()
+            {
+                var queued = Client.Downloads.Where(u => u.State.HasFlag(TransferStates.Queued));
+
+                Telemetry.Metrics.Transfers.Downloads.Queued.Users
+                    .Set(queued.Select(u => u.Username).Distinct().Count());
+
+                Telemetry.Metrics.Transfers.Downloads.Queued.Files
+                    .Set(queued.Count());
+
+                Telemetry.Metrics.Transfers.Downloads.Queued.Bytes
+                    .Set(queued.Sum(q => q.Size));
+            }
+
+            void EmitInProgressMetrics()
+            {
+                var inProgress = Client.Downloads.Where(u => u.State == TransferStates.InProgress);
+
+                Telemetry.Metrics.Transfers.Downloads.InProgress.Users
+                    .Set(inProgress.Select(u => u.Username).Distinct().Count());
+
+                Telemetry.Metrics.Transfers.Downloads.InProgress.Files
+                    .Set(inProgress.Count());
+
+                Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes
+                    .Set(inProgress.Sum(u => u.Size));
+
+                if (inProgress.Any())
+                {
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed
+                        .Update(inProgress.Sum(u => u.AverageSpeed));
+
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed
+                        .Update(inProgress.Any() ? inProgress.Average(u => u.AverageSpeed) : 0);
+                }
+                else
+                {
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed.Reset();
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed.Reset();
+                }
+            }
+
+            Telemetry.Metrics.Update(() =>
+            {
+                EmitQueuedMetrics();
+                EmitInProgressMetrics();
+            });
+        }
+
         /// <summary>
         ///     Downloads the specified enqueued <paramref name="transfer"/> from the remote user.
         /// </summary>
@@ -959,6 +1190,9 @@ namespace slskd.Transfers.Downloads
             var retryOptions = OptionsMonitor.CurrentValue.Transfers.Download.Retry;
             var updateSyncRoot = new SemaphoreSlim(1, 1);
 
+            var stateHistory = new List<TransferStates>();
+            DateTime lastReportedAverageSpeed = default;
+
             try
             {
                 using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
@@ -999,6 +1233,27 @@ namespace slskd.Transfers.Downloads
                                 transfer.State = TransferStates.Queued | TransferStates.Locally;
                             }
 
+                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
+
+                            Telemetry.Metrics.Update(() =>
+                            {
+                                if (!TransferStateCategories.Queued.Contains(args.PreviousState) && TransferStateCategories.Queued.Contains(transfer.State))
+                                {
+                                    Telemetry.Metrics.Transfers.Downloads.Queued.Files.Inc(1);
+                                    Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Inc(transfer.Size);
+                                }
+
+                                if (!TransferStateCategories.InProgress.Contains(args.PreviousState) && TransferStateCategories.InProgress.Contains(transfer.State))
+                                {
+                                    Telemetry.Metrics.Transfers.Downloads.Queued.Files.Dec(1);
+                                    Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Dec(transfer.Size);
+                                    Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Inc(1);
+                                    Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Inc(transfer.Size);
+                                }
+                            });
+
+                            stateHistory.Add(transfer.State);
+
                             // todo: broadcast
                             SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: cancellationToken);
                         }
@@ -1031,6 +1286,21 @@ namespace slskd.Transfers.Downloads
                                     context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
                                         .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
                                         .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+
+                                    // progress is reported at 4x the speed (250ms) that the transfer's average speed is calculated (1000ms)
+                                    // the transfer's speed is also zero until it has enough data to compute the EMA, so throw both
+                                    // repeated and zero values out
+                                    var now = DateTime.UtcNow;
+
+                                    if (transfer.AverageSpeed > 0 && now >= lastReportedAverageSpeed.AddMilliseconds(1000))
+                                    {
+                                        Telemetry.Metrics.Update(() =>
+                                        {
+                                            Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed.Update(transfer.AverageSpeed);
+                                        }, cancellationToken);
+
+                                        lastReportedAverageSpeed = now;
+                                    }
                                 }
                                 finally
                                 {
@@ -1045,14 +1315,42 @@ namespace slskd.Transfers.Downloads
                     }),
                     disposeOutputStreamOnCompletion: true);
 
-                System.IO.UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
-                    ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
+                UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode)
+                    ? OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode.ToUnixFileMode()
                     : null;
 
-                // store incomplete files under a username subdirectory to prevent collisions between users
-                // and to make it safe to resume partial downloads without risking picking up an unrelated file
-                var incompleteFilename = transfer.Filename.ToLocalFilename(
-                    baseDirectory: FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Incomplete, transfer.Username.ReplaceInvalidFileNameCharacters()));
+                /*
+                    store incomplete files under a username subdirectory to prevent collisions between users and to make
+                    it safe to resume partial downloads without risking picking up an unrelated file.
+
+                    we're going to store the file as:
+
+                        <incomplete directory>/<username>/<full path to file on remote client>/<filename>
+
+                    so, a remote file 'C:\Music\Public_Domain\Foo\Bar\Baz.ext' from user 'FooBar' becomes:
+
+                        linux:   incomplete/C:/FooBar/Music/Public_Domain/Foo/Bar/Baz.ext
+                        windows: incomplete\C_\FooBar\Music\Public_Domain\Foo\Bar\Baz.ext
+
+                    slashes are normalized to the current OS and any invalid characters are replaced with an underscore, _.
+                    this mitigates the risk of an improper partial resume to a great extent.
+
+                    if the remote file changes size between attempts, Soulseek.NET's DownloadAsync() will throw because
+                    the size we send originates from the original file, and there will be a mismatch.
+
+                    the only remaining risk is in a case where the file contents have changed but the size remains the same.
+                    the resulting file will be corrupted in that case, and there's nothing we can really do about it. users
+                    that are concerned about this (extremely unlikely) case should configure slskd to always overwrite
+                    partial files.
+                */
+                var incompleteDirectory = OptionsMonitor.CurrentValue.Directories.Incomplete;
+                var sanitizedUsername = FileSafety.SanitizePathSegment(transfer.Username);
+                var sanitizedFilename = FileSafety.GetFileNameSafely(transfer.Filename, sanitize: true);
+                var sanitizedRemotePath = FileSafety.GetDirectoryNameSafely(transfer.Filename, sanitize: true) ?? string.Empty;
+
+                var incompleteFilename = FileSafety.CombineSafely(incompleteDirectory, sanitizedUsername, sanitizedRemotePath, sanitizedFilename);
+
+                Log.Debug("Incomplete file for {Filename} from {Username} will be: {IncompleteFilename}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, incompleteFilename);
 
                 Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 transfer.Attempts = 1;
@@ -1106,6 +1404,29 @@ namespace slskd.Transfers.Downloads
                         && ex is not TransferSizeMismatchException,
                     onRetry: (attempts, delay) =>
                     {
+                        // an attempt failed and we have decided that we're going to retry instead of letting it throw
+                        // we *MAY* have incremented queued/in progress metrics as part of the previous attempt
+                        var mostRecentQueuedOrInProgressState = stateHistory
+                            .LastOrDefault(s => TransferStateCategories.InProgress.Contains(s) || TransferStateCategories.Queued.Contains(s));
+
+                        Telemetry.Metrics.Update(() =>
+                        {
+                            if (TransferStateCategories.InProgress.Contains(mostRecentQueuedOrInProgressState))
+                            {
+                                Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Dec(1);
+                                Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Dec(transfer.Size);
+                            }
+                            else if (TransferStateCategories.Queued.Contains(mostRecentQueuedOrInProgressState))
+                            {
+                                Telemetry.Metrics.Transfers.Downloads.Queued.Files.Dec(1);
+                                Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Dec(transfer.Size);
+                            }
+                        });
+
+                        // reset the history to make detection logic above easier and more accurate
+                        Log.Debug("Previous attempt to download {Filename} from user {Username} completed with states: {@States}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, stateHistory);
+                        stateHistory = [];
+
                         Log.Information("Waiting about {Delay} second(s) to retry attempt #{Attempt} to download {Filename} from user {Username} in {Delay}ms", (int)Math.Ceiling((double)delay / 1000), attempts, transfer.Filename, transfer.Username);
 
                         transfer.Attempts = attempts;
@@ -1134,28 +1455,31 @@ namespace slskd.Transfers.Downloads
                 // todo: broadcast to signalr hub
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Downloads.Completed.Succeeded.Inc(1);
+                    Telemetry.Metrics.Transfers.Downloads.Completed.Bytes.Inc(transfer.BytesTransferred);
+                    Telemetry.Metrics.Transfers.Downloads.Completed.AverageSpeed.Observe(transfer.AverageSpeed);
+                }, cancellationToken);
+
                 Log.Debug("Successfully updated Transfer for {Filename} from {Username} (state: {State}, progress: {Progress})", transfer.Filename, transfer.Username, transfer.State, transfer.PercentComplete);
 
                 /*
                     move the file from incomplete to complete
 
                     users have a lot of strong opinions about this!
-                */
-                string destinationDirectory;
 
-                if (transfer.BatchId is not null)
-                {
-                    // if the transfer has an associated batch id, then:
-                    // some/long/remote/path/folder/file.ext -> download_directory/batch_id/file.ext
-                    destinationDirectory = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, transfer.BatchId.Value.ToString());
-                }
-                else
-                {
-                    // ToLocalFilename chops all but the containing folder off of the path and localizes slashes, so:
-                    // some/long/remote/path/folder/file.ext -> folder/file.ext -> download_directory/folder/file.ext
-                    // this is "legacy" behavior that will be familiar to most Soulseek users
-                    destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
-                }
+                    the destination is always rooted in the configured download directory. we derive the subdirectory
+                    for this file based on either the Destination property defined for the Batch that contains this transfer,
+                    or by applying replacements to the user's configured Destination.Subdirectory string.
+
+                    what we get back will be a relative path (or perhaps an empty string if that's what the user wanted)
+                    that has sanitized and checked for safety against traversal
+                */
+                var subdirectory = await DeriveDestination(transfer);
+                var destinationDirectory = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, subdirectory);
+
+                var existsStrategy = OptionsMonitor.CurrentValue.Transfers.Download.Destination.Exists.ToEnum<DestinationExistsStrategy>();
 
                 Log.Debug("Destination directory for {Filename}: {Destination}", transfer.Filename, destinationDirectory);
 
@@ -1163,10 +1487,10 @@ namespace slskd.Transfers.Downloads
                     sourceFilename: incompleteFilename,
                     destinationDirectory: destinationDirectory,
                     unixFileMode: unixFileMode,
-                    overwrite: false,
+                    overwrite: existsStrategy == DestinationExistsStrategy.Overwrite,
                     deleteSourceDirectoryIfEmptyAfterMove: true);
 
-                Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);
+                Log.Information("Moved file {Filename} from {Username} from {Incomplete} to {Destination}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, incompleteFilename, finalFilename);
 
                 if (OptionsMonitor.CurrentValue.Relay.Enabled)
                 {
@@ -1234,6 +1558,11 @@ namespace slskd.Transfers.Downloads
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Downloads.Completed.Failed.Inc(1);
+                }, cancellationToken);
+
                 throw;
             }
             catch (Exception ex)
@@ -1245,10 +1574,39 @@ namespace slskd.Transfers.Downloads
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Downloads.Completed.Failed.Inc(1);
+                }, cancellationToken);
+
                 throw;
             }
             finally
             {
+                Log.Debug("Download of {Filename} from user {Username} completed with states: {@States}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, stateHistory);
+
+                // figure out the most recent state that was either InProgress or Queued so that we can decrement the count and bytes
+                // for transfers that succeed this will be InProgress, for transfers that never started this will be Queued (cancelled or something)
+                // state will almost certainly transition to errored or completed before we get here, so we can't just take the last state
+                var mostRecentQueuedOrInProgressState = stateHistory
+                    .LastOrDefault(s => TransferStateCategories.InProgress.Contains(s) || TransferStateCategories.Queued.Contains(s));
+
+                Telemetry.Metrics.Update(() =>
+                {
+                    if (TransferStateCategories.InProgress.Contains(mostRecentQueuedOrInProgressState) && Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Value > 0)
+                    {
+                        // if the transfer was ever in progress at any time, we decrement because we should have incremented on that transition
+                        Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Dec(1);
+                        Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Dec(transfer.Size);
+                    }
+                    else if (TransferStateCategories.Queued.Contains(mostRecentQueuedOrInProgressState) && Telemetry.Metrics.Transfers.Downloads.Queued.Files.Value > 0)
+                    {
+                        // if the transfer never transitioned to in progress but it was queued at any point, decrement queued
+                        Telemetry.Metrics.Transfers.Downloads.Queued.Files.Dec(1);
+                        Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Dec(transfer.Size);
+                    }
+                }, cancellationToken);
+
                 if (CancellationTokens.TryRemove(transfer.Id, out var storedCancellationTokenSource))
                 {
                     storedCancellationTokenSource?.Dispose();

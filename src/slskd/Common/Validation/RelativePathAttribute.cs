@@ -33,32 +33,46 @@
 namespace slskd.Validation
 {
     using System.ComponentModel.DataAnnotations;
-    using System.Runtime.InteropServices;
 
     /// <summary>
     ///     Validates that the specified path is relative.
     /// </summary>
     public class RelativePathAttribute : ValidationAttribute
     {
-        public RelativePathAttribute()
+        public RelativePathAttribute(OperatingSystem os = OperatingSystem.Current)
         {
-        }
+            if (os != OperatingSystem.Current && os != OperatingSystem.Any && os != OperatingSystem.All)
+            {
+                throw new System.ArgumentException("OperatingSystem argument for RelativePathAttribute must be one of: Current, Any, All", nameof(os));
+            }
 
-        public RelativePathAttribute(OSPlatform? os = null)
-        {
             OS = os;
         }
 
-        public OSPlatform? OS { get; }
+        public OperatingSystem OS { get; }
+
+        private OperatingSystem? Injected { get; }
+
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value != null && value is string str && !string.IsNullOrEmpty(str))
             {
                 var path = value.ToString();
 
-                if (!FileSafety.IsPathRelative(path, os: OS))
+                if (OS == OperatingSystem.Current)
                 {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
+                    if (!FileSafety.IsPathRelative(path, os: Injected ?? Compute.OperatingSystem()))
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path on the current operating system.");
+                    }
+
+                    return ValidationResult.Success;
+                }
+
+                // OS == OperatingSystem.All or .Any;
+                if (!FileSafety.IsPathRelative(path, os: OperatingSystem.Linux) || !FileSafety.IsPathRelative(path, os: OperatingSystem.Windows))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path on all operating systems.");
                 }
             }
 

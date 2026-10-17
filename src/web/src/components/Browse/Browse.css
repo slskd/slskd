@@ -9,10 +9,6 @@
   padding-right: .5em;
 }
 
-.browse-results {
-  margin: unset !important;
-}
-
 .browse-error {
   display: block;
   text-align: center;
@@ -20,54 +16,12 @@
   margin-top: 50px;
 }
 
-.browse-results-row {
-  padding-top: 0px !important;
-}
-
-.browse-results-row:last-child {
-  padding-bottom: 0px !important;  
-}
-
-.browse-folderlist {
-  width: 100% !important;
-  white-space: pre;
-  overflow: auto !important;
-  max-height: 400px;
-  padding: 1em !important;
-  box-shadow: unset !important;
-}
-
-.browse-folderlist-list {
-  margin: 0px !important;
-  margin-bottom: 1px !important;
-}
-
-.browse-folderlist-header {
-  cursor: pointer;
-  margin-left: 3px !important;
-}
-
-.browse-folderlist-icon {
-  float: left;
-}
-
-.browse-filelist {
-  width: 100% !important;
-  padding: 1em !important;
-}
-
-.ui.list .list, ol.ui.list ol, ul.ui.list ul {
-  padding-left: 0px !important;
-  padding-top: 3px !important;
-  padding-bottom: 0px !important;
-}
-
-.ui.list .list>.item>.icon+.content, .ui.list .list>.item>.image+.content, .ui.list>.item>.icon+.content, .ui.list>.item>.image+.content {
-  padding-left: 0px !important;
-}
-
 .browse-tree-card {
   width: 100% !important;
+}
+
+.browse-tree-wrapper {
+  margin-top: 0.5em;
 }
 
 .browse-container:last-child {
@@ -78,7 +32,88 @@
   margin-top: 5px;
 }
 
+.browse-selection-content {
+  margin-top: -20px;
+}
+
+.browse-folderlist-controls {
+  align-items: center;
+  display: flex;
+  gap: 0.5em;
+  margin-top: 20px;
+  margin-bottom: 0.75em;
+}
+
+.browse-folderlist-controls .ui.input {
+  flex: 1;
+}
+
+.browse-folderlist-row {
+  cursor: pointer;
+}
+
+/* border lives on the scroll container, not the table, so it stays fixed
+   to the viewport instead of scrolling away with the rest of the rows */
+.browse-folderlist-scroll {
+  border: 1px solid var(--smui-table-border-color, rgba(34, 36, 38, 0.15));
+  overflow: auto;
+}
+
+.browse-folderlist-scroll .ui.table {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-width: 100%;
+}
+
+.browse-folderlist-scroll .ui.table td {
+  border-left: none !important;
+  border-right: none !important;
+}
+
+.browse-folderlist-caption {
+  font-size: 0.8em;
+  margin-left: 0.5em;
+  opacity: 0.5;
+}
+
+.browse-folderlist-suffix {
+  float: right;
+}
+
+.browse-folderlist-resize-handle {
+  align-items: center;
+  cursor: ns-resize;
+  display: flex;
+  height: 24px;
+  justify-content: center;
+}
+
+.browse-folderlist-resize-grip {
+  align-items: center;
+  background-color: var(--smui-table-border-color, rgba(34, 36, 38, 0.15));
+  border-radius: 999px;
+  display: flex;
+  gap: 3px;
+  height: 12px;
+  justify-content: center;
+  width: 28px;
+}
+
+.browse-folderlist-resize-handle:hover .browse-folderlist-resize-grip {
+  background-color: var(--slskd-hover-background, rgba(128, 128, 128, 0.35));
+}
+
+.browse-folderlist-resize-grip span {
+  background-color: rgba(128, 128, 128, 0.7);
+  border-radius: 50%;
+  height: 3px;
+  width: 3px;
+}
+
 .browse-folderlist-header {
+  cursor: pointer;
+  margin-left: 3px !important;
   color: var(--slskd-browse-folderlist-header-color) !important;
   font-weight: 400 !important;
   opacity: 1 !important;
@@ -95,9 +130,14 @@
 }
 
 .browse-folderlist-icon {
+  float: left;
   color: var(--slskd-browse-folderlist-header-color) !important;
 }
 
 .browse-folderlist-icon.selected {
   color: var(--slskd-browse-folderlist-header-selected-color) !important;
+}
+
+.filebrowser-locked {
+  opacity: 0.5;
 }

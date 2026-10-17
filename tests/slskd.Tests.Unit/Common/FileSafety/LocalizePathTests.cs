@@ -20,9 +20,11 @@ public partial class FileSafetyTests
         [InlineData("C:\\Windows\\foo", "C:/Windows/foo")]
         [InlineData("C:/Windows/foo", "C:/Windows/foo")]
         [InlineData("", "")]
+        [InlineData("/", "/")]
+        [InlineData("\\", "/")]
         public void Linux_NormalizesToForwardSlash(string input, string expected)
         {
-            var result = FileSafety.LocalizePath(input, OSPlatform.Linux);
+            var result = FileSafety.LocalizePath(input, OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -40,9 +42,11 @@ public partial class FileSafetyTests
         [InlineData("C:\\Windows\\foo", "C:\\Windows\\foo")]
         [InlineData("C:/Windows/foo", "C:\\Windows\\foo")]
         [InlineData("", "")]
+        [InlineData("/", "\\")]
+        [InlineData("\\", "\\")]
         public void Windows_NormalizesToBackslash(string input, string expected)
         {
-            var result = FileSafety.LocalizePath(input, OSPlatform.Windows);
+            var result = FileSafety.LocalizePath(input, OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }

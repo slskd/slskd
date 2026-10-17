@@ -123,6 +123,13 @@ body {
 .pushable > .pusher.app-content {
     min-height: calc(100% - 71px);
     background: var(--background-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.app-content-body {
+    flex: 1;
+    padding-bottom: 40px; /* footer */
 }
 
 .navigation {
@@ -264,4 +271,50 @@ body {
 
 .message {
     padding: 8px 12px 8px 12px !important;
+}
+
+.footer.ui.menu {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+.footer-logo {
+    height: 18px;
+    width: 18px !important;
+    vertical-align: middle;
+}
+
+.footer-version {
+    margin-left: 6px;
+    font-family: monospace;
+    font-size: 14px;
+    opacity: 0.7;
+    margin-top: 1px;
+}
+
+.footer-license {
+    margin-left: 6px;
+    font-family: monospace;
+    font-size: 14px;
+    opacity: 0.5;
+    margin-top: 1px;
+}
+
+.footer-stat-detail {
+    margin-left: 6px;
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.footer-download,
+.footer-upload {
+    white-space: pre;
+    font-family: monospace;
+    font-size: 14px;
+    margin-top: 1px;
 }

@@ -6,7 +6,7 @@ using Xunit;
 
 namespace slskd.Tests.Unit.Transfers.API.DTO;
 
-public class QueueDownloadBatchRequestTests
+public class EnqueueDownloadBatchRequestTests
 {
     private static (bool IsValid, List<ValidationResult> Results) Validate(object obj)
     {
@@ -15,7 +15,7 @@ public class QueueDownloadBatchRequestTests
         return (isValid, results);
     }
 
-    private static QueueDownloadBatchRequest ValidRequest() => new()
+    private static EnqueueDownloadBatchRequest ValidRequest() => new()
     {
         Username = "testuser",
         Files = [new EnqueueDownloadBatchItem { Filename = "music.mp3", Size = 0 }],
@@ -24,7 +24,7 @@ public class QueueDownloadBatchRequestTests
     public class Id_Field
     {
         private static (bool IsValid, List<ValidationResult> Results) Validate(object obj)
-            => QueueDownloadBatchRequestTests.Validate(obj);
+            => EnqueueDownloadBatchRequestTests.Validate(obj);
 
         [Fact]
         public void Omitted_Passes()
@@ -60,7 +60,7 @@ public class QueueDownloadBatchRequestTests
     public class SearchId_Field
     {
         private static (bool IsValid, List<ValidationResult> Results) Validate(object obj)
-            => QueueDownloadBatchRequestTests.Validate(obj);
+            => EnqueueDownloadBatchRequestTests.Validate(obj);
 
         [Fact]
         public void Omitted_Passes()
@@ -96,7 +96,7 @@ public class QueueDownloadBatchRequestTests
     public class Username_Field
     {
         private static (bool IsValid, List<ValidationResult> Results) Validate(object obj)
-            => QueueDownloadBatchRequestTests.Validate(obj);
+            => EnqueueDownloadBatchRequestTests.Validate(obj);
 
         [Fact]
         public void Omitted_Fails()
@@ -149,7 +149,7 @@ public class QueueDownloadBatchRequestTests
     public class Files_Field
     {
         private static (bool IsValid, List<ValidationResult> Results) Validate(object obj)
-            => QueueDownloadBatchRequestTests.Validate(obj);
+            => EnqueueDownloadBatchRequestTests.Validate(obj);
 
         [Fact]
         public void Omitted_Fails_WithRequiredMessage()
@@ -173,7 +173,7 @@ public class QueueDownloadBatchRequestTests
     public class Files_Item
     {
         private static (bool IsValid, List<ValidationResult> Results) Validate(object obj)
-            => QueueDownloadBatchRequestTests.Validate(obj);
+            => EnqueueDownloadBatchRequestTests.Validate(obj);
 
         [Fact]
         public void NullFilename_Fails()
@@ -254,7 +254,7 @@ public class QueueDownloadBatchRequestTests
     public class Options_Destination
     {
         private static (bool IsValid, List<ValidationResult> Results) Validate(object obj)
-            => QueueDownloadBatchRequestTests.Validate(obj);
+            => EnqueueDownloadBatchRequestTests.Validate(obj);
 
         [Fact]
         public void Omitted_Passes()
@@ -280,12 +280,12 @@ public class QueueDownloadBatchRequestTests
         [InlineData("\\\\server\\share")]   // UNC
         public void AbsolutePath_Fails_Windows(string value)
         {
-            if (OperatingSystem.IsWindows())
+            if (System.OperatingSystem.IsWindows())
             {
                 var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
                 Assert.False(isValid);
                 Assert.Single(results);
-                Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+                Assert.Contains("must be a relative path", results[0].ErrorMessage);
             }
         }
 
@@ -295,12 +295,12 @@ public class QueueDownloadBatchRequestTests
         [InlineData("//server/share")]     // UNC
         public void AbsolutePath_Fails_Non_Windows(string value)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!System.OperatingSystem.IsWindows())
             {
                 var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
                 Assert.False(isValid);
                 Assert.Single(results);
-                Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+                Assert.Contains("must be a relative path", results[0].ErrorMessage);
             }
         }
 

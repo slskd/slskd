@@ -148,6 +148,7 @@ namespace slskd.Core.API
         ///     Forces garbage collection.
         /// </summary>
         /// <returns></returns>
+        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPost("gc")]
         [Authorize(Policy = AuthPolicy.Any)]
         public IActionResult CollectGarbage()
@@ -157,6 +158,7 @@ namespace slskd.Core.API
             return Ok();
         }
 
+        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpGet("dump")]
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> DumpMemory()
@@ -167,6 +169,7 @@ namespace slskd.Core.API
             return PhysicalFile(file, "application/octet-stream", "slskd.dmp");
         }
 
+        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPost("loopback")]
         [Authorize(Policy = AuthPolicy.Any)]
         public IActionResult Loopback([FromBody] object body)

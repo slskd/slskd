@@ -73,6 +73,16 @@ namespace slskd
         private Action<double> OnUpdate { get; }
 
         /// <summary>
+        ///     Resets the value.
+        /// </summary>
+        public void Reset()
+        {
+            Value = 0;
+            Initialized = false;
+            OnUpdate?.Invoke(Value);
+        }
+
+        /// <summary>
         ///     Updates the average with a new value.
         /// </summary>
         /// <param name="value"></param>

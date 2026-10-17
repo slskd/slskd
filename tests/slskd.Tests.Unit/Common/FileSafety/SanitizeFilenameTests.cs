@@ -24,7 +24,7 @@ public partial class FileSafetyTests
         public void Throws_Given_OsInvalid_Replacement_On_Unix()
         {
             // '\0' is invalid on Unix but not caught by the slash guard
-            var ex = Record.Exception(() => FileSafety.SanitizeFilename("file", '\0', OSPlatform.Linux));
+            var ex = Record.Exception(() => FileSafety.SanitizeFilename("file", '\0', OperatingSystem.Linux));
 
             Assert.NotNull(ex);
             Assert.IsType<ArgumentException>(ex);
@@ -35,7 +35,7 @@ public partial class FileSafetyTests
         public void Throws_Given_OsInvalid_Replacement_On_Windows()
         {
             // '*' is invalid on Windows but not caught by the slash guard
-            var ex = Record.Exception(() => FileSafety.SanitizeFilename("file", '*', OSPlatform.Windows));
+            var ex = Record.Exception(() => FileSafety.SanitizeFilename("file", '*', OperatingSystem.Windows));
 
             Assert.NotNull(ex);
             Assert.IsType<ArgumentException>(ex);
@@ -58,7 +58,7 @@ public partial class FileSafetyTests
         [InlineData("пользователь", "пользователь")]
         public void Linux_ReturnsUnchanged_Given_Safe_Filename(string input, string expected)
         {
-            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Linux);
+            var result = FileSafety.SanitizeFilename(input, '_', OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -69,7 +69,7 @@ public partial class FileSafetyTests
         [InlineData("trailing\0", "trailing_")]
         public void Linux_Replaces_NullByte(string input, string expected)
         {
-            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Linux);
+            var result = FileSafety.SanitizeFilename(input, '_', OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -80,7 +80,7 @@ public partial class FileSafetyTests
         [InlineData("has/both\\types", "has_both_types")]
         public void Linux_Replaces_Slashes(string input, string expected)
         {
-            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Linux);
+            var result = FileSafety.SanitizeFilename(input, '_', OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -92,7 +92,7 @@ public partial class FileSafetyTests
         [InlineData("\\\\server\\share", "__server_share")]
         public void Linux_Sanitizes_Full_Paths(string input, string expected)
         {
-            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Linux);
+            var result = FileSafety.SanitizeFilename(input, '_', OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -100,7 +100,7 @@ public partial class FileSafetyTests
         [Fact]
         public void Linux_Uses_Custom_Replacement()
         {
-            var result = FileSafety.SanitizeFilename("has/slash", '-', OSPlatform.Linux);
+            var result = FileSafety.SanitizeFilename("has/slash", '-', OperatingSystem.Linux);
 
             Assert.Equal("has-slash", result);
         }
@@ -116,7 +116,7 @@ public partial class FileSafetyTests
         [InlineData("file/name", "file_name")]
         public void Windows_Replaces_InvalidCharacters(string input, string expected)
         {
-            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Windows);
+            var result = FileSafety.SanitizeFilename(input, '_', OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -128,7 +128,7 @@ public partial class FileSafetyTests
         [InlineData("\\\\server\\share", "__server_share")]
         public void Windows_Sanitizes_Full_Paths(string input, string expected)
         {
-            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Windows);
+            var result = FileSafety.SanitizeFilename(input, '_', OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -137,7 +137,7 @@ public partial class FileSafetyTests
         public void Windows_Replaces_ControlCharacters()
         {
             var input = "file\x01\x1fname";
-            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Windows);
+            var result = FileSafety.SanitizeFilename(input, '_', OperatingSystem.Windows);
 
             Assert.Equal("file__name", result);
         }
@@ -148,9 +148,25 @@ public partial class FileSafetyTests
         [InlineData("My Artist", "My Artist")]
         public void Windows_ReturnsUnchanged_Given_Safe_Filename(string input, string expected)
         {
-            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Windows);
+            var result = FileSafety.SanitizeFilename(input, '_', OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
+        }
+
+        [Fact]
+        public void Linux_Accepts_Period_As_Replacement()
+        {
+            var result = FileSafety.SanitizeFilename("file\0name", '.', OperatingSystem.Linux);
+
+            Assert.Equal("file.name", result);
+        }
+
+        [Fact]
+        public void Windows_Accepts_Period_As_Replacement()
+        {
+            var result = FileSafety.SanitizeFilename("file*name", '.', OperatingSystem.Windows);
+
+            Assert.Equal("file.name", result);
         }
 
         [Fact]
@@ -159,6 +175,14 @@ public partial class FileSafetyTests
             var result = FileSafety.SanitizeFilename(null);
 
             Assert.Null(result);
+        }
+
+        [Fact]
+        public void Returns_EmptyString_Given_EmptyString()
+        {
+            var result = FileSafety.SanitizeFilename(string.Empty);
+
+            Assert.Equal(string.Empty, result);
         }
     }
 }

@@ -7,6 +7,17 @@
 }
 
 /*--------------
+     Selectable
+---------------*/
+
+.ui.selectable.table tbody tr:hover,
+.ui.table tbody tr td.selectable:hover,
+.ui.selectable.inverted.table tbody tr:hover,
+.ui.inverted.table tbody tr td.selectable:hover {
+  background: transparent !important;
+}
+
+/*--------------
      Negative
 ---------------*/
 

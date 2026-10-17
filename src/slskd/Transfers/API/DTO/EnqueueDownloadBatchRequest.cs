@@ -1,4 +1,4 @@
-// <copyright file="QueueDownloadBatchRequest.cs" company="JP Dillingham">
+// <copyright file="EnqueueDownloadBatchRequest.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -40,7 +40,7 @@ namespace slskd.Transfers.API;
 /// <summary>
 ///     Enqueue a batch of downloads.
 /// </summary>
-public record QueueDownloadBatchRequest
+public record EnqueueDownloadBatchRequest
 {
     /// <summary>
     ///     The ID of the Batch.
@@ -106,8 +106,13 @@ public record EnqueueDownloadBatchOptions
     /// <summary>
     ///     The destination directory for the files, relative to the configured download directory.
     /// </summary>
-    [RelativePath]
+    [RelativePath(OperatingSystem.All)]
     [NonTraversingPath]
     [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
     public string Destination { get; init; }
+
+    /// <summary>
+    ///     An optional external ID for the batch.
+    /// </summary>
+    public string ExternalId { get; init; }
 }

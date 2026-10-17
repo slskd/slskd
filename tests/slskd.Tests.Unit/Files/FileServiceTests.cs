@@ -34,7 +34,7 @@ namespace slskd.Tests.Unit.Files
         [Fact]
         public async Task ListContentsAsync_Throws_ArgumentException_Given_Relative_Path()
         {
-            var ex = await Record.ExceptionAsync(() => FileService.ListContentsAsync(directory: "../"));
+            var ex = await Record.ExceptionAsync(() => FileService.ListDirectoryContentsAsync(directory: "../"));
 
             Assert.NotNull(ex);
             Assert.IsType<ArgumentException>(ex);
@@ -53,7 +53,7 @@ namespace slskd.Tests.Unit.Files
                 }
             });
 
-            var ex = await Record.ExceptionAsync(() => FileService.ListContentsAsync(directory: Path.Combine(Temp, "foo")));
+            var ex = await Record.ExceptionAsync(() => FileService.ListDirectoryContentsAsync(directory: Path.Combine(Temp, "foo")));
 
             Assert.NotNull(ex);
             Assert.IsType<UnauthorizedException>(ex);
@@ -71,7 +71,7 @@ namespace slskd.Tests.Unit.Files
                 }
             });
 
-            var ex = await Record.ExceptionAsync(() => FileService.ListContentsAsync(directory: Path.Combine(Temp, "downloads", "foo")));
+            var ex = await Record.ExceptionAsync(() => FileService.ListDirectoryContentsAsync(directory: Path.Combine(Temp, "downloads", "foo")));
 
             Assert.NotNull(ex);
             Assert.IsType<NotFoundException>(ex);
@@ -155,11 +155,17 @@ namespace slskd.Tests.Unit.Files
 
             OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
-                Permissions = new Options.PermissionsOptions
+                Transfers = new Options.TransfersOptions
                 {
-                    File = new Options.PermissionsOptions.FileOptions
+                    Download = new Options.TransfersOptions.GlobalDownloadOptions
                     {
-                        Mode = mode,
+                        Destination = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions
+                        {
+                            Permissions = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions.DestinationPermissionsOptions
+                            {
+                                Mode = mode,
+                            }
+                        }
                     }
                 }
             });
@@ -204,11 +210,17 @@ namespace slskd.Tests.Unit.Files
 
             OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
-                Permissions = new Options.PermissionsOptions
+                Transfers = new Options.TransfersOptions
                 {
-                    File = new Options.PermissionsOptions.FileOptions
+                    Download = new Options.TransfersOptions.GlobalDownloadOptions
                     {
-                        Mode = mode,
+                        Destination = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions
+                        {
+                            Permissions = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions.DestinationPermissionsOptions
+                            {
+                                Mode = mode,
+                            }
+                        }
                     }
                 }
             });
@@ -262,11 +274,17 @@ namespace slskd.Tests.Unit.Files
 
             OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
-                Permissions = new Options.PermissionsOptions
+                Transfers = new Options.TransfersOptions
                 {
-                    File = new Options.PermissionsOptions.FileOptions
+                    Download = new Options.TransfersOptions.GlobalDownloadOptions
                     {
-                        Mode = mode,
+                        Destination = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions
+                        {
+                            Permissions = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions.DestinationPermissionsOptions
+                            {
+                                Mode = mode,
+                            }
+                        }
                     }
                 }
             });
@@ -316,11 +334,17 @@ namespace slskd.Tests.Unit.Files
 
             OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
-                Permissions = new Options.PermissionsOptions
+                Transfers = new Options.TransfersOptions
                 {
-                    File = new Options.PermissionsOptions.FileOptions
+                    Download = new Options.TransfersOptions.GlobalDownloadOptions
                     {
-                        Mode = mode,
+                        Destination = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions
+                        {
+                            Permissions = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions.DestinationPermissionsOptions
+                            {
+                                Mode = mode,
+                            }
+                        }
                     }
                 }
             });
@@ -367,11 +391,17 @@ namespace slskd.Tests.Unit.Files
 
             OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
-                Permissions = new Options.PermissionsOptions
+                Transfers = new Options.TransfersOptions
                 {
-                    File = new Options.PermissionsOptions.FileOptions
+                    Download = new Options.TransfersOptions.GlobalDownloadOptions
                     {
-                        Mode = optionsMode,
+                        Destination = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions
+                        {
+                            Permissions = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions.DestinationPermissionsOptions
+                            {
+                                Mode = optionsMode,
+                            }
+                        }
                     }
                 }
             });
@@ -401,11 +431,17 @@ namespace slskd.Tests.Unit.Files
 
             OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
-                Permissions = new Options.PermissionsOptions
+                Transfers = new Options.TransfersOptions
                 {
-                    File = new Options.PermissionsOptions.FileOptions
+                    Download = new Options.TransfersOptions.GlobalDownloadOptions
                     {
-                        Mode = optionsMode,
+                        Destination = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions
+                        {
+                            Permissions = new Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions.DestinationPermissionsOptions
+                            {
+                                Mode = optionsMode,
+                            }
+                        }
                     }
                 }
             });

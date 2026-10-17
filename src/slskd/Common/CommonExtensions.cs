@@ -382,21 +382,6 @@ namespace slskd
             .Deserialize<T>(str);
 
         /// <summary>
-        ///     Converts a fully qualified remote filename to a local filename based in the provided
-        ///     <paramref name="baseDirectory"/>, swapping directory characters for those specific to the local OS, removing any
-        ///     characters that are invalid for the local OS, and making the path relative to the remote store (including the
-        ///     filename and the parent folder).
-        /// </summary>
-        /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
-        /// <param name="baseDirectory">The base directory for the local filename.</param>
-        /// <returns>The converted filename.</returns>
-        [Obsolete("Find something more intelligent to do instead of this")]
-        public static string ToLocalFilename(this string remoteFilename, string baseDirectory)
-        {
-            return FileSafety.CombineSafely(baseDirectory, remoteFilename.ToLocalRelativeFilename());
-        }
-
-        /// <summary>
         ///     Converts the given path to the normalized format (normalizes path separators to backslashes).
         /// </summary>
         /// <remarks>
@@ -407,16 +392,6 @@ namespace slskd
         public static string NormalizePathForSoulseek(this string path)
         {
             return path.Replace('/', '\\');
-        }
-
-        /// <summary>
-        ///     Converts the given path to the local format (normalizes path separators to Path.DirectorySeparatorChar).
-        /// </summary>
-        /// <param name="path">The path to convert.</param>
-        /// <returns>The converted path.</returns>
-        public static string LocalizePath(this string path)
-        {
-            return path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
         }
 
         /// <summary>
@@ -437,55 +412,6 @@ namespace slskd
         public static string GetNormalizedFileName(this string path)
         {
             return path.Split('\\').TakeLast(1).First();
-        }
-
-        /// <summary>
-        ///     Converts a fully qualified remote filename to a local filename, swapping directory characters for those specific
-        ///     to the local OS, removing any characters that are invalid for the local OS, and making the path relative to the
-        ///     remote store (including the filename and the parent folder).
-        /// </summary>
-        /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
-        /// <returns>The converted filename.</returns>
-        [Obsolete("Find something more intelligent to do instead of this")]
-        public static string ToLocalRelativeFilename(this string remoteFilename)
-        {
-            if (string.IsNullOrWhiteSpace(remoteFilename))
-            {
-                throw new ArgumentException($"Invalid remote filename; expected a non-whitespace value, received '{remoteFilename}'", nameof(remoteFilename));
-            }
-
-            // normalize path separators
-            var localizedRemoteFilename = remoteFilename.LocalizePath();
-
-            var parts = localizedRemoteFilename.Split(Path.DirectorySeparatorChar);
-
-            if (parts.Length == 1)
-            {
-                return parts.First().ReplaceInvalidFileNameCharacters();
-            }
-
-            var file = parts.Last().ReplaceInvalidFileNameCharacters();
-            var directory = parts.Reverse().Skip(1).Take(1).Single().ReplaceInvalidFileNameCharacters();
-
-            return FileSafety.CombineSafely(directory, file);
-        }
-
-        /// <summary>
-        ///     Replaces any occurrence of an invalid filename character with the specified <see paramref="replacement"/>.
-        /// </summary>
-        /// <param name="path">The path to sanitize.</param>
-        /// <param name="replacement">The character with which to replace invalid characters.</param>
-        /// <returns>The sanitized path.</returns>
-        public static string ReplaceInvalidFileNameCharacters(this string path, char replacement = '_')
-        {
-            var sanitized = path;
-
-            foreach (var c in Path.GetInvalidFileNameChars())
-            {
-                sanitized = sanitized.Replace(c, replacement);
-            }
-
-            return sanitized;
         }
 
         /// <summary>

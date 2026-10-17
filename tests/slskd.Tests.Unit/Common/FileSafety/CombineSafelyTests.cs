@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using Xunit;
 
 namespace slskd.Tests.Unit.Common;
@@ -9,13 +8,14 @@ public partial class FileSafetyTests
 {
     public class CombineSafelyTests
     {
-        public static string Base = OperatingSystem.IsWindows() ? "C:\\base" : "/base";
+        public static string Base = System.OperatingSystem.IsWindows() ? "C:\\base" : "/base";
         public static string ExpectedStartsWith = Base + Path.DirectorySeparatorChar;
 
         [Theory]
         [InlineData(null)]
+        [InlineData("")]
         [InlineData("   ")]
-        public void Throws_ArgumentException_Given_NullOrWhiteSpaceRoot(string root)
+        public void Throws_ArgumentNullException_Given_NullOrWhiteSpaceRoot(string root)
         {
             var ex = Record.Exception(() => FileSafety.CombineSafely(root));
 
@@ -24,6 +24,10 @@ public partial class FileSafetyTests
         }
 
         [Theory]
+        [InlineData(".")]
+        [InlineData("..")]
+        [InlineData("./foo")]
+        [InlineData("../bar")]
         [InlineData("foo/../bar")]
         [InlineData("foo\\..\\bar")]
         public void Throws_ArgumentException_Given_TraversingRoot(string root)
@@ -119,7 +123,7 @@ public partial class FileSafetyTests
         [InlineData("//server/share")]
         public void Throws_ArgumentException_Given_AbsolutePath_On_Unix(string segment)
         {
-            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment));
 
             Assert.NotNull(ex);
             Assert.Contains("Absolute", ex.Message);
@@ -131,7 +135,7 @@ public partial class FileSafetyTests
         [InlineData("\\\\server\\share")]
         public void Throws_ArgumentException_Given_AbsolutePath_On_Windows(string segment)
         {
-            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Windows, segment));
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Windows, segment));
 
             Assert.NotNull(ex);
             Assert.Contains("Absolute", ex.Message);
@@ -144,7 +148,7 @@ public partial class FileSafetyTests
         [InlineData("sub/foo/bar:qux")]
         public void Throws_ArgumentException_Given_Colon_In_Segment_On_Windows(string segment)
         {
-            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Windows, segment));
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Windows, segment));
 
             Assert.NotNull(ex);
             Assert.Contains("Colon", ex.Message);
@@ -156,30 +160,18 @@ public partial class FileSafetyTests
         [InlineData("sub/foo/bar:qux")]
         public void Accepts_Colon_In_Segment_On_Linux(string segment)
         {
-            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment));
 
             Assert.Null(result);
         }
 
         [Theory]
         [InlineData("C:relative")]
-        public void Accepts_Colon_In_Segment_On_Linux_Hits_Backstop_On_Windows(string segment)
+        public void Accepts_Colon_In_Segment_On_Linux_When_Running_On_Windows(string segment)
         {
-            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+            var result = FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment);
 
-            if (!OperatingSystem.IsWindows())
-            {
-                Assert.Null(result);
-            }
-            else
-            {
-                // this test breaks when run on windows
-                // this is valid on linux (which we're trying to test for)
-                // but invalid on windows because it is a drive-relative path and it successfully traverses
-                Assert.NotNull(result);
-                Assert.IsType<ArgumentException>(result);
-                Assert.Contains("traversal detected", result.Message);
-            }
+            Assert.Equal($"{Base}/C:relative", result);
         }
 
         [Theory]
@@ -187,7 +179,7 @@ public partial class FileSafetyTests
         [InlineData("\\Music")]
         public void Throws_ArgumentException_Given_Leading_Slash_In_Segment_On_Windows(string segment)
         {
-            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Windows, segment));
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Windows, segment));
 
             Assert.NotNull(ex);
             Assert.Contains("Drive-relative", ex.Message);
@@ -197,21 +189,47 @@ public partial class FileSafetyTests
         [InlineData("\\Music")]
         public void Accepts_Leading_Backslash_In_Segment_On_Linux(string segment)
         {
-            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+            var result = FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment);
 
-            if (!OperatingSystem.IsWindows())
-            {
-                Assert.Null(result);
-            }
-            else
-            {
-                // this test breaks when run on windows
-                // this is valid on linux (which we're trying to test for)
-                // but invalid on windows because it is a drive-relative path and it successfully traverses
-                Assert.NotNull(result);
-                Assert.IsType<ArgumentException>(result);
-                Assert.Contains("traversal detected", result.Message);
-            }
+            Assert.Equal($"{Base}/\\Music", result);
+        }
+
+        [Fact]
+        public void Returns_Root_Given_Single_Empty_Segment()
+        {
+            var result = FileSafety.CombineSafely(Base, "");
+
+            Assert.Equal(Base, result);
+        }
+
+        [Fact]
+        public void Returns_Root_Given_All_Empty_Segments()
+        {
+            var result = FileSafety.CombineSafely(Base, "", "");
+
+            Assert.Equal(Base, result);
+        }
+
+        [Fact]
+        public void Handles_Root_With_Trailing_Separator()
+        {
+            var rootWithTrailing = Base + Path.DirectorySeparatorChar;
+            var result = FileSafety.CombineSafely(rootWithTrailing, "foo");
+
+            Assert.StartsWith(ExpectedStartsWith, result);
+            Assert.EndsWith("foo", result);
+        }
+
+        [Theory]
+        [InlineData("./foo")]
+        [InlineData("../bar")]
+        [InlineData("foo/../bar")]
+        public void Throws_ArgumentException_Given_TraversingRoot_With_Os_Override(string root)
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(root, OperatingSystem.Linux, "segment"));
+
+            Assert.NotNull(ex);
+            Assert.IsType<ArgumentException>(ex);
         }
 
         [Theory]

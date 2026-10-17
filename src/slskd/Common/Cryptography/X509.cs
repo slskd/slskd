@@ -64,7 +64,7 @@ namespace slskd.Cryptography
                 new DateTimeOffset(DateTime.UtcNow.AddDays(-1)),
                 new DateTimeOffset(DateTime.UtcNow.AddDays(36500)));
 
-            return new X509Certificate2(certificate.Export(X509ContentType.Pkcs12, password), password, x509KeyStorageFlags);
+            return X509CertificateLoader.LoadPkcs12(certificate.Export(X509ContentType.Pkcs12, password), password, x509KeyStorageFlags);
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace slskd.Cryptography
 
             try
             {
-                _ = new X509Certificate2(fileName, password);
+                _ = X509CertificateLoader.LoadPkcs12FromFile(fileName, password);
                 return true;
             }
             catch (Exception ex)
