@@ -285,6 +285,9 @@ namespace slskd
         [Argument('k', "generate-secret", "generate random secret of the specified length")]
         private static int GenerateSecret { get; set; }
 
+        [Argument(default, "generate-openapi", "generate an openapi spec and output to the specified file")]
+        private static string GenerateOpenAPI { get; set; }
+
         [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
 

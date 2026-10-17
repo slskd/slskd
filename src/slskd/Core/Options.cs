@@ -159,6 +159,16 @@ namespace slskd
         public bool GenerateSecret { get; init; } = false;
 
         /// <summary>
+        ///     Gets the location to which an OpenAPI spec should be written.
+        /// </summary>
+        [Argument(default, "generate-openapi")]
+        [Description("generate an openapi spec and output to the specified file")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
+        [YamlIgnore]
+        public string GenerateOpenAPI { get; init; }
+
+        /// <summary>
         ///     Gets a value indicating whether the application should run in debug mode.
         /// </summary>
         [Argument('d', "debug")]
