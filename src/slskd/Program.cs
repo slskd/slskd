@@ -96,6 +96,8 @@ namespace slskd
     using slskd.Users;
     using slskd.Validation;
     using Soulseek;
+    using Swashbuckle.AspNetCore.Swagger;
+    using Swashbuckle.AspNetCore.SwaggerGen;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
     using IOFile = System.IO.File;
@@ -640,6 +642,21 @@ namespace slskd
                 if (OptionsAtStartup.Flags.NoStart)
                 {
                     Log.Information("Quitting because 'no-start' option is enabled");
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(GenerateOpenAPI))
+                {
+                    var document = app.Services.GetRequiredService<ISwaggerProvider>().GetSwagger("all");
+
+                    var extension = Path.GetExtension(GenerateOpenAPI).ToLowerInvariant();
+                    var spec = extension.Equals("yaml", StringComparison.OrdinalIgnoreCase) || extension.Equals(".yml", StringComparison.OrdinalIgnoreCase)
+                        ? document.SerializeAsYamlAsync(OpenApiSpecVersion.OpenApi3_0).GetAwaiter().GetResult()
+                        : document.SerializeAsJsonAsync(OpenApiSpecVersion.OpenApi3_0).GetAwaiter().GetResult();
+
+                    IOFile.WriteAllText(GenerateOpenAPI, spec);
+
+                    Log.Information($"OpenAPI spec written to {GenerateOpenAPI}");
                     return;
                 }
 
