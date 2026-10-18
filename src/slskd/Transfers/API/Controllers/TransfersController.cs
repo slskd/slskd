@@ -709,7 +709,7 @@ namespace slskd.Transfers.API
                 return BadRequest();
             }
 
-            var upload = Transfers.Uploads.Find(t => t.Id == guid);
+            var upload = Transfers.Uploads.Find(guid);
 
             if (upload == default)
             {
