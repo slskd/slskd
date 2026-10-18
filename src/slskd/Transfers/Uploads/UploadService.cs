@@ -96,11 +96,11 @@ namespace slskd.Transfers.Uploads
         Task<Transfer> UploadAsync(Transfer transfer, CancellationToken cancellationToken = default);
 
         /// <summary>
-        ///     Finds a single upload matching the specified <paramref name="expression"/>.
+        ///     Finds a single upload matching the specified <paramref name="id"/>.
         /// </summary>
-        /// <param name="expression">The expression to use to match uploads.</param>
+        /// <param name="id">The unique identifier of the upload.</param>
         /// <returns>The found transfer, or default if not found.</returns>
-        Transfer Find(Expression<Func<Transfer, bool>> expression);
+        Transfer Find(Guid id);
 
         /// <summary>
         ///     Gets upload statistics for the specified <paramref name="username"/>.
@@ -306,7 +306,7 @@ namespace slskd.Transfers.Uploads
                     we're not using DbContext and tracked changes here because we don't want to hold a connection
                     open for the duration of the upload
                 */
-                transfer = Find(t => t.Id == transfer.Id)
+                transfer = Find(transfer.Id)
                     ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
 
                 if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
@@ -804,21 +804,15 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Finds a single upload matching the specified <paramref name="expression"/>.
+        ///     Finds a single upload matching the specified <paramref name="id"/>.
         /// </summary>
-        /// <param name="expression">The expression to use to match uploads.</param>
+        /// <param name="id">The unique identifier of the upload.</param>
         /// <returns>The found transfer, or default if not found.</returns>
-        public Transfer Find(Expression<Func<Transfer, bool>> expression)
+        public Transfer Find(Guid id)
         {
             try
             {
-                using var context = ContextFactory.CreateDbContext();
-
-                return context.Transfers
-                    .AsNoTracking()
-                    .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(expression)
-                    .SingleOrDefault();
+                return Query(q => q.Where(t => t.Id == id), includeRemoved: true).SingleOrDefault();
             }
             catch (Exception ex)
             {
@@ -1111,7 +1105,7 @@ namespace slskd.Transfers.Uploads
 
         private bool TryFail(Guid id, string exception, TransferStates state)
         {
-            var t = Find(t => t.Id == id);
+            var t = Find(id);
 
             if (t is null)
             {
