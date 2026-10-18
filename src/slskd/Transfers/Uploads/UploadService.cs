@@ -45,6 +45,7 @@ namespace slskd.Transfers.Uploads
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
+    using Microsoft.EntityFrameworkCore.Query;
     using Serilog;
     using slskd.Events;
     using slskd.Relay;
@@ -111,9 +112,9 @@ namespace slskd.Transfers.Uploads
         UserUploadStatistics GetUserStatistics(string username, DateTime? utcNow = null);
 
         /// <summary>
-        ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
+        ///     Returns a list of all uploads matching the specified <paramref name="expression"/>.
         /// </summary>
-        /// <param name="expression">An optional expression used to match uploads.</param>
+        /// <param name="expression">An expression used to match uploads.</param>
         /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
         /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
         List<Transfer> List(Expression<Func<Transfer, bool>> expression, bool includeRemoved);
@@ -822,14 +823,26 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
+        ///     Returns a list of all uploads matching the specified <paramref name="expression"/>.
         /// </summary>
-        /// <param name="expression">An optional expression used to match uploads.</param>
+        /// <param name="expression">An expression used to match uploads.</param>
         /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
         /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
         public List<Transfer> List(Expression<Func<Transfer, bool>> expression, bool includeRemoved)
         {
             expression ??= t => true;
+
+            try
+            {
+                return Query(q => q.Where(expression), includeRemoved);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to list uploads: {Message}", ex.Message);
+                throw;
+            }
+        }
+
         /// <summary>
         ///     Returns a list of all uploads matching the specified <paramref name="query"/>, projected to type <typeparamref name="TResult"/>.
         /// </summary>
