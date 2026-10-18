@@ -1445,9 +1445,16 @@ namespace slskd
 
             try
             {
-                var upload = Transfers.Uploads.Find(u => u.Username == username && u.Filename == filename);
+                var upload = Transfers.Uploads.Query(q =>
+                    q
+                        .Where(t => t.Username == username && t.Filename == filename && t.EnqueuedAt != null)
+                        .OrderByDescending(t => t.EnqueuedAt)
+                        .Take(1),
+                    includeRemoved: false)
+                    .FirstOrDefault();
 
-                if (upload is null) // transfer doesn't exist at all
+                // transfer might not be in the queue at all, or might not exist
+                if (upload is null)
                 {
                     return Task.FromResult<int?>(null);
                 }

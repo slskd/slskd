@@ -103,6 +103,14 @@ namespace slskd.Transfers.Uploads
         Transfer Find(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
+        ///     Returns a list of all uploads matching the specified <paramref name="query"/>.
+        /// </summary>
+        /// <param name="query">The query expression.</param>
+        /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
+        /// <returns>The list of uploads matching the specified query.</returns>
+        List<Transfer> Query(Func<IQueryable<Transfer>, IQueryable<Transfer>> query, bool includeRemoved = false);
+
+        /// <summary>
         ///     Gets upload statistics for the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username of the user.</param>
@@ -844,6 +852,26 @@ namespace slskd.Transfers.Uploads
                 Log.Error(ex, "Failed to list uploads: {Message}", ex.Message);
                 throw;
             }
+        }
+
+        /// <summary>
+        ///     Returns a list of all uploads matching the specified <paramref name="query"/>.
+        /// </summary>
+        /// <param name="query">The query expression.</param>
+        /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
+        /// <returns>The list of uploads matching the specified query.</returns>
+        public List<Transfer> Query(Func<IQueryable<Transfer>, IQueryable<Transfer>> query, bool includeRemoved = false)
+        {
+            using var context = ContextFactory.CreateDbContext();
+
+            var transfers = context.Transfers.AsNoTracking();
+
+            if (!includeRemoved)
+            {
+                transfers = transfers.Where(t => !t.Removed);
+            }
+
+            return query(transfers).ToList();
         }
 
         /// <summary>
