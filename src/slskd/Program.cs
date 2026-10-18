@@ -650,7 +650,7 @@ namespace slskd
                     var document = app.Services.GetRequiredService<ISwaggerProvider>().GetSwagger("all");
 
                     var extension = Path.GetExtension(GenerateOpenAPI).ToLowerInvariant();
-                    var spec = extension.Equals("yaml", StringComparison.OrdinalIgnoreCase) || extension.Equals(".yml", StringComparison.OrdinalIgnoreCase)
+                    var spec = extension.Equals(".yaml", StringComparison.OrdinalIgnoreCase) || extension.Equals(".yml", StringComparison.OrdinalIgnoreCase)
                         ? document.SerializeAsYamlAsync(OpenApiSpecVersion.OpenApi3_0).GetAwaiter().GetResult()
                         : document.SerializeAsJsonAsync(OpenApiSpecVersion.OpenApi3_0).GetAwaiter().GetResult();
 
