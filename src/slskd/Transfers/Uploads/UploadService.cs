@@ -127,6 +127,15 @@ namespace slskd.Transfers.Uploads
         int Prune(int age, params TransferStates[] states);
 
         /// <summary>
+        ///     Returns a list of all uploads matching the specified <paramref name="query"/>, projected to type <typeparamref name="TResult"/>.
+        /// </summary>
+        /// <typeparam name="TResult">The Type of the returned projection.</typeparam>
+        /// <param name="query">The query expression.</param>
+        /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
+        /// <returns>The list of uploads matching the specified query.</returns>
+        List<TResult> Query<TResult>(Func<IQueryable<Transfer>, IQueryable<TResult>> query, bool includeRemoved = false);
+
+        /// <summary>
         ///     Removes the completed upload matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
