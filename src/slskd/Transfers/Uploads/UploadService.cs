@@ -827,21 +827,42 @@ namespace slskd.Transfers.Uploads
         public List<Transfer> List(Expression<Func<Transfer, bool>> expression, bool includeRemoved)
         {
             expression ??= t => true;
+        /// <summary>
+        ///     Returns a list of all uploads matching the specified <paramref name="query"/>, projected to type <typeparamref name="TResult"/>.
+        /// </summary>
+        /// <typeparam name="TResult">The Type of the returned projection.</typeparam>
+        /// <param name="query">The query expression.</param>
+        /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
+        /// <returns>The list of uploads matching the specified query.</returns>
+        public List<TResult> Query<TResult>(Func<IQueryable<Transfer>, IQueryable<TResult>> query, bool includeRemoved = false)
+        {
+            ArgumentNullException.ThrowIfNull(query);
 
             try
             {
                 using var context = ContextFactory.CreateDbContext();
 
-                return context.Transfers
+                var transfers = context.Transfers
                     .AsNoTracking()
-                    .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(t => !t.Removed || includeRemoved)
-                    .Where(expression)
-                    .ToList();
+                    .Where(t => t.Direction == TransferDirection.Upload);
+
+                if (!includeRemoved)
+                {
+                    transfers = transfers.Where(t => !t.Removed);
+                }
+
+                var result = query(transfers);
+
+                if (result.Provider is not IAsyncQueryProvider)
+                {
+                    throw new InvalidOperationException("Query must be fully translatable to SQL; in-memory evaluation is not allowed (remove any AsEnumerable() present in the query)");
+                }
+
+                return result.ToList();
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to list uploads: {Message}", ex.Message);
+                Log.Error(ex, "Failed to execute upload queury: {Message}", ex.Message);
                 throw;
             }
         }
