@@ -25,9 +25,6 @@ done
 # dotnet run executes from the project directory, so resolve the output path against the current directory
 output=$(realpath -m "$output")
 
-# create the destination directory (and any parents) if it doesn't exist
-mkdir -p "$(dirname "$output")"
-
 echo $'\n\t🛠️  dotnet run --project src/slskd --configuration Release -- --swagger --generate-openapi '$output$'\n'
 dotnet run --project src/slskd --configuration Release -- --swagger --generate-openapi "$output"
 

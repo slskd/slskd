@@ -100,6 +100,7 @@ namespace slskd
     using Swashbuckle.AspNetCore.SwaggerGen;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
+    using IODirectory = System.IO.Directory;
     using IOFile = System.IO.File;
 
     /// <summary>
@@ -654,6 +655,7 @@ namespace slskd
                         ? document.SerializeAsYamlAsync(OpenApiSpecVersion.OpenApi3_0).GetAwaiter().GetResult()
                         : document.SerializeAsJsonAsync(OpenApiSpecVersion.OpenApi3_0).GetAwaiter().GetResult();
 
+                    IODirectory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(GenerateOpenAPI)));
                     IOFile.WriteAllText(GenerateOpenAPI, spec);
 
                     Log.Information($"OpenAPI spec written to {GenerateOpenAPI}");
