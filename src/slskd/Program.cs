@@ -382,7 +382,11 @@ namespace slskd
             // only one long-running instance.
             try
             {
-                Mutex = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName), out bool created);
+                Mutex = new Mutex(
+                    initiallyOwned: true,
+                    name: Compute.Sha256Hash(AppName),
+                    options: new NamedWaitHandleOptions { CurrentUserOnly = false, CurrentSessionOnly = true },
+                    out bool created);
 
                 if (!created)
                 {
@@ -1259,8 +1263,7 @@ namespace slskd
                             Path.Combine(LogDirectory, $"{AppName}-.log"),
                             outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:yyyy-MM-ddTHH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day,
-                            retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs),
-                            shared: true))) // allow log file to be read concurrently
+                            retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs))))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
                     config =>
