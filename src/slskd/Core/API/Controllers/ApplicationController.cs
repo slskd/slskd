@@ -150,7 +150,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPost("gc")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
         public IActionResult CollectGarbage()
         {
             Application.CollectGarbage();
