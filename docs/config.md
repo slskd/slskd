@@ -167,6 +167,19 @@ to delete is disabled by default.  Deletions can be enabled by enabling the remo
 remote_file_management: false
 ```
 
+## Remote Memory Dumps
+
+The process memory dump API is disabled by default. When enabled, only administrators can request a dump. A full dump may contain passwords, API keys, and other secrets held in process memory.
+
+| Command-Line           | Environment Variable       | Description                         |
+| ---------------------- | -------------------------- | ----------------------------------- |
+| `--remote-memory-dump` | `SLSKD_REMOTE_MEMORY_DUMP` | Allows remote process memory dumps  |
+
+#### **YAML**
+```yaml
+remote_memory_dump: false
+```
+
 # Shares
 
 ## Directories

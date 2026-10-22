@@ -193,6 +193,14 @@ namespace slskd
         public bool RemoteFileManagement { get; init; } = false;
 
         /// <summary>
+        ///     Gets a value indicating whether remote process memory dumps are allowed.
+        /// </summary>
+        [Argument(default, "remote-memory-dump")]
+        [EnvironmentVariable("REMOTE_MEMORY_DUMP")]
+        [Description("allow remote process memory dumps")]
+        public bool RemoteMemoryDump { get; init; } = false;
+
+        /// <summary>
         ///     Gets the unique name for this instance.
         /// </summary>
         [Argument('i', "instance-name")]

@@ -160,9 +160,14 @@ namespace slskd.Core.API
 
         [ApiExplorerSettings(IgnoreApi = true)]
         [HttpGet("dump")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
         public async Task<IActionResult> DumpMemory()
         {
+            if (!OptionsMonitor.CurrentValue.RemoteMemoryDump)
+            {
+                return Forbid();
+            }
+
             using var dumper = new Dumper();
             var file = await dumper.DumpAsync();
 

@@ -2,6 +2,7 @@
 # headless: false
 # remote_configuration: false
 # remote_file_management: false
+# remote_memory_dump: false
 # instance_name: default
 # flags:
 #   no_logo: false
