@@ -123,7 +123,7 @@ public class EventsController : ControllerBase
     /// <response code="500">An unexpected error is encountered.</response>
     /// <response code="201">The request completed successfully.</response>
     [HttpPost("{type}", Name = nameof(RaiseEvent))]
-    [Authorize(Policy = AuthPolicy.Any)]
+    [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
