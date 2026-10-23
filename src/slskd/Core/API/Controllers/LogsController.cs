@@ -51,6 +51,7 @@ namespace slskd.Core.API
     [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
+    [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
     public class LogsController : ControllerBase
     {
         public LogsController(FileService fileService)
