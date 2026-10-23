@@ -40,6 +40,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Net;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using NetTools;
 using Serilog;
@@ -121,11 +123,12 @@ public class SecurityService
             keys = keys.Prepend(new KeyValuePair<string, Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions>(nameof(PrimaryApiKey), PrimaryApiKey));
         }
 
-        var record = keys.FirstOrDefault(k => k.Value.Key == key);
+        var keyBytes = Encoding.UTF8.GetBytes(key ?? string.Empty);
+        var record = keys.FirstOrDefault(k => k.Value.Key is not null && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(k.Value.Key), keyBytes));
 
         if (record.Key == null)
         {
-            throw new NotFoundException($"Unknown API key beginning with: {key.Substring(0, 4)}");
+            throw new NotFoundException("Unknown API key");
         }
 
         // looks like '::ffff:127.0.0.1'; not compatible with CIDR.Contains(), so convert it back to IPv4
