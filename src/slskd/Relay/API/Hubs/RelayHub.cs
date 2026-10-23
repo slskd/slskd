@@ -85,7 +85,7 @@ namespace slskd.Relay
     /// <summary>
     ///     The relay SignalR hub.
     /// </summary>
-    [Authorize]
+    [Authorize(Policy = AuthPolicy.Any)]
     public class RelayHub : Hub<IRelayHub>
     {
         /// <summary>
