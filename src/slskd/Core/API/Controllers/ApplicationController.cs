@@ -36,6 +36,7 @@ namespace slskd.Core.API
 {
     using System;
     using System.Diagnostics;
+    using System.IO;
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
@@ -181,7 +182,9 @@ namespace slskd.Core.API
 
                 Log.Warning("Dump complete");
 
-                return PhysicalFile(file, "application/octet-stream", "slskd.dmp");
+                // the dump contains everything in memory, including secrets. delete it once it has been sent
+                var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None, bufferSize: 4096, FileOptions.DeleteOnClose);
+                return File(stream, "application/octet-stream", "slskd.dmp");
             }
 
             Log.Warning("Unauthorized attempt to dump application memory; Flags.Dumpable is disabled");
