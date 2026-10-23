@@ -375,6 +375,7 @@ namespace slskd.Relay
             {
                 Log.Warning("Suspicious attempt to request file info containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
                 await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, false, 0);
+                return;
             }
 
             Log.Information("Relay controller requested file info for {Filename} with ID {Id}", filename, id);
@@ -399,7 +400,8 @@ namespace slskd.Relay
             if (FileSafety.ContainsTraversalSegments(filename))
             {
                 Log.Warning("Suspicious attempt to request a file upload containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
-                await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
+                await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token, "Requested filename contains unsafe path segments");
+                return;
             }
 
             _ = Task.Run(async () =>
