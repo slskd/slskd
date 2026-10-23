@@ -86,10 +86,10 @@ namespace slskd
 
             if (!System.OperatingSystem.IsWindows())
             {
-                await ExecAsync("/bin/sh", $"-c \"chmod +x {BinFile}\"");
+                await ExecAsync("/bin/chmod", $"+x \"{BinFile}\"");
             }
 
-            await ExecAsync(BinFile, $"collect --process-id {Environment.ProcessId} --type full --output {outputFile}");
+            await ExecAsync(BinFile, $"collect --process-id {Environment.ProcessId} --type full --output \"{outputFile}\"");
 
             return outputFile;
         }
@@ -124,6 +124,11 @@ namespace slskd
             process.StartInfo.Arguments = args;
             process.Start();
             await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0)
+            {
+                throw new SlskdException($"'{bin}' exited with code {process.ExitCode}");
+            }
         }
 
         private string GetRID()
