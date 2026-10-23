@@ -53,7 +53,6 @@ namespace slskd.Core.API
     [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
-    [Authorize(Roles = AuthRole.AdministratorOnly)]
     public class OptionsController : ControllerBase
     {
         public OptionsController(
@@ -76,7 +75,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Current()
         {
@@ -197,7 +196,7 @@ namespace slskd.Core.API
 
             if (!TryValidateYaml(yaml, out var error))
             {
-                Log.Error(error, "Failed to validate YAML configuration");
+                Log.Error("Failed to validate YAML configuration: {Error}", error);
                 return BadRequest(error);
             }
 
