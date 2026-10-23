@@ -42,7 +42,6 @@ namespace slskd
     {
         public const string AdministratorOnly = "Administrator";
         public const string ReadWriteOrAdministrator = "ReadWrite,Administrator";
-        public const string GuestOrAdministrator = "Guest,Administrator";
-        public const string Any = "ReadOnly,ReadWrite,Guest,Administrator";
+        public const string Any = "Guest,ReadOnly,ReadWrite,Administrator";
     }
 }
