@@ -148,7 +148,15 @@ namespace slskd.Relay
 
                         // the controller will send an authentication challenge immediately after connection
                         // wait for the auth handler to log in before proceeding with the initial share upload
-                        await LoggedInTaskCompletionSource.Task;
+                        try
+                        {
+                            await LoggedInTaskCompletionSource.Task;
+                        }
+                        catch (Exception)
+                        {
+                            await StopAsync(cancellationToken);
+                            throw;
+                        }
 
                         Log.Information("Uploading shares...");
 
