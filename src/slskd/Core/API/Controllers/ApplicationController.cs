@@ -42,6 +42,7 @@ namespace slskd.Core.API
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Extensions.Hosting;
     using Serilog;
+    using slskd.Authentication;
 
     /// <summary>
     ///     Application.
@@ -57,17 +58,20 @@ namespace slskd.Core.API
             IHostApplicationLifetime lifetime,
             IApplication application,
             IOptionsMonitor<Options> optionsMonitor,
+            OptionsAtStartup optionsAtStartup,
             IStateMonitor<State> applicationStateMonitor)
         {
             Lifetime = lifetime;
             Application = application;
             OptionsMonitor = optionsMonitor;
+            OptionsAtStartup = optionsAtStartup;
             ApplicationStateMonitor = applicationStateMonitor;
         }
 
         private IApplication Application { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private OptionsAtStartup OptionsAtStartup { get; }
         private IHostApplicationLifetime Lifetime { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ApplicationController>();
 
@@ -160,13 +164,23 @@ namespace slskd.Core.API
 
         [ApiExplorerSettings(IgnoreApi = true)]
         [HttpGet("dump")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
         public async Task<IActionResult> DumpMemory()
         {
-            using var dumper = new Dumper();
-            var file = await dumper.DumpAsync();
+            if (OptionsAtStartup.Flags.Dumpable)
+            {
+                Log.Warning("Dumping application memory...");
 
-            return PhysicalFile(file, "application/octet-stream", "slskd.dmp");
+                using var dumper = new Dumper();
+                var file = await dumper.DumpAsync();
+
+                Log.Warning("Dump complete");
+
+                return PhysicalFile(file, "application/octet-stream", "slskd.dmp");
+            }
+
+            Log.Warning("Unauthorized attempt to dump application memory; Flags.Dumpable is disabled");
+            return Forbid();
         }
 
         [ApiExplorerSettings(IgnoreApi = true)]
