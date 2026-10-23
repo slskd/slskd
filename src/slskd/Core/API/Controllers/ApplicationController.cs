@@ -137,11 +137,16 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpGet("version/latest")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.Any)]
         public async Task<IActionResult> CheckVersion([FromQuery] bool forceCheck = false)
         {
             if (forceCheck)
             {
+                if (!User.IsInRole(nameof(Role.ReadWrite)) && !User.IsInRole(nameof(Role.Administrator)))
+                {
+                    return Forbid();
+                }
+
                 await Application.CheckVersionAsync();
             }
 
