@@ -366,6 +366,7 @@ namespace slskd.Relay
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to handle authentication challenge: {Message}", ex.Message);
+                LoggedInTaskCompletionSource.TrySetException(ex);
             }
         }
 
