@@ -185,7 +185,7 @@ namespace slskd.Core.API
 
         [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPost("loopback")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         public IActionResult Loopback([FromBody] object body)
         {
             Log.Information("Loopback POST: {Body}", body);
