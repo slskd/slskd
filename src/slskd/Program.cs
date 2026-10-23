@@ -509,6 +509,11 @@ namespace slskd
             Log.Information("Using application directory {AppDirectory}", AppDirectory);
             Log.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
 
+            if (OptionsAtStartup.Flags.Dumpable)
+            {
+                Log.Warning("Application memory dumps are ENABLED; this can expose sensitive information, including environment variables from the shell.  Disable Flags.Dumpable to disable.");
+            }
+
             if (OptionsAtStartup.Flags.NoConfigWatch)
             {
                 Log.Warning("Configuration watch DISABLED; all configuration changes will require a restart to take effect");
