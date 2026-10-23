@@ -123,7 +123,7 @@ public class EventsController : ControllerBase
     /// <response code="500">An unexpected error is encountered.</response>
     /// <response code="201">The request completed successfully.</response>
     [HttpPost("{type}", Name = nameof(RaiseEvent))]
-    [Authorize(Policy = AuthPolicy.Any)]
+    [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
@@ -131,7 +131,7 @@ public class EventsController : ControllerBase
     [ProducesResponseType(typeof(Event), 201)]
     public IActionResult RaiseEvent([FromRoute] string type, [FromBody] string disambiguator)
     {
-        if (!Enum.TryParse<EventType>(type, ignoreCase: true, out var eventType))
+        if (!Enum.TryParse<EventType>(type, ignoreCase: true, out var eventType) || !Enum.IsDefined(eventType))
         {
             var names = Enum.GetNames(typeof(EventType))
                 .Where(n => n != EventType.Any.ToString() && n != EventType.None.ToString());
