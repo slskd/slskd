@@ -95,7 +95,7 @@ namespace slskd.Files.API
         [ProducesResponseType(401)]
         [ProducesResponseType(403)]
         [ProducesResponseType(404)]
-        public Task<IActionResult> GetDownloadSubdirectoryContentsAsync([FromRoute] string base64SubdirectoryName, [FromQuery] bool recursive = false)
+        public Task<IActionResult> GetDownloadSubdirectoryContentsAsync([FromRoute, UrlEncoded] string base64SubdirectoryName, [FromQuery] bool recursive = false)
             => ListDirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Downloads, base64SubdirectoryName, recursive);
 
         /// <summary>
@@ -108,9 +108,9 @@ namespace slskd.Files.API
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("downloads/directories/{base64SubdirectoryName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
-        public Task<IActionResult> DeleteDownloadSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
+        public Task<IActionResult> DeleteDownloadSubdirectoryAsync([FromRoute, UrlEncoded] string base64SubdirectoryName)
             => DeleteSubdirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Downloads, base64SubdirectoryName);
 
         /// <summary>
@@ -123,9 +123,9 @@ namespace slskd.Files.API
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("downloads/files/{base64FileName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
-        public Task<IActionResult> DeleteDownloadFileAsync([FromRoute] string base64FileName)
+        public Task<IActionResult> DeleteDownloadFileAsync([FromRoute, UrlEncoded] string base64FileName)
             => DeleteFileAsync(rootDirectory: OptionsSnapshot.Value.Directories.Downloads, base64FileName);
 
         /// <summary>
@@ -154,7 +154,7 @@ namespace slskd.Files.API
         [HttpGet("incomplete/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(FilesystemDirectory), 200)]
-        public Task<IActionResult> GetIncompleteSubdirectoryContentsAsync([FromRoute, Required] string base64SubdirectoryName, [FromQuery] bool recursive = false)
+        public Task<IActionResult> GetIncompleteSubdirectoryContentsAsync([FromRoute, UrlEncoded, Required] string base64SubdirectoryName, [FromQuery] bool recursive = false)
             => ListDirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Incomplete, base64SubdirectoryName, recursive);
 
         /// <summary>
@@ -167,9 +167,9 @@ namespace slskd.Files.API
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("incomplete/directories/{base64SubdirectoryName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
-        public Task<IActionResult> DeleteIncompleteSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
+        public Task<IActionResult> DeleteIncompleteSubdirectoryAsync([FromRoute, UrlEncoded] string base64SubdirectoryName)
             => DeleteSubdirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Incomplete, base64SubdirectoryName);
 
         /// <summary>
@@ -182,9 +182,9 @@ namespace slskd.Files.API
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("incomplete/files/{base64FileName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
-        public Task<IActionResult> DeleteIncompleteFileAsync([FromRoute] string base64FileName)
+        public Task<IActionResult> DeleteIncompleteFileAsync([FromRoute, UrlEncoded] string base64FileName)
             => DeleteFileAsync(rootDirectory: OptionsSnapshot.Value.Directories.Incomplete, base64FileName);
 
         private async Task<IActionResult> ListDirectoryAsync(string rootDirectory, string base64SubdirectoryName = null, bool recursive = false)
