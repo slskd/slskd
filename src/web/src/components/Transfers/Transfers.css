@@ -56,3 +56,9 @@
   display: inline;
   margin-left: auto;
 }
+
+.transfers-pagination {
+  display: flex;
+  justify-content: center;
+  margin: 1em 0;
+}
