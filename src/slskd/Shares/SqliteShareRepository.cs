@@ -753,6 +753,7 @@ namespace slskd.Shares
             {
                 if (disposing)
                 {
+                    KeepaliveTimer.Dispose();
                     KeepaliveConnection.Dispose();
                 }
 
