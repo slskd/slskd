@@ -1466,6 +1466,7 @@ namespace slskd
             [EnvironmentVariable("LOKI")]
             [Description("optional; url to a Grafana Loki instance to which to log")]
             [RequiresRestart]
+            [Secret]
             public string Loki { get; init; } = null;
 
             /// <summary>
@@ -2585,6 +2586,7 @@ namespace slskd
                 ///     Gets the fully qualified URL for the webhook.
                 /// </summary>
                 [NotNullOrWhiteSpace]
+                [Secret]
                 public string Url { get; init; }
 
                 /// <summary>
@@ -2621,6 +2623,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets the header's value.
                 /// </summary>
+                [Secret]
                 public string Value { get; init; }
             }
 
@@ -2661,6 +2664,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets the shell command to run.
                 /// </summary>
+                [Secret]
                 public string Command { get; init; }
 
                 /// <summary>
@@ -2674,6 +2678,7 @@ namespace slskd
                 /// <remarks>
                 ///     Mutually exclusive with <see cref="Arglist"/>.
                 /// </remarks>
+                [Secret]
                 public string Args { get; init; }
 
                 /// <summary>
