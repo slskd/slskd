@@ -37,20 +37,20 @@ const Users = () => {
 
   const keyUp = (event) => (event.key === 'Escape' ? clear() : '');
 
-  useLayoutEffect(() => {
-    document.removeEventListener('keyup', keyUp, false);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   useEffect(() => {
     document.addEventListener('keyup', keyUp, false);
 
     const storedUsername =
       location.state?.user || localStorage.getItem(activeUserInfoKey);
 
-    if (storedUsername !== undefined) {
+    if (storedUsername) {
       setSelectedUsername(storedUsername);
       setInputText(storedUsername);
     }
+
+    return () => {
+      document.removeEventListener('keyup', keyUp, false);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
