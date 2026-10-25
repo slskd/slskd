@@ -2199,9 +2199,12 @@ namespace slskd
                         {
                             var role = tuple.Split('=').LastOrDefault();
 
-                            if (!Enum.TryParse(typeof(Role), value: role, ignoreCase: true, out _))
+                            var roleResult = new EnumAttribute(typeof(Role), ignoreCase: true)
+                                .GetValidationResult(role, new ValidationContext(this) { MemberName = nameof(ApiKey), DisplayName = "API key role" });
+
+                            if (roleResult != ValidationResult.Success)
                             {
-                                results.Add(new ValidationResult($"API key role must be one of: {string.Join(", ", Enum.GetNames(typeof(Role)))}"));
+                                results.Add(new ValidationResult(roleResult.ErrorMessage));
                             }
                         }
                         else if (tuple.StartsWith("cidr=", StringComparison.OrdinalIgnoreCase))
