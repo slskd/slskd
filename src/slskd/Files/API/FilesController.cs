@@ -34,9 +34,9 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Files.API
 {
+    using System;
     using System.ComponentModel.DataAnnotations;
     using System.IO;
-    using System.Security;
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
@@ -192,7 +192,13 @@ namespace slskd.Files.API
             var requestedDir = (base64SubdirectoryName ?? string.Empty)
                 .FromBase64()
                 .Replace('\\', Path.DirectorySeparatorChar)
-                .Replace('/', Path.DirectorySeparatorChar);
+                .Replace('/', Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar);
+
+            if (!FileSafety.IsPathRelative(requestedDir))
+            {
+                return BadRequest("Path must be relative");
+            }
 
             requestedDir = Path.GetFullPath(Path.Combine(rootDirectory, requestedDir));
 
@@ -240,6 +246,11 @@ namespace slskd.Files.API
                 .Replace('/', Path.DirectorySeparatorChar)
                 .TrimStart(Path.DirectorySeparatorChar);
 
+            if (!FileSafety.IsPathRelative(requestedDir))
+            {
+                return BadRequest("Path must be relative");
+            }
+
             requestedDir = Path.GetFullPath(Path.Combine(rootDirectory, requestedDir));
 
             Log.Information("Deleting directory '{Directory}'", requestedDir);
@@ -281,6 +292,11 @@ namespace slskd.Files.API
                 .Replace('\\', Path.DirectorySeparatorChar)
                 .Replace('/', Path.DirectorySeparatorChar)
                 .TrimStart(Path.DirectorySeparatorChar);
+
+            if (!FileSafety.IsPathRelative(requestedFilename))
+            {
+                return BadRequest("Path must be relative");
+            }
 
             requestedFilename = Path.GetFullPath(Path.Combine(rootDirectory, requestedFilename));
 
