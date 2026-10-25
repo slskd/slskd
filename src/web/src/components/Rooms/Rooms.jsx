@@ -81,8 +81,20 @@ class Rooms extends Component {
       {
         active: sessionStorage.getItem(activeRoomKey) || '',
         intervals: {
-          messages: window.setInterval(this.fetchActiveRoom, 1_000),
-          rooms: window.setInterval(this.fetchJoinedRooms, 500),
+          messages: window.setInterval(async () => {
+            try {
+              await this.fetchActiveRoom();
+            } catch (error) {
+              console.error(error);
+            }
+          }, 1_000),
+          rooms: window.setInterval(async () => {
+            try {
+              await this.fetchJoinedRooms();
+            } catch (error) {
+              console.error(error);
+            }
+          }, 500),
         },
       },
       async () => {
