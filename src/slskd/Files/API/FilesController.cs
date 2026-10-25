@@ -210,10 +210,15 @@ namespace slskd.Files.API
 
                 return Ok(response);
             }
-            catch (SecurityException)
+            catch (UnauthorizedException)
             {
                 Log.Warning("Directory listing of '{Directory}' forbidden", requestedDir);
                 return Forbid();
+            }
+            catch (ArgumentException ex)
+            {
+                Log.Warning("Bad request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
             }
             catch (NotFoundException)
             {
@@ -247,10 +252,15 @@ namespace slskd.Files.API
                     success => NoContent(),
                     failure => throw failure);
             }
-            catch (SecurityException)
+            catch (UnauthorizedException)
             {
                 Log.Warning("Directory deletion of '{Directory}' forbidden", requestedDir);
                 return Forbid();
+            }
+            catch (ArgumentException ex)
+            {
+                Log.Warning("Bad request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
             }
             catch (NotFoundException)
             {
@@ -284,10 +294,15 @@ namespace slskd.Files.API
                     success => NoContent(),
                     failure => throw failure);
             }
-            catch (SecurityException)
+            catch (UnauthorizedException)
             {
                 Log.Warning("File deletion of '{File}' forbidden", requestedFilename);
                 return Forbid();
+            }
+            catch (ArgumentException ex)
+            {
+                Log.Warning("Bad request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
             }
             catch (NotFoundException)
             {
