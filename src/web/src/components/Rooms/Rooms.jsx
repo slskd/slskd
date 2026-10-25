@@ -260,13 +260,13 @@ class Rooms extends Component {
   };
 
   handleUserProfile = () => {
-    this.props.history.push('/users', {
+    this.props.history.push(`${urlBase}/users`, {
       user: this.state.contextMenu.message.username,
     });
   };
 
   handleBrowseShares = () => {
-    this.props.history.push('/browse', {
+    this.props.history.push(`${urlBase}/browse`, {
       user: this.state.contextMenu.message.username,
     });
   };
