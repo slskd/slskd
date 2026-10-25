@@ -2256,7 +2256,7 @@ namespace slskd
                     [Argument(default, "jwt-ttl")]
                     [EnvironmentVariable("JWT_TTL")]
                     [Description("TTL for JWTs")]
-                    [Range(3600, int.MaxValue)]
+                    [Range(3600000, int.MaxValue)]
                     [RequiresRestart]
                     public int Ttl { get; init; } = 604800000;
                 }
