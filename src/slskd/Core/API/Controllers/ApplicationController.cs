@@ -36,7 +36,6 @@ namespace slskd.Core.API
 {
     using System;
     using System.Diagnostics;
-    using System.IO;
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
