@@ -168,27 +168,6 @@ namespace slskd.Core.API
         }
 
         [ApiExplorerSettings(IgnoreApi = true)]
-        [HttpGet("dump")]
-        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
-        public async Task<IActionResult> DumpMemory()
-        {
-            if (OptionsAtStartup.Flags.Dumpable)
-            {
-                Log.Warning("Dumping application memory...");
-
-                using var dumper = new Dumper();
-                var file = await dumper.DumpAsync();
-
-                Log.Warning("Dump complete");
-
-                return PhysicalFile(file, "application/octet-stream", "slskd.dmp");
-            }
-
-            Log.Warning("Unauthorized attempt to dump application memory; Flags.Dumpable is disabled");
-            return Forbid();
-        }
-
-        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPost("loopback")]
         [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         public IActionResult Loopback([FromBody] object body)
