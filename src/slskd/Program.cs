@@ -454,7 +454,17 @@ namespace slskd
 
                 if (OptionsAtStartup.Debug)
                 {
-                    Log.Information($"Configuration:\n{Configuration.GetDebugView()}");
+                    // redact values for any key matching the name of a property marked [Secret]. keys from YAML may be
+                    // snake or kebab case, so normalize before comparing. this over-redacts, which is fine here
+                    var secretNames = typeof(Options).Assembly.GetTypes()
+                        .Where(t => t == typeof(Options) || (t.FullName?.StartsWith($"{typeof(Options).FullName}+") ?? false))
+                        .SelectMany(t => t.GetProperties())
+                        .Where(p => p.GetCustomAttributes(typeof(SecretAttribute), inherit: false).Length > 0)
+                        .Select(p => p.Name.ToLowerInvariant())
+                        .ToHashSet();
+
+                    Log.Information($"Configuration:\n{Configuration.GetDebugView(context =>
+                        secretNames.Contains(context.Key.Replace("_", string.Empty).Replace("-", string.Empty).ToLowerInvariant()) ? "*****" : context.Value)}");
                 }
 
                 if (!OptionsAtStartup.TryValidate(out var result))
@@ -465,7 +475,7 @@ namespace slskd
             }
             catch (Exception ex)
             {
-                Log.Information($"Invalid configuration: {(!OptionsAtStartup.Debug ? ex : ex.Message)}");
+                Log.Information($"Invalid configuration: {(OptionsAtStartup.Debug ? ex : ex.Message)}");
                 return;
             }
 
