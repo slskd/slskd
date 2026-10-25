@@ -8,8 +8,6 @@ import CodeMirror from '@uiw/react-codemirror';
 import React from 'react';
 
 const CodeEditor = ({ onChange = () => {}, theme, value, ...rest }) => {
-  console.log(defaultHighlightStyle);
-
   return (
     <CodeMirror
       extensions={[
