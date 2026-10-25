@@ -42,7 +42,7 @@ class TransferGroup extends Component {
       .map((s) =>
         user.directories
           .find((d) => d.directory === s.directory)
-          .files.find((f) => f.filename === s.filename),
+          ?.files?.find((f) => f.filename === s.filename),
       )
       .filter((s) => s !== undefined);
   };
