@@ -196,7 +196,7 @@ namespace slskd.Core.API
 
             if (!TryValidateYaml(yaml, out var error))
             {
-                Log.Error("Failed to validate YAML configuration: {Error}", error);
+                Log.Error(error, "Failed to validate YAML configuration");
                 return BadRequest(error);
             }
 
