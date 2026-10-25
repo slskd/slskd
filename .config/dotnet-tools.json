@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "dotnet-outdated-tool": {
+      "version": "4.8.1",
+      "commands": [
+        "dotnet-outdated"
+      ],
+      "rollForward": false
+    },
+    "dotnet-affected": {
+      "version": "7.0.1",
+      "commands": [
+        "dotnet-affected"
+      ],
+      "rollForward": false
+    }
+  }
+}

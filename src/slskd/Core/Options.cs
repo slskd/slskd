@@ -484,19 +484,6 @@ namespace slskd
             public bool Volatile { get; init; } = false;
 
             /// <summary>
-            ///     Gets a value indicating whether real-time memory dumping via API is enabled.
-            /// </summary>
-            /// <remarks>
-            ///     This can expose sensitive information, and should be turned on only to diagnose memory leaks.
-            ///     As such, it is and must remain undocumented.
-            /// </remarks>
-            [Argument(default, "dumpable")]
-            [EnvironmentVariable("DUMPABLE")]
-            [Description("enable run-time memory dumps via api")]
-            [RequiresRestart]
-            public bool Dumpable { get; init; } = false;
-
-            /// <summary>
             ///     Gets a value indicating whether user-defined regular expressions are case sensitive.
             /// </summary>
             [Argument(default, "case-sensitive-regex")]
