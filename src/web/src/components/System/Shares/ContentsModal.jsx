@@ -13,7 +13,16 @@ const ContentsModal = ({ onClose, share, theme }) => {
     const fetch = async () => {
       setLoading(true);
 
-      const result = await browse({ id });
+      let result;
+
+      try {
+        result = await browse({ id });
+      } catch (error) {
+        console.error(error);
+        setContents(error?.response?.data ?? error?.message ?? String(error));
+        setLoading(false);
+        return;
+      }
 
       const directories = result.map((directory) => {
         const lines = [directory.name.replace(remotePath, localPath)];
