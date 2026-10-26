@@ -123,7 +123,7 @@ public class ScriptService
 
                     if (string.IsNullOrEmpty(executable))
                     {
-                        Log.Warning("Script '{Script}' will not be run: unable to determine script executable. Update the script configuration, or set your operating system's SHELL envar.");
+                        Log.Warning("Script '{Script}' will not be run: unable to determine script executable. Update the script configuration, or set your operating system's SHELL envar.", script.Key);
                         return;
                     }
 
