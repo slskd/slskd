@@ -130,18 +130,9 @@ namespace slskd
                         context.Response.Headers.Add(header);
                     }
 
-                    // check the response content type to make sure it's still injectable. the server might return something other
-                    // than what was requested. if it's no longer injectable, don't inject.
-                    var isInjectableResponseType = injectableTypes.Any(injectableType => context.Response.Headers.ContentType.Contains(injectableType));
-                    if (!isInjectableResponseType)
-                    {
-                        await context.Response.WriteAsync(body);
-                    }
-                    else
-                    {
-                        await context.Response.WriteAsync(body + HTML);
-                    }
-                }
+                        // drop the semicolon and everything after it (e.g. '; charset=utf-8') before comparing
+                        var responseType = context.Response.ContentType?.Split(';')[0].Trim();
+                        var isInjectableResponseType = injectableTypes.Contains(responseType, StringComparer.InvariantCultureIgnoreCase);
 
                 // rewind the stream we injected to the beginning, then replay the data to the
                 // original stream
