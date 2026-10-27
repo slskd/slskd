@@ -741,7 +741,7 @@ namespace slskd
                 }
 
                 bool IsNull(Options.TransfersOptions.LimitsOptions.Limits lim, Options.TransfersOptions.LimitsOptions.Limits global)
-                    => (lim is null && global is null) || ((lim?.Files ?? global?.Files ?? lim?.Megabytes ?? global?.Megabytes ?? lim.Failures ?? global.Failures) is null);
+                    => (lim is null && global is null) || ((lim?.Files ?? global?.Files ?? lim?.Megabytes ?? global?.Megabytes ?? lim?.Failures ?? global?.Failures) is null);
 
                 /*
                  * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
