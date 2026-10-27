@@ -525,7 +525,7 @@ namespace slskd
 
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
-                Log.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", OptionsAtStartup.Logger.Loki);
+                Log.Information("Forwarding logs to Grafana Loki");
             }
 
             // bootstrap the ASP.NET application
@@ -1291,7 +1291,7 @@ namespace slskd
                         var record = new LogRecord()
                         {
                             Timestamp = logEvent.Timestamp.LocalDateTime,
-                            Context = logEvent.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
+                            Context = logEvent.Properties.TryGetValue("SourceContext", out var sourceContext) ? sourceContext.ToString().TrimStart('"').TrimEnd('"') : null,
                             SubContext = logEvent.Properties.ContainsKey("SubContext") ? logEvent.Properties["SubContext"].ToString().TrimStart('"').TrimEnd('"') : null,
                             Level = logEvent.Level.ToString(),
                             Message = message.TrimStart('"').TrimEnd('"'),
@@ -1323,11 +1323,11 @@ namespace slskd
 
                 if (e.IsTerminating)
                 {
-                    Serilog.Log.Logger.Fatal(exception, "Unhandled fatal exception: {Message}", e.IsTerminating);
+                    Serilog.Log.Logger.Fatal(exception, "Unhandled fatal exception: {Message}", exception?.Message);
                 }
                 else
                 {
-                    Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception.Message);
+                    Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception?.Message);
                 }
             };
         }
