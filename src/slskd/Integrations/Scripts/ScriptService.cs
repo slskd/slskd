@@ -108,7 +108,7 @@ public class ScriptService
 
         foreach (var script in scriptsTriggeredByThisEventType)
         {
-            _ = Task.Run(() =>
+            _ = Task.Run(async () =>
             {
                 Process process = default;
                 var processId = Guid.NewGuid();
@@ -202,17 +202,20 @@ public class ScriptService
 
                     process.Start();
 
-                    process.WaitForExit();
+                    var errorTask = process.StandardError.ReadToEndAsync();
+                    var outputTask = process.StandardOutput.ReadToEndAsync();
+
+                    await process.WaitForExitAsync();
                     sw.Stop();
 
-                    var error = process.StandardError.ReadToEnd();
+                    var error = await errorTask;
 
                     if (!string.IsNullOrEmpty(error))
                     {
                         throw new Exception($"STDERR: {Regex.Replace(error, @"\r\n?|\n", " ", RegexOptions.Compiled)}");
                     }
 
-                    var result = process.StandardOutput.ReadToEnd();
+                    var result = await outputTask;
                     var resultAsLines = result.Split(["\r\n", "\r", "\n"], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
                     Log.Debug("Script '{Script}' ran successfully in {Duration}ms; output: {Output} (id: {ProcessId})", script.Key, sw.ElapsedMilliseconds, resultAsLines, processId);
