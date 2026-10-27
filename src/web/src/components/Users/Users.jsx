@@ -3,7 +3,7 @@ import { activeUserInfoKey } from '../../config';
 import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import User from './User';
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Icon, Input, Item, Loader, Segment } from 'semantic-ui-react';
 
