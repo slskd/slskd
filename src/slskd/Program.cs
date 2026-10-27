@@ -1168,12 +1168,14 @@ namespace slskd
                         if (!options.Authentication.Disabled)
                         {
                             var auth = context.Request.Headers["Authorization"].FirstOrDefault();
-                            var providedCreds = auth?.Split(' ').Last();
+                            var providedCreds = auth?.Split(' ').Last() ?? string.Empty;
                             var validCreds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Authentication.Username}:{options.Authentication.Password}"));
 
+                            // use paranoid FixedTimeEquals to protect against time attacks
                             if (string.IsNullOrEmpty(auth) ||
-                                !auth.StartsWith("Basic", StringComparison.InvariantCultureIgnoreCase) ||
-                                !string.Equals(providedCreds, validCreds, StringComparison.InvariantCultureIgnoreCase))
+                                !auth.StartsWith("Basic ", StringComparison.InvariantCultureIgnoreCase) ||
+                                string.IsNullOrEmpty(providedCreds) ||
+                                !System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(providedCreds), Encoding.UTF8.GetBytes(validCreds)))
                             {
                                 context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                                 return;
