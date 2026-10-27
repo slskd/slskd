@@ -39,6 +39,7 @@ namespace slskd.Search.API
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
     using SearchQuery = Soulseek.SearchQuery;
@@ -185,17 +186,37 @@ namespace slskd.Search.API
         /// <summary>
         ///     Gets the list of active and completed searches.
         /// </summary>
+        /// <param name="offset">The optional number of searches to skip.</param>
+        /// <param name="limit">The optional maximum number of searches to return.</param>
         /// <returns></returns>
+        /// <response code="400">The offset is less than zero, or the limit is less than one.</response>
         [HttpGet("")]
         [Authorize(Policy = AuthPolicy.Any)]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] int? offset = null, [FromQuery] int? limit = null)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
-            var searches = await Searches.ListAsync();
+            if (offset < 0)
+            {
+                return BadRequest("Offset must be greater than or equal to zero");
+            }
+
+            if (limit <= 0)
+            {
+                return BadRequest("Limit must be greater than zero");
+            }
+
+            var paginated = offset.HasValue || limit.HasValue;
+            var searches = paginated
+                ? await Searches.ListAsync(offset ?? 0, limit)
+                : await Searches.ListAsync();
+            var count = paginated ? await Searches.CountAsync() : searches.Count;
+
+            Response.Headers.Append("X-Total-Count", count.ToString());
+
             return Ok(searches);
         }
 

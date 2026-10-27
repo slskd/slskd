@@ -122,8 +122,16 @@ namespace slskd.Search.API
 
         public override async Task OnConnectedAsync()
         {
-            var searches = await Searches.ListAsync();
-            await Clients.Caller.SendAsync(SearchHubMethods.List, searches);
+            var includeInitialListValue = Context.GetHttpContext()?.Request.Query["includeInitialList"].ToString();
+            var includeInitialList = !bool.TryParse(includeInitialListValue, out var parsed) || parsed;
+
+            if (includeInitialList)
+            {
+                var searches = await Searches.ListAsync();
+                await Clients.Caller.SendAsync(SearchHubMethods.List, searches);
+            }
+
+            await base.OnConnectedAsync();
         }
     }
 }
