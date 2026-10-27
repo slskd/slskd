@@ -1565,8 +1565,15 @@ namespace slskd
                 if (PreviousOptions.Filters.Search.Request.Except(newOptions.Filters.Search.Request).Any()
                     || newOptions.Filters.Search.Request.Except(PreviousOptions.Filters.Search.Request).Any())
                 {
+                    var regexOptions = RegexOptions.Compiled;
+
+                    if (!Flags.CaseSensitiveRegEx)
+                    {
+                        regexOptions |= RegexOptions.IgnoreCase;
+                    }
+
                     CompiledSearchRequestFilters = newOptions.Filters.Search.Request
-                        .Select(f => new Regex(f, RegexOptions.Compiled))
+                        .Select(f => new Regex(f, regexOptions))
                         .ToList()
                         .AsReadOnly();
 
