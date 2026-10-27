@@ -1439,7 +1439,7 @@ namespace slskd
         {
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
-                Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
+                Log.Information("Returned no place in queue for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return Task.FromResult<int?>(null);
             }
 
