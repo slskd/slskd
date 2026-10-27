@@ -145,8 +145,8 @@ const Searches = ({ server } = {}) => {
       });
 
       setRemoving(false);
-    } catch (error_) {
-      console.error(error_);
+    } catch (error) {
+      console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
       setRemoving(false);
     }
