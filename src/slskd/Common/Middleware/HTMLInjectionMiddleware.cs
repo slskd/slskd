@@ -54,7 +54,7 @@ namespace slskd
         /// <returns></returns>
         public static IApplicationBuilder UseHTMLInjection(this IApplicationBuilder builder, string html, IEnumerable<string> excludedRoutes)
         {
-            return builder.UseMiddleware<HTMLInjectionMiddleware>(html);
+            return builder.UseMiddleware<HTMLInjectionMiddleware>(html, excludedRoutes);
         }
     }
 
@@ -87,9 +87,13 @@ namespace slskd
         /// <returns></returns>
         public async Task InvokeAsync(HttpContext context)
         {
+            // accept types can have some metadata after the type, separated by a semicolon. example:
+            //   text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
             context.Request.Headers.TryGetValue("accept", out var accept);
-            var requestedTypes = accept.ToString().Split(',');
-            var injectableTypes = new[] { "text/html", "application/xhtml + xml", "application/xml" };
+
+            // split by comma, then drop the semicolon and everything after it (if present) for that type
+            var requestedTypes = accept.ToString().Split(',').Select(type => type.Split(';')[0].Trim());
+            var injectableTypes = new[] { "text/html", "application/xhtml+xml", "application/xml" };
             var isInjectableType = requestedTypes
                 .Intersect(injectableTypes, StringComparer.InvariantCultureIgnoreCase)
                 .Any();
