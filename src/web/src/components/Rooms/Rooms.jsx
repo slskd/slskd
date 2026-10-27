@@ -1,4 +1,4 @@
-import { activeRoomKey } from '../../config';
+import { activeRoomKey, urlBase } from '../../config';
 import * as rooms from '../../lib/rooms';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import RoomMenu from './RoomMenu';
