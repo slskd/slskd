@@ -134,13 +134,13 @@ namespace slskd
 
             foreach (var signal in new[] { PosixSignal.SIGINT, PosixSignal.SIGQUIT, PosixSignal.SIGTERM })
             {
-                PosixSignalRegistration.Create(signal, context =>
+                PosixSignals.Add(PosixSignalRegistration.Create(signal, context =>
                 {
                     ShuttingDown = true;
                     Program.MasterCancellationTokenSource.Cancel();
                     Log.Fatal("Received {Signal}", signal);
                     Environment.Exit(1);
-                });
+                }));
             }
 
             OptionsAtStartup = optionsAtStartup;
@@ -237,6 +237,7 @@ namespace slskd
         public static bool IsShuttingDown => Environment.HasShutdownStarted || ShuttingDown;
 
         private static bool ShuttingDown { get; set; } = false;
+        private static List<PosixSignalRegistration> PosixSignals { get; } = [];
 
         private ISoulseekClient Client { get; set; }
         private FileService Files { get; }
