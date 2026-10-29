@@ -1076,6 +1076,7 @@ namespace slskd.Transfers.Downloads
                 {
                     OperationCanceledException => TransferStates.Cancelled,
                     TimeoutException => TransferStates.TimedOut,
+                    TransferRejectedException => TransferStates.Rejected,
                     _ => TransferStates.Errored,
                 };
             }
