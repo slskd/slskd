@@ -48,7 +48,6 @@ namespace slskd.Core.API
     [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
-    [Authorize(Roles = AuthRole.AdministratorOnly)]
     public class ServerController : ControllerBase
     {
         public ServerController(
