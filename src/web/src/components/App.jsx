@@ -127,7 +127,7 @@ const ModeSpecificConnectButton = ({
       color = 'yellow';
     }
 
-    if (server?.isConnecting || server?.IsLoggingIn) {
+    if (server?.isConnecting || server?.isLoggingIn) {
       icon = 'sync alternate loading';
       color = 'green';
     }

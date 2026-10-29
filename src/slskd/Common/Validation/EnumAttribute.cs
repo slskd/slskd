@@ -60,14 +60,14 @@ namespace slskd.Validation
                     return new ValidationResult($"The {validationContext.DisplayName} field contains one or more null or empty values");
                 }
 
-                if (array.Any(x => !Enum.TryParse(TargetType, x, IgnoreCase, out _)))
+                if (array.Any(x => !Enum.TryParse(TargetType, x, IgnoreCase, out var parsed) || !Enum.IsDefined(TargetType, parsed)))
                 {
                     return new ValidationResult($"The elements in the {validationContext.DisplayName} field must all be one of: {string.Join(", ", Enum.GetNames(TargetType))}. Case {(IgnoreCase ? "insensitive" : "sensitive")}.");
                 }
             }
             else
             {
-                if (value != null && !Enum.TryParse(TargetType, value.ToString(), IgnoreCase, out _))
+                if (value != null && (!Enum.TryParse(TargetType, value.ToString(), IgnoreCase, out var parsed) || !Enum.IsDefined(TargetType, parsed)))
                 {
                     return new ValidationResult($"The {validationContext.DisplayName} field must be one of: {string.Join(", ", Enum.GetNames(TargetType))}. Case {(IgnoreCase ? "insensitive" : "sensitive")}.");
                 }

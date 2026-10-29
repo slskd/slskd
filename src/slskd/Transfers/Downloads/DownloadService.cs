@@ -722,9 +722,9 @@ namespace slskd.Transfers.Downloads
 
                 var transfer = context.Transfers.Find(id);
 
-                if (transfer == default)
+                if (transfer == default || transfer.Direction != TransferDirection.Download)
                 {
-                    throw new NotFoundException($"No download matching id ${id}");
+                    throw new NotFoundException($"No download matching id {id}");
                 }
 
                 var place = await Client.GetDownloadPlaceInQueueAsync(transfer.Username, transfer.Filename);
@@ -1059,6 +1059,12 @@ namespace slskd.Transfers.Downloads
 
             t.EndedAt ??= DateTime.UtcNow;
 
+            // Retry.Do() wraps failures in an AggregateException; use the most recent so that the state reflects what happened
+            if (exception is AggregateException aggregate && aggregate.InnerExceptions.Count > 0)
+            {
+                exception = aggregate.InnerExceptions[^1];
+            }
+
             // Soulseek.NET will include the filename and username in some messages; this is useful for many things but not tracking
             // exceptions in a database. when we encounter one of these, drop the first segment.
             var m = exception.Message;
@@ -1070,6 +1076,7 @@ namespace slskd.Transfers.Downloads
                 {
                     OperationCanceledException => TransferStates.Cancelled,
                     TimeoutException => TransferStates.TimedOut,
+                    TransferRejectedException => TransferStates.Rejected,
                     _ => TransferStates.Errored,
                 };
             }

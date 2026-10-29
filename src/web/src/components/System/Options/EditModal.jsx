@@ -43,6 +43,7 @@ const EditModal = ({ onClose, open, theme }) => {
   const validate = async (newYaml) => {
     const response = await validateYaml({ yaml: newYaml });
     setYamlError(response);
+    return response;
   };
 
   const update = async (newYaml) => {
@@ -51,14 +52,14 @@ const EditModal = ({ onClose, open, theme }) => {
   };
 
   const save = async (newYaml) => {
-    await validate(newYaml);
+    const validationError = await validate(newYaml);
 
-    if (!yamlError) {
+    if (!validationError) {
       try {
         await updateYaml({ yaml: newYaml });
         onClose();
       } catch (nextUpdateError) {
-        setUpdateError(nextUpdateError.response.data);
+        setUpdateError(nextUpdateError?.response?.data ?? nextUpdateError?.message);
       }
     }
   };

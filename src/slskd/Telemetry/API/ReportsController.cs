@@ -104,7 +104,7 @@ public class ReportsController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(direction))
         {
-            if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+            if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection) || !Enum.IsDefined(parsedDirection))
             {
                 return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
             }
@@ -205,7 +205,7 @@ public class ReportsController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(direction))
         {
-            if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+            if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection) || !Enum.IsDefined(parsedDirection))
             {
                 return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
             }
@@ -263,7 +263,7 @@ public class ReportsController : ControllerBase
             return BadRequest("Direction is required");
         }
 
-        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection) || !Enum.IsDefined(parsedDirection))
         {
             return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
         }
@@ -276,12 +276,12 @@ public class ReportsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
-        if (!Enum.TryParse<LeaderboardSortBy>(sortBy, out var parsedSortBy))
+        if (!Enum.TryParse<LeaderboardSortBy>(sortBy, out var parsedSortBy) || !Enum.IsDefined(parsedSortBy))
         {
             return BadRequest($"Invalid sortBy; expected one of: {string.Join(", ", Enum.GetNames(typeof(LeaderboardSortBy)))}");
         }
 
-        if (!Enum.TryParse<SortOrder>(sortOrder, out var parsedSortOrder))
+        if (!Enum.TryParse<SortOrder>(sortOrder, out var parsedSortOrder) || !Enum.IsDefined(parsedSortOrder))
         {
             return BadRequest($"Invalid sortOrder; expected one of: {string.Join(", ", Enum.GetNames(typeof(SortOrder)))}");
         }
@@ -425,7 +425,7 @@ public class ReportsController : ControllerBase
             return BadRequest("Direction is required");
         }
 
-        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection) || !Enum.IsDefined(parsedDirection))
         {
             return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
         }
@@ -438,7 +438,7 @@ public class ReportsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
-        if (!Enum.TryParse<SortOrder>(sortOrder, out var parsedSortOrder))
+        if (!Enum.TryParse<SortOrder>(sortOrder, out var parsedSortOrder) || !Enum.IsDefined(parsedSortOrder))
         {
             return BadRequest($"Invalid sortOrder; expected one of: {string.Join(", ", Enum.GetNames(typeof(SortOrder)))}");
         }
@@ -502,7 +502,7 @@ public class ReportsController : ControllerBase
             return BadRequest("Direction is required");
         }
 
-        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection) || !Enum.IsDefined(parsedDirection))
         {
             return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
         }

@@ -42,7 +42,7 @@ public interface IMetricsHub
     Task Update(object metrics);
 }
 
-[Authorize]
+[Authorize(Policy = AuthPolicy.Any)]
 public class MetricsHub : Hub<IMetricsHub>
 {
     public MetricsHub(MetricsService metricsService)

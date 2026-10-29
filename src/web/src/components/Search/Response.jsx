@@ -254,8 +254,9 @@ class Response extends Component {
                     size="large"
                   />
                   <Label>
-                    {downloadError.data +
-                      ` (HTTP ${downloadError.status} ${downloadError.statusText})`}
+                    {downloadError?.data
+                      ? `${downloadError.data} (HTTP ${downloadError.status} ${downloadError.statusText})`
+                      : 'Download failed'}
                   </Label>
                 </span>
               )}
