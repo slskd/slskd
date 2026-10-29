@@ -1059,6 +1059,12 @@ namespace slskd.Transfers.Downloads
 
             t.EndedAt ??= DateTime.UtcNow;
 
+            // Retry.Do() wraps failures in an AggregateException; use the most recent so that the state reflects what happened
+            if (exception is AggregateException aggregate && aggregate.InnerExceptions.Count > 0)
+            {
+                exception = aggregate.InnerExceptions[^1];
+            }
+
             // Soulseek.NET will include the filename and username in some messages; this is useful for many things but not tracking
             // exceptions in a database. when we encounter one of these, drop the first segment.
             var m = exception.Message;
