@@ -722,9 +722,9 @@ namespace slskd.Transfers.Downloads
 
                 var transfer = context.Transfers.Find(id);
 
-                if (transfer == default)
+                if (transfer == default || transfer.Direction != TransferDirection.Download)
                 {
-                    throw new NotFoundException($"No download matching id ${id}");
+                    throw new NotFoundException($"No download matching id {id}");
                 }
 
                 var place = await Client.GetDownloadPlaceInQueueAsync(transfer.Username, transfer.Filename);
