@@ -235,7 +235,7 @@ namespace slskd.Transfers.Uploads
                 // todo: deprecate this with improved cancellation handling; it shouldn't be needed
                 if (!upload.TaskCompletionSource.Task.IsCompleted)
                 {
-                    Log.Debug("Upload {File} for {User} was removed without being completed, so it has been cancelled", Path.GetFileName(upload.Filename));
+                    Log.Debug("Upload {File} for {User} was removed without being completed, so it has been cancelled", Path.GetFileName(upload.Filename), upload.Username);
                     upload.TaskCompletionSource.TrySetCanceled();
                 }
 
