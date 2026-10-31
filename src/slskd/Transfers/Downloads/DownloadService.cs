@@ -1062,7 +1062,7 @@ namespace slskd.Transfers.Downloads
             // Retry.Do() wraps failures in an AggregateException; use the most recent so that the state reflects what happened
             if (exception is AggregateException aggregate && aggregate.InnerExceptions.Count > 0)
             {
-                exception = aggregate.InnerExceptions[^1];
+                exception = aggregate.InnerExceptions.Last();
             }
 
             // Soulseek.NET will include the filename and username in some messages; this is useful for many things but not tracking
