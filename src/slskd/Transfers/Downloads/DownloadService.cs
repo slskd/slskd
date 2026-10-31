@@ -1240,8 +1240,6 @@ namespace slskd.Transfers.Downloads
                                 transfer.State = TransferStates.Queued | TransferStates.Locally;
                             }
 
-                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
-
                             Telemetry.Metrics.Update(() =>
                             {
                                 if (!TransferStateCategories.Queued.Contains(args.PreviousState) && TransferStateCategories.Queued.Contains(transfer.State))
