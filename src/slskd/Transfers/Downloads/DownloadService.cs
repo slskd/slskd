@@ -1558,11 +1558,10 @@ namespace slskd.Transfers.Downloads
             {
                 Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
                 TryFail(transfer.Id, exception: ex);
 
-                // todo: broadcast
-                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
-
+                // todo: broadcast transfer state to a hub
                 Telemetry.Metrics.Update(() =>
                 {
                     Telemetry.Metrics.Transfers.Downloads.Completed.Failed.Inc(1);
@@ -1574,11 +1573,10 @@ namespace slskd.Transfers.Downloads
             {
                 Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
                 TryFail(transfer.Id, exception: ex);
 
-                // todo: broadcast
-                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
-
+                // todo: broadcast transfer state to a hub
                 Telemetry.Metrics.Update(() =>
                 {
                     Telemetry.Metrics.Transfers.Downloads.Completed.Failed.Inc(1);
