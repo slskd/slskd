@@ -34,9 +34,9 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Files.API
 {
+    using System;
     using System.ComponentModel.DataAnnotations;
     using System.IO;
-    using System.Security;
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
@@ -95,7 +95,7 @@ namespace slskd.Files.API
         [ProducesResponseType(401)]
         [ProducesResponseType(403)]
         [ProducesResponseType(404)]
-        public Task<IActionResult> GetDownloadSubdirectoryContentsAsync([FromRoute] string base64SubdirectoryName, [FromQuery] bool recursive = false)
+        public Task<IActionResult> GetDownloadSubdirectoryContentsAsync([FromRoute, UrlEncoded] string base64SubdirectoryName, [FromQuery] bool recursive = false)
             => ListDirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Downloads, base64SubdirectoryName, recursive);
 
         /// <summary>
@@ -108,9 +108,9 @@ namespace slskd.Files.API
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("downloads/directories/{base64SubdirectoryName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
-        public Task<IActionResult> DeleteDownloadSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
+        public Task<IActionResult> DeleteDownloadSubdirectoryAsync([FromRoute, UrlEncoded] string base64SubdirectoryName)
             => DeleteSubdirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Downloads, base64SubdirectoryName);
 
         /// <summary>
@@ -123,9 +123,9 @@ namespace slskd.Files.API
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("downloads/files/{base64FileName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
-        public Task<IActionResult> DeleteDownloadFileAsync([FromRoute] string base64FileName)
+        public Task<IActionResult> DeleteDownloadFileAsync([FromRoute, UrlEncoded] string base64FileName)
             => DeleteFileAsync(rootDirectory: OptionsSnapshot.Value.Directories.Downloads, base64FileName);
 
         /// <summary>
@@ -154,7 +154,7 @@ namespace slskd.Files.API
         [HttpGet("incomplete/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(FilesystemDirectory), 200)]
-        public Task<IActionResult> GetIncompleteSubdirectoryContentsAsync([FromRoute, Required] string base64SubdirectoryName, [FromQuery] bool recursive = false)
+        public Task<IActionResult> GetIncompleteSubdirectoryContentsAsync([FromRoute, UrlEncoded, Required] string base64SubdirectoryName, [FromQuery] bool recursive = false)
             => ListDirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Incomplete, base64SubdirectoryName, recursive);
 
         /// <summary>
@@ -167,9 +167,9 @@ namespace slskd.Files.API
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("incomplete/directories/{base64SubdirectoryName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
-        public Task<IActionResult> DeleteIncompleteSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
+        public Task<IActionResult> DeleteIncompleteSubdirectoryAsync([FromRoute, UrlEncoded] string base64SubdirectoryName)
             => DeleteSubdirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Incomplete, base64SubdirectoryName);
 
         /// <summary>
@@ -182,9 +182,9 @@ namespace slskd.Files.API
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("incomplete/files/{base64FileName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
-        public Task<IActionResult> DeleteIncompleteFileAsync([FromRoute] string base64FileName)
+        public Task<IActionResult> DeleteIncompleteFileAsync([FromRoute, UrlEncoded] string base64FileName)
             => DeleteFileAsync(rootDirectory: OptionsSnapshot.Value.Directories.Incomplete, base64FileName);
 
         private async Task<IActionResult> ListDirectoryAsync(string rootDirectory, string base64SubdirectoryName = null, bool recursive = false)
@@ -192,7 +192,13 @@ namespace slskd.Files.API
             var requestedDir = (base64SubdirectoryName ?? string.Empty)
                 .FromBase64()
                 .Replace('\\', Path.DirectorySeparatorChar)
-                .Replace('/', Path.DirectorySeparatorChar);
+                .Replace('/', Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar);
+
+            if (!FileSafety.IsPathRelative(requestedDir))
+            {
+                return BadRequest("Path must be relative");
+            }
 
             requestedDir = Path.GetFullPath(Path.Combine(rootDirectory, requestedDir));
 
@@ -210,10 +216,15 @@ namespace slskd.Files.API
 
                 return Ok(response);
             }
-            catch (SecurityException)
+            catch (UnauthorizedException)
             {
                 Log.Warning("Directory listing of '{Directory}' forbidden", requestedDir);
                 return Forbid();
+            }
+            catch (ArgumentException ex)
+            {
+                Log.Warning("Bad request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
             }
             catch (NotFoundException)
             {
@@ -235,6 +246,11 @@ namespace slskd.Files.API
                 .Replace('/', Path.DirectorySeparatorChar)
                 .TrimStart(Path.DirectorySeparatorChar);
 
+            if (!FileSafety.IsPathRelative(requestedDir))
+            {
+                return BadRequest("Path must be relative");
+            }
+
             requestedDir = Path.GetFullPath(Path.Combine(rootDirectory, requestedDir));
 
             Log.Information("Deleting directory '{Directory}'", requestedDir);
@@ -247,10 +263,15 @@ namespace slskd.Files.API
                     success => NoContent(),
                     failure => throw failure);
             }
-            catch (SecurityException)
+            catch (UnauthorizedException)
             {
                 Log.Warning("Directory deletion of '{Directory}' forbidden", requestedDir);
                 return Forbid();
+            }
+            catch (ArgumentException ex)
+            {
+                Log.Warning("Bad request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
             }
             catch (NotFoundException)
             {
@@ -272,6 +293,11 @@ namespace slskd.Files.API
                 .Replace('/', Path.DirectorySeparatorChar)
                 .TrimStart(Path.DirectorySeparatorChar);
 
+            if (!FileSafety.IsPathRelative(requestedFilename))
+            {
+                return BadRequest("Path must be relative");
+            }
+
             requestedFilename = Path.GetFullPath(Path.Combine(rootDirectory, requestedFilename));
 
             Log.Information("Deleting file '{File}'", requestedFilename);
@@ -284,10 +310,15 @@ namespace slskd.Files.API
                     success => NoContent(),
                     failure => throw failure);
             }
-            catch (SecurityException)
+            catch (UnauthorizedException)
             {
                 Log.Warning("File deletion of '{File}' forbidden", requestedFilename);
                 return Forbid();
+            }
+            catch (ArgumentException ex)
+            {
+                Log.Warning("Bad request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
             }
             catch (NotFoundException)
             {

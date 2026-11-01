@@ -42,7 +42,6 @@ namespace slskd.Users.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
-
     using Soulseek;
 
     /// <summary>
@@ -83,7 +82,7 @@ namespace slskd.Users.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("{username}/endpoint")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(typeof(IPEndPoint), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Endpoint([FromRoute, UrlEncoded, Required] string username)
@@ -115,7 +114,7 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/browse")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Browse([FromRoute, UrlEncoded, Required] string username)
@@ -179,7 +178,7 @@ namespace slskd.Users.API
         /// <param name="request">The directory contents request.</param>
         /// <returns></returns>
         [HttpPost("{username}/directory")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Directory([FromRoute, UrlEncoded, Required] string username, [FromBody, Required] DirectoryContentsRequest request)
@@ -219,7 +218,7 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/info")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(typeof(Info), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Info([FromRoute, UrlEncoded, Required] string username)
@@ -251,7 +250,7 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/status")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(typeof(Status), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Status([FromRoute, UrlEncoded, Required] string username)

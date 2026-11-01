@@ -87,7 +87,7 @@ namespace slskd.Messaging.API
         ///     A conversation with the specified username, or a message matching the specified id could not be found.
         /// </response>
         [HttpPut("{username}/{id}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Acknowledge([FromRoute, UrlEncoded] string username, [FromRoute] int id)
@@ -97,7 +97,7 @@ namespace slskd.Messaging.API
                 return Forbid();
             }
 
-            var message = Messages.Conversations.FindMessageAsync(username, id);
+            var message = await Messages.Conversations.FindMessageAsync(username, id);
 
             if (message == default)
             {
@@ -117,7 +117,7 @@ namespace slskd.Messaging.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A conversation with the specified username could not be found.</response>
         [HttpPut("{username}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> AcknowledgeAll([FromRoute, UrlEncoded] string username)
@@ -127,7 +127,7 @@ namespace slskd.Messaging.API
                 return Forbid();
             }
 
-            var conversation = Messages.Conversations.FindAsync(username);
+            var conversation = await Messages.Conversations.FindAsync(username);
 
             if (conversation == default)
             {
@@ -146,7 +146,7 @@ namespace slskd.Messaging.API
         /// <response code="204">The request completed successfully.</response>
         /// <response code="404">A conversation with the specified username could not be found.</response>
         [HttpDelete("{username}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(404)]
         [ProducesResponseType(204)]
         public async Task<IActionResult> Close([FromRoute, UrlEncoded] string username)
@@ -156,7 +156,7 @@ namespace slskd.Messaging.API
                 return Forbid();
             }
 
-            var conversation = Messages.Conversations.FindAsync(username, includeInactive: false);
+            var conversation = await Messages.Conversations.FindAsync(username, includeInactive: false);
 
             if (conversation == default)
             {
@@ -259,7 +259,7 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="400">The specified message is null or empty.</response>
         [HttpPost("{username}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(201)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> Send([FromRoute, UrlEncoded] string username, [FromBody] string message)

@@ -148,7 +148,15 @@ namespace slskd.Relay
 
                         // the controller will send an authentication challenge immediately after connection
                         // wait for the auth handler to log in before proceeding with the initial share upload
-                        await LoggedInTaskCompletionSource.Task;
+                        try
+                        {
+                            await LoggedInTaskCompletionSource.Task;
+                        }
+                        catch (Exception)
+                        {
+                            await StopAsync(cancellationToken);
+                            throw;
+                        }
 
                         Log.Information("Uploading shares...");
 
@@ -366,6 +374,7 @@ namespace slskd.Relay
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to handle authentication challenge: {Message}", ex.Message);
+                LoggedInTaskCompletionSource.TrySetException(ex);
             }
         }
 
@@ -375,6 +384,7 @@ namespace slskd.Relay
             {
                 Log.Warning("Suspicious attempt to request file info containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
                 await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, false, 0);
+                return;
             }
 
             Log.Information("Relay controller requested file info for {Filename} with ID {Id}", filename, id);
@@ -399,7 +409,8 @@ namespace slskd.Relay
             if (FileSafety.ContainsTraversalSegments(filename))
             {
                 Log.Warning("Suspicious attempt to request a file upload containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
-                await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
+                await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token, "Requested filename contains unsafe path segments");
+                return;
             }
 
             _ = Task.Run(async () =>

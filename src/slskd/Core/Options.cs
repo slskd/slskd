@@ -1453,6 +1453,7 @@ namespace slskd
             [EnvironmentVariable("LOKI")]
             [Description("optional; url to a Grafana Loki instance to which to log")]
             [RequiresRestart]
+            [Secret]
             public string Loki { get; init; } = null;
 
             /// <summary>
@@ -2185,9 +2186,12 @@ namespace slskd
                         {
                             var role = tuple.Split('=').LastOrDefault();
 
-                            if (!Enum.TryParse(typeof(Role), value: role, ignoreCase: true, out _))
+                            var roleResult = new EnumAttribute(typeof(Role), ignoreCase: true)
+                                .GetValidationResult(role, new ValidationContext(this) { MemberName = nameof(ApiKey), DisplayName = "API key role" });
+
+                            if (roleResult != ValidationResult.Success)
                             {
-                                results.Add(new ValidationResult($"API key role must be one of: {string.Join(", ", Enum.GetNames(typeof(Role)))}"));
+                                results.Add(new ValidationResult(roleResult.ErrorMessage));
                             }
                         }
                         else if (tuple.StartsWith("cidr=", StringComparison.OrdinalIgnoreCase))
@@ -2242,7 +2246,7 @@ namespace slskd
                     [Argument(default, "jwt-ttl")]
                     [EnvironmentVariable("JWT_TTL")]
                     [Description("TTL for JWTs")]
-                    [Range(3600, int.MaxValue)]
+                    [Range(3600000, int.MaxValue)]
                     [RequiresRestart]
                     public int Ttl { get; init; } = 604800000;
                 }
@@ -2572,6 +2576,7 @@ namespace slskd
                 ///     Gets the fully qualified URL for the webhook.
                 /// </summary>
                 [NotNullOrWhiteSpace]
+                [Secret]
                 public string Url { get; init; }
 
                 /// <summary>
@@ -2608,6 +2613,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets the header's value.
                 /// </summary>
+                [Secret]
                 public string Value { get; init; }
             }
 
@@ -2648,6 +2654,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets the shell command to run.
                 /// </summary>
+                [Secret]
                 public string Command { get; init; }
 
                 /// <summary>
@@ -2661,6 +2668,7 @@ namespace slskd
                 /// <remarks>
                 ///     Mutually exclusive with <see cref="Arglist"/>.
                 /// </remarks>
+                [Secret]
                 public string Args { get; init; }
 
                 /// <summary>
