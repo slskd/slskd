@@ -59,7 +59,9 @@ const EditModal = ({ onClose, open, theme }) => {
         await updateYaml({ yaml: newYaml });
         onClose();
       } catch (nextUpdateError) {
-        setUpdateError(nextUpdateError?.response?.data ?? nextUpdateError?.message);
+        setUpdateError(
+          nextUpdateError?.response?.data ?? nextUpdateError?.message,
+        );
       }
     }
   };

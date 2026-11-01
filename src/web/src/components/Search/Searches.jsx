@@ -145,9 +145,11 @@ const Searches = ({ server } = {}) => {
       });
 
       setRemoving(false);
-    } catch (error) {
-      console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+    } catch (removeError) {
+      console.error(removeError);
+      toast.error(
+        removeError?.response?.data ?? removeError?.message ?? removeError,
+      );
       setRemoving(false);
     }
   };

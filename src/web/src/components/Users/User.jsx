@@ -58,7 +58,8 @@ const User = ({
         {username}
       </Item.Header>
       <Item.Meta>
-        Free Upload Slot: <FreeUploadSlot hasFreeUploadSlot={hasFreeUploadSlot} />, Total Upload
+        Free Upload Slot:{' '}
+        <FreeUploadSlot hasFreeUploadSlot={hasFreeUploadSlot} />, Total Upload
         Slots: {uploadSlots}, Queue Length: {queueLength}, IP Address: {address}
         , Port: {port}
       </Item.Meta>
