@@ -1228,18 +1228,6 @@ namespace slskd.Transfers.Downloads
                                 transfer.EnqueuedAt ??= DateTime.UtcNow;
                             }
 
-                            // important! the transfer on the Soulseek.NET side may have completed, but the slskd transfer
-                            // *might* still have remaining retry attempts. leave this non-committal for now, and allow
-                            // the final update after all retry attempts have been exhausted to add it.
-                            // this means that the ONLY way to check whether a transfer is really 'dead' inclusive of all
-                            // retries is to look for this flag
-                            if (args.Transfer.State.HasFlag(TransferStates.Completed)
-                                && !args.Transfer.State.HasFlag(TransferStates.Succeeded)
-                                && transfer.Attempts < retryOptions.Attempts)
-                            {
-                                transfer.State = TransferStates.Queued | TransferStates.Locally;
-                            }
-
                             Telemetry.Metrics.Update(() =>
                             {
                                 if (!TransferStateCategories.Queued.Contains(args.PreviousState) && TransferStateCategories.Queued.Contains(transfer.State))
@@ -1258,6 +1246,18 @@ namespace slskd.Transfers.Downloads
                             });
 
                             stateHistory.Add(transfer.State);
+
+                            // important! the transfer on the Soulseek.NET side may have completed, but the slskd transfer
+                            // *might* still have remaining retry attempts. leave this non-committal for now, and allow
+                            // the final update after all retry attempts have been exhausted to add it.
+                            // this means that the ONLY way to check whether a transfer is really 'dead' inclusive of all
+                            // retries is to look for this flag
+                            if (args.Transfer.State.HasFlag(TransferStates.Completed)
+                                && !args.Transfer.State.HasFlag(TransferStates.Succeeded)
+                                && transfer.Attempts < retryOptions.Attempts)
+                            {
+                                transfer.State = TransferStates.Queued | TransferStates.Locally;
+                            }
 
                             // todo: broadcast
                             SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: cancellationToken);
