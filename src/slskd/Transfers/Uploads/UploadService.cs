@@ -516,11 +516,10 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
                 TryFail(transfer.Id, "File could not be found", TransferStates.Completed | TransferStates.Aborted);
 
-                // todo: broadcast
-                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
-
+                // todo: broadcast transfer state to a hub
                 Telemetry.Metrics.Update(() =>
                 {
                     Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
@@ -532,11 +531,10 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
                 TryFail(transfer.Id, exception: ex);
 
-                // todo: broadcast
-                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
-
+                // todo: broadcast transfer state to a hub
                 Telemetry.Metrics.Update(() =>
                 {
                     Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
@@ -548,11 +546,10 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
                 TryFail(transfer.Id, exception: ex);
 
-                // todo: broadcast
-                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
-
+                // todo: broadcast transfer state to a hub
                 Telemetry.Metrics.Update(() =>
                 {
                     Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
