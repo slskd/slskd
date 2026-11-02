@@ -153,14 +153,12 @@ namespace slskd.Shares.API
         [ProducesResponseType(409)]
         public IActionResult RescanSharesAsync()
         {
-            try
+            if (Shares.StateMonitor.CurrentValue.Scanning)
             {
-                _ = Shares.ScanAsync();
+                return Conflict("A share scan is already in progress");
             }
-            catch (ShareScanInProgressException)
-            {
-                return Conflict("A share scan is already in progress.");
-            }
+
+            _ = Shares.ScanAsync();
 
             return Ok();
         }

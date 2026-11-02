@@ -87,9 +87,13 @@ namespace slskd
         /// <returns></returns>
         public async Task InvokeAsync(HttpContext context)
         {
+            // accept types can have some metadata after the type, separated by a semicolon. example:
+            //   text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
             context.Request.Headers.TryGetValue("accept", out var accept);
-            var requestedTypes = accept.ToString().Split(',');
-            var injectableTypes = new[] { "text/html", "application/xhtml + xml", "application/xml" };
+
+            // split by comma, then drop the semicolon and everything after it (if present) for that type
+            var requestedTypes = accept.ToString().Split(',').Select(type => type.Split(';')[0].Trim());
+            var injectableTypes = new[] { "text/html", "application/xhtml+xml", "application/xml" };
             var isRewriteableType = requestedTypes
                 .Intersect(injectableTypes, StringComparer.InvariantCultureIgnoreCase)
                 .Any();
@@ -106,36 +110,54 @@ namespace slskd
                 var stream = new MemoryStream();
                 context.Response.Body = stream;
 
-                await Next.Invoke(context);
-
-                if (context.Response.StatusCode == 200)
+                try
                 {
-                    // something downstream responded with a 200, meaning there's data in the body
-                    // we need to read it, so we can reset then play it back with the modified HTML
-                    context.Response.Body.Seek(0, SeekOrigin.Begin);
-                    var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+                    await Next.Invoke(context);
 
-                    var headers = context.Response.Headers
-                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
-                        .Where(kvp => !string.Equals(kvp.Key, "Content-Length", StringComparison.InvariantCultureIgnoreCase));
-
-                    context.Response.Clear();
-
-                    foreach (var header in headers)
+                    if (context.Response.StatusCode == 200)
                     {
-                        context.Response.Headers.Add(header);
+                        // something downstream responded with a 200, meaning there's data in the body
+                        // we need to read it, so we can reset then play it back with the modified HTML
+                        context.Response.Body.Seek(0, SeekOrigin.Begin);
+                        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+
+                        var headers = context.Response.Headers
+                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
+                            .Where(kvp => !string.Equals(kvp.Key, "Content-Length", StringComparison.InvariantCultureIgnoreCase));
+
+                        context.Response.Clear();
+
+                        foreach (var header in headers)
+                        {
+                            context.Response.Headers.Add(header);
+                        }
+
+                        // check the response content type to make sure it's still rewriteable. the server might return something other
+                        // than what was requested. if it's no longer rewriteable, don't rewrite.
+                        // drop the semicolon and everything after it (e.g. '; charset=utf-8') before comparing
+                        var responseType = context.Response.ContentType?.Split(';')[0].Trim();
+                        var isRewriteableResponseType = injectableTypes.Contains(responseType, StringComparer.InvariantCultureIgnoreCase);
+                        if (!isRewriteableResponseType)
+                        {
+                            await context.Response.WriteAsync(body);
+                        }
+                        else
+                        {
+                            await context.Response.WriteAsync(Regex.Replace(body, Pattern, Replacement));
+                        }
                     }
 
-                    await context.Response.WriteAsync(Regex.Replace(body, Pattern, Replacement));
+                    // rewind the stream we injected to the beginning, then replay the data to the
+                    // original stream
+                    stream.Seek(0, SeekOrigin.Begin);
+                    await stream.CopyToAsync(originalStream);
                 }
-
-                // rewind the stream we injected to the beginning, then replay the data to the
-                // original stream
-                stream.Seek(0, SeekOrigin.Begin);
-                await stream.CopyToAsync(originalStream);
-
-                // swap the original stream back in
-                context.Response.Body = originalStream;
+                finally
+                {
+                    // swap the original stream back in, even if something downstream threw, so that
+                    // upstream middleware (e.g. the exception handler) can write to the response
+                    context.Response.Body = originalStream;
+                }
             }
             else
             {

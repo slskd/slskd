@@ -28,3 +28,11 @@ else
   echo $'\n🛠️  dotnet format --verbosity normal\n'
   dotnet format --verbosity normal
 fi
+
+if [ "$fix" == false ]; then
+  echo $'\n🛠️  npm run lint\n'
+  (cd src/web && npm run lint)
+else
+  echo $'\n🛠️  npm run lint:fix\n'
+  (cd src/web && npm run lint:fix)
+fi

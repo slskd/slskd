@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+set -e
+set -o pipefail
+
+affected=false
+from=""
+unit=false
+integration=false
+web=false
+
+while test $# -gt 0; do
+  case "$1" in
+    -h|--help)
+      echo ''
+      echo 'usage: test [options]'
+      echo ''
+      echo 'options:'
+      echo '-h, --help       show help'
+      echo '--unit           run only unit tests'
+      echo '--integration    run only integration tests'
+      echo '--dotnet         run only unit and integration tests'
+      echo '--web            run only frontend tests'
+      echo '--all            run unit, integration, and frontend tests'
+      echo '--affected       run only tests for projects affected by changes (uses dotnet-affected)'
+      echo '--from REF       branch or commit to compare against when using --affected. defaults to HEAD'
+      echo ''
+      echo 'with no options, only unit tests are run.'
+      echo ''
+      echo 'examples:'
+      echo '  test'
+      echo '  test --all'
+      echo '  test --web'
+      echo '  test --affected --from master'
+      echo ''
+      exit 0
+      ;;
+    --unit)
+      unit=true
+      shift
+      ;;
+    --integration)
+      integration=true
+      shift
+      ;;
+    --dotnet)
+      unit=true
+      integration=true
+      shift
+      ;;
+    --web)
+      web=true
+      shift
+      ;;
+    --all)
+      unit=true
+      integration=true
+      web=true
+      shift
+      ;;
+    --affected)
+      affected=true
+      shift
+      ;;
+    --from)
+      shift
+      from=$1
+      shift
+      ;;
+    *)
+      echo "error: unknown option '$1'"
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$unit" == false ] && [ "$integration" == false ] && [ "$web" == false ]; then
+  unit=true
+fi
+
+if [ "$unit" == true ] || [ "$integration" == true ]; then
+  pattern=""
+
+  if [ "$unit" == true ]; then
+    pattern="Tests\.Unit\.csproj$"
+  fi
+
+  if [ "$integration" == true ]; then
+    pattern="${pattern:+$pattern|}Tests\.Integration\.csproj$"
+  fi
+
+  if [ "$affected" == true ]; then
+    args=(--format text --dry-run)
+
+    if [ -n "$from" ]; then
+      args+=(--from "$from")
+    fi
+
+    echo $'\n🔍  dotnet tool run dotnet-affected --' "${args[@]}" $'\n'
+
+    dotnet tool restore > /dev/null
+    projects=$(dotnet tool run dotnet-affected -- "${args[@]}" | tr -d '\r' | grep -E '\.csproj$' | grep -E "$pattern" || true)
+  else
+    projects=$(find tests -name '*.csproj' | grep -E "$pattern" || true)
+  fi
+
+  if [ -z "$projects" ]; then
+    echo $'\n🤷  no test projects to run\n'
+  else
+    while IFS= read -r project; do
+      echo $'\n\t🧪  dotnet test' "$project" $'\n'
+      dotnet test "$project"
+    done <<< "$projects"
+  fi
+fi
+
+if [ "$web" == true ]; then
+  echo $'\n\t🧪  npm run test-unattended\n'
+  (cd src/web && npm run test-unattended)
+fi
+
+echo $'\n\t🎉  tests passed!\n'

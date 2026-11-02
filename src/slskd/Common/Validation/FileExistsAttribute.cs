@@ -32,6 +32,7 @@
 
 namespace slskd.Validation
 {
+    using System;
     using System.ComponentModel.DataAnnotations;
     using System.IO;
 
@@ -71,7 +72,7 @@ namespace slskd.Validation
                             using var fs = File.Open(file, FileMode.Open, FileAccess.Value);
                             fs.Close();
                         }
-                        catch (IOException)
+                        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                         {
                             return new ValidationResult($"The {validationContext.DisplayName} field specifies a file '{file}' that cannot be opened for required access '{FileAccess}'");
                         }

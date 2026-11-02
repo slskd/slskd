@@ -103,9 +103,11 @@ namespace slskd.Files
             // we should only get this far if:
             //   1) the given file exists and
             //   2) it is a symlink, meaning this line _SHOULD_ be guaranteed to return an instance of FileInfo.
+            FileInfo resolved;
+
             try
             {
-                info = (FileInfo)info.ResolveLinkTarget(returnFinalTarget: true);
+                resolved = (FileInfo)info.ResolveLinkTarget(returnFinalTarget: true);
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException || ex is SecurityException)
             {
@@ -117,13 +119,13 @@ namespace slskd.Files
                 throw new IOException($"Failed to resolve FileInfo for linked file '{info.Name}->{info.LinkTarget}': {ex.Message}", ex);
             }
 
-            if (info is null)
+            if (resolved is null)
             {
                 Log.Error("Resolved FileInfo for linked file '{File}->{Link}' was unexpectedly null", info.Name, info.LinkTarget);
                 throw new IOException($"An unexpected error was encountered while resolving FileInfo for linked file '{info.Name}->{info.LinkTarget}'");
             }
 
-            return info;
+            return resolved;
         }
 
         /// <summary>
