@@ -262,7 +262,7 @@ class Chat extends Component {
             className="chat-active-card"
             raised
           >
-            <Card.Content onClick={() => this.focusInput()}>
+            <Card.Content>
               <Card.Header>
                 <Icon
                   color="green"
