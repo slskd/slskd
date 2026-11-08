@@ -535,7 +535,7 @@ namespace slskd
 
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
-                Log.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", OptionsAtStartup.Logger.Loki);
+                Log.Information("Forwarding logs to Grafana Loki");
             }
 
             // bootstrap the ASP.NET application
@@ -1178,12 +1178,14 @@ namespace slskd
                         if (!options.Authentication.Disabled)
                         {
                             var auth = context.Request.Headers["Authorization"].FirstOrDefault();
-                            var providedCreds = auth?.Split(' ').Last();
+                            var providedCreds = auth?.Split(' ').Last() ?? string.Empty;
                             var validCreds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Authentication.Username}:{options.Authentication.Password}"));
 
+                            // use paranoid FixedTimeEquals to protect against time attacks
                             if (string.IsNullOrEmpty(auth) ||
-                                !auth.StartsWith("Basic", StringComparison.InvariantCultureIgnoreCase) ||
-                                !string.Equals(providedCreds, validCreds, StringComparison.InvariantCultureIgnoreCase))
+                                !auth.StartsWith("Basic ", StringComparison.InvariantCultureIgnoreCase) ||
+                                string.IsNullOrEmpty(providedCreds) ||
+                                !System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(providedCreds), Encoding.UTF8.GetBytes(validCreds)))
                             {
                                 context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                                 return;
@@ -1299,7 +1301,7 @@ namespace slskd
                         var record = new LogRecord()
                         {
                             Timestamp = logEvent.Timestamp.LocalDateTime,
-                            Context = logEvent.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
+                            Context = logEvent.Properties.TryGetValue("SourceContext", out var sourceContext) ? sourceContext.ToString().TrimStart('"').TrimEnd('"') : null,
                             SubContext = logEvent.Properties.ContainsKey("SubContext") ? logEvent.Properties["SubContext"].ToString().TrimStart('"').TrimEnd('"') : null,
                             Level = logEvent.Level.ToString(),
                             Message = message.TrimStart('"').TrimEnd('"'),
@@ -1331,11 +1333,11 @@ namespace slskd
 
                 if (e.IsTerminating)
                 {
-                    Serilog.Log.Logger.Fatal(exception, "Unhandled fatal exception: {Message}", e.IsTerminating);
+                    Serilog.Log.Logger.Fatal(exception, "Unhandled fatal exception: {Message}", exception?.Message);
                 }
                 else
                 {
-                    Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception.Message);
+                    Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception?.Message);
                 }
             };
         }

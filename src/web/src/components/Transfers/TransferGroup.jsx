@@ -42,7 +42,7 @@ class TransferGroup extends Component {
       .map((s) =>
         user.directories
           .find((d) => d.directory === s.directory)
-          .files.find((f) => f.filename === s.filename),
+          ?.files?.find((f) => f.filename === s.filename),
       )
       .filter((s) => s !== undefined);
   };
@@ -65,21 +65,29 @@ class TransferGroup extends Component {
   };
 
   cancelAll = async (direction, username, selected) => {
-    await Promise.all(
-      selected.map((file) =>
-        transfers.cancel({ direction, id: file.id, username }),
-      ),
-    );
+    try {
+      await Promise.all(
+        selected.map((file) =>
+          transfers.cancel({ direction, id: file.id, username }),
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   removeAll = async (direction, username, selected) => {
-    await Promise.all(
-      selected.map((file) =>
-        transfers
-          .cancel({ direction, id: file.id, remove: true, username })
-          .then(() => this.removeFileSelection(file)),
-      ),
-    );
+    try {
+      await Promise.all(
+        selected.map((file) =>
+          transfers
+            .cancel({ direction, id: file.id, remove: true, username })
+            .then(() => this.removeFileSelection(file)),
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   handleRetry = async (file) => {

@@ -134,13 +134,13 @@ namespace slskd
 
             foreach (var signal in new[] { PosixSignal.SIGINT, PosixSignal.SIGQUIT, PosixSignal.SIGTERM })
             {
-                PosixSignalRegistration.Create(signal, context =>
+                PosixSignals.Add(PosixSignalRegistration.Create(signal, context =>
                 {
                     ShuttingDown = true;
                     Program.MasterCancellationTokenSource.Cancel();
                     Log.Fatal("Received {Signal}", signal);
                     Environment.Exit(1);
-                });
+                }));
             }
 
             OptionsAtStartup = optionsAtStartup;
@@ -237,6 +237,7 @@ namespace slskd
         public static bool IsShuttingDown => Environment.HasShutdownStarted || ShuttingDown;
 
         private static bool ShuttingDown { get; set; } = false;
+        private static List<PosixSignalRegistration> PosixSignals { get; } = [];
 
         private ISoulseekClient Client { get; set; }
         private FileService Files { get; }
@@ -741,7 +742,7 @@ namespace slskd
                 }
 
                 bool IsNull(Options.TransfersOptions.LimitsOptions.Limits lim, Options.TransfersOptions.LimitsOptions.Limits global)
-                    => (lim is null && global is null) || ((lim?.Files ?? global?.Files ?? lim?.Megabytes ?? global?.Megabytes ?? lim.Failures ?? global.Failures) is null);
+                    => (lim is null && global is null) || ((lim?.Files ?? global?.Files ?? lim?.Megabytes ?? global?.Megabytes ?? lim?.Failures ?? global?.Failures) is null);
 
                 /*
                  * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
@@ -1439,7 +1440,7 @@ namespace slskd
         {
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
-                Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
+                Log.Information("Returned no place in queue for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return Task.FromResult<int?>(null);
             }
 
@@ -1565,8 +1566,15 @@ namespace slskd
                 if (PreviousOptions.Filters.Search.Request.Except(newOptions.Filters.Search.Request).Any()
                     || newOptions.Filters.Search.Request.Except(PreviousOptions.Filters.Search.Request).Any())
                 {
+                    var regexOptions = RegexOptions.Compiled;
+
+                    if (!Flags.CaseSensitiveRegEx)
+                    {
+                        regexOptions |= RegexOptions.IgnoreCase;
+                    }
+
                     CompiledSearchRequestFilters = newOptions.Filters.Search.Request
-                        .Select(f => new Regex(f, RegexOptions.Compiled))
+                        .Select(f => new Regex(f, regexOptions))
                         .ToList()
                         .AsReadOnly();
 

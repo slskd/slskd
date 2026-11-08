@@ -391,7 +391,11 @@ namespace slskd.Shares
                 await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares, Local.Repository);
 
                 Log.Debug("Backing up shared file cache database...");
-                Local.Repository.BackupTo(ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name));
+                using (var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name))
+                {
+                    Local.Repository.BackupTo(backupRepository);
+                }
+
                 Log.Debug("Shared file cache database backup complete");
 
                 Log.Debug("Recomputing share statistics...");
@@ -443,7 +447,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Memory'. Attempting to load from backup...");
 
-                    var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name);
+                    using var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name);
 
                     if (backupRepository.TryValidate(out _))
                     {
@@ -471,7 +475,7 @@ namespace slskd.Shares
                     {
                         Log.Warning("Share cache is missing, corrupt, or is out of date. Attempting to load from backup...");
 
-                        var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name);
+                        using var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name);
 
                         if (backupRepository.TryValidate(out _))
                         {

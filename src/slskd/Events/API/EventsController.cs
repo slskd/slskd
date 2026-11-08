@@ -148,18 +148,45 @@ public class EventsController : ControllerBase
         {
             var d = disambiguator;
 
-            Event @event = eventType switch
-            {
-                EventType.DownloadFileComplete => new DownloadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = new Transfer() },
-                EventType.DownloadDirectoryComplete => new DownloadDirectoryCompleteEvent { LocalDirectoryName = $"{d}local.directory", RemoteDirectoryName = $"{d}remote.directory", Username = $"{d}username" },
-                EventType.UploadFileComplete => new UploadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = new Transfer() },
-                EventType.PrivateMessageReceived => new PrivateMessageReceivedEvent { Message = new PrivateMessage { Id = 42, Timestamp = DateTime.UtcNow, Username = $"{d}username", Message = $"{d}message" } },
-                EventType.RoomMessageReceived => new RoomMessageReceivedEvent { Message = new RoomMessage { RoomName = $"{d}room", Username = $"{d}username", Message = $"{d}message" } },
-                EventType.Noop => new NoopEvent(),
-                _ => throw new SlskdException($"Event type {eventType} is an enum member but is not handled.  Please submit an issue on GitHub."),
-            };
+            Event @event;
 
-            EventBus.Raise(@event);
+            // each event must be raised using its concrete type so that the correct subscribers are invoked
+            switch (eventType)
+            {
+                case EventType.DownloadFileComplete:
+                    var downloadFileComplete = new DownloadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = new Transfer() };
+                    EventBus.Raise(downloadFileComplete);
+                    @event = downloadFileComplete;
+                    break;
+                case EventType.DownloadDirectoryComplete:
+                    var downloadDirectoryComplete = new DownloadDirectoryCompleteEvent { LocalDirectoryName = $"{d}local.directory", RemoteDirectoryName = $"{d}remote.directory", Username = $"{d}username" };
+                    EventBus.Raise(downloadDirectoryComplete);
+                    @event = downloadDirectoryComplete;
+                    break;
+                case EventType.UploadFileComplete:
+                    var uploadFileComplete = new UploadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = new Transfer() };
+                    EventBus.Raise(uploadFileComplete);
+                    @event = uploadFileComplete;
+                    break;
+                case EventType.PrivateMessageReceived:
+                    var privateMessageReceived = new PrivateMessageReceivedEvent { Message = new PrivateMessage { Id = 42, Timestamp = DateTime.UtcNow, Username = $"{d}username", Message = $"{d}message" } };
+                    EventBus.Raise(privateMessageReceived);
+                    @event = privateMessageReceived;
+                    break;
+                case EventType.RoomMessageReceived:
+                    var roomMessageReceived = new RoomMessageReceivedEvent { Message = new RoomMessage { RoomName = $"{d}room", Username = $"{d}username", Message = $"{d}message" } };
+                    EventBus.Raise(roomMessageReceived);
+                    @event = roomMessageReceived;
+                    break;
+                case EventType.Noop:
+                    var noop = new NoopEvent();
+                    EventBus.Raise(noop);
+                    @event = noop;
+                    break;
+                default:
+                    throw new SlskdException($"Event type {eventType} is an enum member but is not handled.  Please submit an issue on GitHub.");
+            }
+
             return StatusCode(201, @event);
         }
         catch (Exception ex)

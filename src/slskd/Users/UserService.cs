@@ -452,7 +452,7 @@ namespace slskd.Users
             {
                 UserDictionary.AddOrUpdate(
                     key: username,
-                    addValue: new User() { Status = new Status { IsPrivileged = true } },
+                    addValue: new User() { Username = username, Status = new Status { IsPrivileged = true } },
                     updateValueFactory: (key, user) => user with { Username = username, Status = user.Status with { IsPrivileged = true } });
             }
         }
@@ -572,7 +572,7 @@ namespace slskd.Users
         {
             UserDictionary.AddOrUpdate(
                 key: username,
-                addValue: new User() { Statistics = statistics },
+                addValue: new User() { Username = username, Statistics = statistics },
                 updateValueFactory: (key, user) => user with { Username = username, Statistics = statistics });
         }
 
@@ -580,7 +580,7 @@ namespace slskd.Users
         {
             UserDictionary.AddOrUpdate(
                 key: username,
-                addValue: new User() { Status = status },
+                addValue: new User() { Username = username, Status = status },
                 updateValueFactory: (key, user) => user with { Username = username, Status = status });
         }
     }
