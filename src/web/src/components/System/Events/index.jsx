@@ -17,18 +17,27 @@ const Events = () => {
   const fetch = async () => {
     setLoading(true);
 
-    const { events: items, totalCount } = await list({
-      limit: PER_PAGE,
-      offset: (page - 1) * PER_PAGE,
-    });
+    try {
+      const { events: items, totalCount } = await list({
+        limit: PER_PAGE,
+        offset: (page - 1) * PER_PAGE,
+      });
 
-    const tp = Math.ceil(totalCount / PER_PAGE);
+      const tp = Math.ceil(totalCount / PER_PAGE);
 
-    setEvents(items);
-    setTotalPages(Number.isNaN(tp) ? 0 : tp);
-    setLoading(false);
+      setEvents(items);
+      setTotalPages(Number.isNaN(tp) ? 0 : tp);
 
-    return items;
+      return items;
+    } catch (error) {
+      console.error(error);
+      setEvents([]);
+      setTotalPages(0);
+
+      return [];
+    } finally {
+      setLoading(false);
+    }
   };
 
   const paginationChanged = ({ activePage }) => {

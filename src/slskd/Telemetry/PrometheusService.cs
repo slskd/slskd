@@ -34,6 +34,7 @@ namespace slskd.Telemetry;
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -137,7 +138,9 @@ public class PrometheusService
                     var groups = match.Groups;
                     var sampleName = groups[1].Value;
                     var sampleLabels = groups[2].Value;
-                    var sampleValue = double.Parse(groups[3].Value);
+
+                    // the exposition format is culture invariant, and uses '+Inf'/'-Inf' which .NET doesn't recognize
+                    var sampleValue = double.Parse(groups[3].Value.Replace("Inf", "Infinity"), NumberStyles.Float, CultureInfo.InvariantCulture);
                     var labels = ParseLabels(sampleLabels);
 
                     if (type.Equals("counter") || type.Equals("gauge"))

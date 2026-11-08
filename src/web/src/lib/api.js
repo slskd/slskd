@@ -26,7 +26,7 @@ api.interceptors.response.use(
   },
   (error) => {
     if (
-      error.response.status === 401 &&
+      error.response?.status === 401 &&
       !['/session', '/server', '/application'].includes(
         error.response.config.url,
       )

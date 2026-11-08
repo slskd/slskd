@@ -145,9 +145,11 @@ const Searches = ({ server } = {}) => {
       });
 
       setRemoving(false);
-    } catch (error_) {
-      console.error(error_);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+    } catch (removeError) {
+      console.error(removeError);
+      toast.error(
+        removeError?.response?.data ?? removeError?.message ?? removeError,
+      );
       setRemoving(false);
     }
   };
@@ -218,24 +220,24 @@ const Searches = ({ server } = {}) => {
           action={
             <>
               <Button
-                disabled={creating || !server.isConnected}
+                disabled={creating || !server?.isConnected}
                 icon="plus"
                 onClick={create}
               />
               <Button
-                disabled={creating || !server.isConnected}
+                disabled={creating || !server?.isConnected}
                 icon="search"
                 onClick={() => create({ navigate: true })}
               />
             </>
           }
           className="search-input"
-          disabled={creating || !server.isConnected}
+          disabled={creating || !server?.isConnected}
           input={
             <input
               data-lpignore="true"
               placeholder={
-                server.isConnected
+                server?.isConnected
                   ? 'Search phrase'
                   : 'Connect to server to perform a search'
               }

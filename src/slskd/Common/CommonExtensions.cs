@@ -53,6 +53,8 @@ namespace slskd
     /// </summary>
     public static class CommonExtensions
     {
+        private static readonly JsonSerializerOptions DefaultJsonSerializerOptions = GetJsonSerializerOptions();
+
         /// <summary>
         ///     Times this Task out after the specified TimeSpan.
         /// </summary>
@@ -358,7 +360,7 @@ namespace slskd
         /// </summary>
         /// <param name="obj">The object to serialize.</param>
         /// <returns>A string containing the serialized object.</returns>
-        public static string ToJson(this object obj) => JsonSerializer.Serialize(obj, GetJsonSerializerOptions());
+        public static string ToJson(this object obj) => JsonSerializer.Serialize(obj, DefaultJsonSerializerOptions);
 
         /// <summary>
         ///     Serializes this object to yaml.
@@ -481,7 +483,7 @@ namespace slskd
         /// <typeparam name="T">The type to which to deserialize the string.</typeparam>
         /// <param name="str">The string to deserialize.</param>
         /// <returns>The new object deserialized from the string.</returns>
-        public static T FromJson<T>(this string str) => JsonSerializer.Deserialize<T>(str, GetJsonSerializerOptions());
+        public static T FromJson<T>(this string str) => JsonSerializer.Deserialize<T>(str, DefaultJsonSerializerOptions);
 
         /// <summary>
         ///     Applies the standard json serializer options to the specified instance.

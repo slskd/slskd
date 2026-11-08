@@ -70,7 +70,7 @@ namespace slskd.Transfers.Uploads
         ///     (such as the upload not being tracked currently).
         /// </summary>
         /// <param name="transfer">The Transfer to complete.</param>
-        /// <returns>A value indicating whether a problem was encountered.</return>
+        /// <returns>A value indicating whether a problem was encountered.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         bool TryComplete(Transfer transfer);
 
@@ -235,7 +235,7 @@ namespace slskd.Transfers.Uploads
                 // todo: deprecate this with improved cancellation handling; it shouldn't be needed
                 if (!upload.TaskCompletionSource.Task.IsCompleted)
                 {
-                    Log.Debug("Upload {File} for {User} was removed without being completed, so it has been cancelled", Path.GetFileName(upload.Filename));
+                    Log.Debug("Upload {File} for {User} was removed without being completed, so it has been cancelled", Path.GetFileName(upload.Filename), upload.Username);
                     upload.TaskCompletionSource.TrySetCanceled();
                 }
 

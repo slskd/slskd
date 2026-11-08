@@ -17,7 +17,7 @@ const Transfers = ({ direction, server }) => {
   const fetch = async () => {
     try {
       const response = await transfersLibrary.getAll({ direction });
-      setTransfers(response);
+      setTransfers(response ?? []);
     } catch (error) {
       console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);

@@ -61,12 +61,12 @@ namespace slskd
 
         public static bool operator !=(WaitKey lhs, WaitKey rhs)
         {
-            return !lhs.Equals(rhs);
+            return !(lhs == rhs);
         }
 
         public static bool operator ==(WaitKey lhs, WaitKey rhs)
         {
-            return lhs.Equals(rhs);
+            return lhs is null ? rhs is null : lhs.Equals(rhs);
         }
 
         /// <summary>
@@ -93,7 +93,7 @@ namespace slskd
         /// <returns>A value indicating whether the specified WaitKey is equal to this instance.</returns>
         public bool Equals(WaitKey other)
         {
-            return Token == other.Token;
+            return other is not null && Token == other.Token;
         }
 
         /// <summary>
