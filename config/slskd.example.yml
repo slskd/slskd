@@ -159,6 +159,10 @@
 #   url_base: /
 #   content_path: wwwroot
 #   logging: false
+#   cors:
+#     allowed_origins:
+#       - https://app.example.com
+#     allow_credentials: false
 #   authentication:
 #     disabled: false
 #     username: slskd
