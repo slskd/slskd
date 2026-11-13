@@ -1008,7 +1008,7 @@ namespace slskd.Transfers.Downloads
             // of the transfer to Cancelled.  _should_!
             if (CancellationTokens.TryRemove(id, out var cts))
             {
-                cts.Cancel();
+                cts.Cancel(swallowObjectDisposedException: true);
                 return true;
             }
 
