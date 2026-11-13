@@ -416,7 +416,7 @@ namespace slskd.Search
         {
             if (CancellationTokens.TryGetValue(id, out var cts))
             {
-                cts.Cancel();
+                cts.Cancel(swallowObjectDisposedException: true);
                 return true;
             }
 

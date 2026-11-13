@@ -505,6 +505,7 @@ namespace slskd.Transfers.Downloads
                             2. the transfer enters a state containing Completed
                             3. the linked CancellationTokenSource we add to CancellationTokens is cancelled
                             4. the 'max wait time' CancellationTokenSource is cancelled
+                            5. the DownloadAsync() method throws
 
                             add this to the dictionary before inserting the record, so we are guaranteed to have it
                             in the right place once the transfer hits the UI
@@ -548,14 +549,13 @@ namespace slskd.Transfers.Downloads
                                 using var timeoutCts = new CancellationTokenSource(maxTimeToWaitForEnqueueRequestAck);
                                 timeoutCts.Token.Register(() =>
                                 {
+                                    // note: disposed once we leave the try block, so registration doesn't fire unless it actually times out
                                     Log.Warning("Download of {Filename} from {Username} failed to enqueue remotely after hard time limit of {Duration} seconds. State transition history: {History}", transfer.Filename, username, maxTimeToWaitForEnqueueRequestAck.TotalSeconds, string.Join(", ", transitions));
                                     enqueuedTcs.TrySetException(new TimeoutException($"Download failed to enqueue remotely after hard time limit of {maxTimeToWaitForEnqueueRequestAck.TotalSeconds} secs"));
 
-                                    // cancel the download attempt so that it doesn't keep running and cause the internal
+                                    // cancel the download attempt so that it doesn't keep running (within Soulseek.NET) and cause the internal
                                     // state of slskd to diverge from the internal state of Soulseek.NET.
-                                    // the transfer record is recorded as being cancelled when this happens and there's not
-                                    // an easy/good way to stop it.
-                                    cts.Cancel();
+                                    cts.Cancel(swallowObjectDisposedException: true);
                                 });
 
                                 // satisfies conditions #1 and #2
@@ -599,6 +599,10 @@ namespace slskd.Transfers.Downloads
 
                                     Log.Error(ex, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, ex.Message);
 
+                                    // trip the TCS if DownloadAsync() throws before any of the other conditions trip it
+                                    // this is harmless if it has already been tripped
+                                    enqueuedTcs.TrySetException(ex);
+
                                     if (!TryFail(transferId, exception: ex))
                                     {
                                         Log.Error(ex, "Failed to clean up transfer {Id} after failed download", transferId);
@@ -616,6 +620,7 @@ namespace slskd.Transfers.Downloads
                                     2. the transfer enters a state containing Completed
                                     3. the linked CancellationTokenSource we add to CancellationTokens is cancelled
                                     4. the 'max wait time' CancellationTokenSource is cancelled
+                                    5. the DownloadAsync() method throws
                                 */
                                 await enqueuedTcs.Task;
 
@@ -1008,7 +1013,7 @@ namespace slskd.Transfers.Downloads
             // of the transfer to Cancelled.  _should_!
             if (CancellationTokens.TryRemove(id, out var cts))
             {
-                cts.Cancel();
+                cts.Cancel(swallowObjectDisposedException: true);
                 return true;
             }
 
