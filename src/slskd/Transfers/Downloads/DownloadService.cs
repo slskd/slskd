@@ -555,7 +555,7 @@ namespace slskd.Transfers.Downloads
                                     // state of slskd to diverge from the internal state of Soulseek.NET.
                                     // the transfer record is recorded as being cancelled when this happens and there's not
                                     // an easy/good way to stop it.
-                                    cts.Cancel();
+                                    cts.Cancel(swallowObjectDisposedException: true);
                                 });
 
                                 // satisfies conditions #1 and #2
