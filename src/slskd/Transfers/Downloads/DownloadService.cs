@@ -505,6 +505,7 @@ namespace slskd.Transfers.Downloads
                             2. the transfer enters a state containing Completed
                             3. the linked CancellationTokenSource we add to CancellationTokens is cancelled
                             4. the 'max wait time' CancellationTokenSource is cancelled
+                            5. the DownloadAsync() method throws
 
                             add this to the dictionary before inserting the record, so we are guaranteed to have it
                             in the right place once the transfer hits the UI
@@ -599,6 +600,10 @@ namespace slskd.Transfers.Downloads
 
                                     Log.Error(ex, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, ex.Message);
 
+                                    // trip the TCS if DownloadAsync() throws before any of the other conditions trip it
+                                    // this is harmless if it has already been tripped
+                                    enqueuedTcs.TrySetException(ex);
+
                                     if (!TryFail(transferId, exception: ex))
                                     {
                                         Log.Error(ex, "Failed to clean up transfer {Id} after failed download", transferId);
@@ -616,6 +621,7 @@ namespace slskd.Transfers.Downloads
                                     2. the transfer enters a state containing Completed
                                     3. the linked CancellationTokenSource we add to CancellationTokens is cancelled
                                     4. the 'max wait time' CancellationTokenSource is cancelled
+                                    5. the DownloadAsync() method throws
                                 */
                                 await enqueuedTcs.Task;
 
