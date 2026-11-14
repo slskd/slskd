@@ -195,7 +195,8 @@ namespace slskd.Transfers.Downloads
             FileService fileService,
             IRelayService relayService,
             IFTPService ftpClient,
-            EventBus eventBus)
+            EventBus eventBus,
+            TimeProvider timeProvider)
         {
             Batches = batchService;
             Searches = searchService;
@@ -206,6 +207,8 @@ namespace slskd.Transfers.Downloads
             FTP = ftpClient;
             Relay = relayService;
             EventBus = eventBus;
+
+            TimeProvider = timeProvider ?? TimeProvider.System;
 
             Clock.EveryMinute += (_, _) => Task.Run(() => CleanupEnqueueSemaphoresAsync());
             Clock.EveryFiveSeconds += (_, _) => Task.Run(() => EmitMetrics());
@@ -245,6 +248,7 @@ namespace slskd.Transfers.Downloads
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private EventBus EventBus { get; }
         private Regex SubdirectoryPatternTokenRegex { get; } = new Regex(@"\$\{([^\{\}]*)\}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private TimeProvider TimeProvider { get; }
 
         /// <summary>
         ///     Allow only one enqueue operation for a given user at a time. Entries are added on the fly if they
@@ -546,7 +550,7 @@ namespace slskd.Transfers.Downloads
                                 TransferStates state = TransferStates.None;
 
                                 // satisfies condition #4; remote user doesn't respond after a really long time
-                                using var timeoutCts = new CancellationTokenSource(maxTimeToWaitForEnqueueRequestAck);
+                                using var timeoutCts = new CancellationTokenSource(delay: maxTimeToWaitForEnqueueRequestAck, timeProvider: TimeProvider);
                                 timeoutCts.Token.Register(() =>
                                 {
                                     // note: disposed once we leave the try block, so registration doesn't fire unless it actually times out
