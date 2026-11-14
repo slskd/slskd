@@ -196,7 +196,7 @@ namespace slskd.Transfers.Downloads
             IRelayService relayService,
             IFTPService ftpClient,
             EventBus eventBus,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider = null)
         {
             Batches = batchService;
             Searches = searchService;
