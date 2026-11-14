@@ -94,7 +94,7 @@ namespace slskd.Core.API
         [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         public IActionResult Shutdown()
         {
-            Program.MasterCancellationTokenSource.Cancel();
+            Program.MasterCancellationTokenSource.Cancel(swallowObjectDisposedException: true);
             Lifetime.StopApplication();
 
             Task.Run(async () =>
@@ -114,7 +114,7 @@ namespace slskd.Core.API
         [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         public IActionResult Restart()
         {
-            Program.MasterCancellationTokenSource.Cancel();
+            Program.MasterCancellationTokenSource.Cancel(swallowObjectDisposedException: true);
             Process.Start(Process.GetCurrentProcess().MainModule.FileName, Environment.CommandLine);
             Lifetime.StopApplication();
 

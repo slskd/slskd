@@ -231,6 +231,25 @@ namespace slskd
         }
 
         /// <summary>
+        ///     Safely cancels this <see cref="CancellationTokenSource"/> without throwing if it is disposed.
+        /// </summary>
+        /// <param name="cts">The CancellationTokenSource instance.</param>
+        /// <param name="swallowObjectDisposedException">A value indicating whether to swallow ObjectDisposedException, if it occurs.</param>
+        /// <returns>A value indicating whether the cancellation completed successfully.</returns>
+        public static bool Cancel(this CancellationTokenSource cts, bool swallowObjectDisposedException)
+        {
+            try
+            {
+                cts.Cancel();
+                return true;
+            }
+            catch (ObjectDisposedException) when (swallowObjectDisposedException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         ///     Recursively retrieves all properties.
         /// </summary>
         /// <param name="type">The type from which to retrieve properties.</param>

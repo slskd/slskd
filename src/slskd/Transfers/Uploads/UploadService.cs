@@ -970,7 +970,7 @@ namespace slskd.Transfers.Uploads
         {
             if (CancellationTokens.TryRemove(id, out var cts))
             {
-                cts.Cancel();
+                cts.Cancel(swallowObjectDisposedException: true);
                 return true;
             }
 

@@ -279,7 +279,7 @@ namespace slskd.Relay
 
                 // if the client is attempting a connection, cancel it it's going to be dropped when we create a new instance, but
                 // we need the retry loop around connection to stop.
-                StartCancellationTokenSource?.Cancel();
+                StartCancellationTokenSource?.Cancel(swallowObjectDisposedException: true);
 
                 HubConnection = new HubConnectionBuilder()
                     .WithUrl($"{options.Relay.Controller.Address.TrimEnd('/')}/hub/relay", builder =>
