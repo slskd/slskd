@@ -463,7 +463,7 @@ namespace slskd.Relay
                     Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
                     // report the failure to the controller. this avoids a failure due to timeout.
-                    await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
+                    await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token, ex.Message);
                 }
             });
         }
