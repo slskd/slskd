@@ -354,14 +354,16 @@ namespace slskd.Relay
                 var sw = new Stopwatch();
                 sw.Start();
 
-                using var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
-                using var inputStream = database.OpenReadStream();
-
-                await inputStream.CopyToAsync(outputStream);
+                // the streams must be closed (and the output flushed) before the file is handed off to be opened as a database
+                using (var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write))
+                using (var inputStream = database.OpenReadStream())
+                {
+                    await inputStream.CopyToAsync(outputStream);
+                }
 
                 sw.Stop();
 
-                Log.Information("Download of shares from {Agent} ({Token}) complete ({Size} in {Duration}ms)", agentName, guid, ((double)inputStream.Length).SizeSuffix(), sw.ElapsedMilliseconds);
+                Log.Information("Download of shares from {Agent} ({Token}) complete ({Size} in {Duration}ms)", agentName, guid, ((double)database.Length).SizeSuffix(), sw.ElapsedMilliseconds);
 
                 await Relay.HandleShareUploadAsync(agentName, id: guid, shares, temp);
 
