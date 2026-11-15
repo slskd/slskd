@@ -1100,6 +1100,11 @@ namespace slskd.Transfers.Downloads
                 Log.Error(ex, "Failed to update database: {Message}", ex.Message);
                 return false;
             }
+            finally
+            {
+                CancellationTokens.TryRemove(id, out var cts);
+                cts?.TryDispose();
+            }
         }
 
         /// <summary>
