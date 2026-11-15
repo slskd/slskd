@@ -780,7 +780,9 @@ namespace slskd.Relay
             var tokenBytes = System.Text.Encoding.UTF8.GetBytes((string)challengeToken);
             var expectedCredential = Aes.Encrypt(tokenBytes, key).ToBase62();
 
-            if (expectedCredential != credential)
+            if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                left: System.Text.Encoding.UTF8.GetBytes(expectedCredential),
+                right: System.Text.Encoding.UTF8.GetBytes(credential ?? string.Empty)))
             {
                 Log.Debug("Validation failed: Supplied credential {Credential} does not match expected credential {Expected}", credential, expectedCredential);
                 return false;
