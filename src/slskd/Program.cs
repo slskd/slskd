@@ -57,6 +57,7 @@ namespace slskd
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Server.Kestrel.Core;
+    using Microsoft.Data.Sqlite;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
@@ -278,6 +279,7 @@ namespace slskd
         private static Mutex Mutex { get; set; }
         private static IDisposable DotNetRuntimeStats { get; set; }
         private static VolatileOverlayConfigurationSource<OptionsOverlay> VolatileOverlayConfigurationSource { get; set; } = new VolatileOverlayConfigurationSource<OptionsOverlay>();
+        private static List<SqliteConnection> VolatileDatabaseKeepaliveConnections { get; } = [];
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -747,7 +749,7 @@ namespace slskd
                     var pooling = OptionsAtStartup.Flags.NoSqlitePooling ? "False" : "True"; // don't invert and ToString this it is confusing
 
                     var connStr = OptionsAtStartup.Flags.Volatile
-                        ? $"Data Source=file:{database}?mode=memory;Pooling={pooling};"
+                        ? $"Data Source=file:{database}?mode=memory&cache=shared;Pooling={pooling};"
                         : $"Data Source={Path.Combine(DataDirectory, $"{database}.db")};Pooling={pooling}";
 
                     return new KeyValuePair<Database, ConnectionString>(database, connStr);
@@ -1525,6 +1527,17 @@ namespace slskd
                             .LogTo(OptionsAtStartup.Debug ? Log.Debug : Log.Information, LogLevel.Information);
                     }
                 });
+
+                // in-memory databases are destroyed when the last connection to them closes. hold one open for the
+                // lifetime of the application so the data (and schema) survive between operations. this must be
+                // opened before EnsureCreated(), otherwise the schema is created in a database that is destroyed
+                // as soon as EnsureCreated() closes its connection
+                if (OptionsAtStartup.Flags.Volatile)
+                {
+                    var keepalive = new SqliteConnection(connectionString);
+                    keepalive.Open();
+                    VolatileDatabaseKeepaliveConnections.Add(keepalive);
+                }
 
                 /*
                     instantiate the DbContext and make sure it is created
