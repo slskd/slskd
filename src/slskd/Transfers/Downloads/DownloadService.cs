@@ -324,7 +324,7 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentException("One or more files contains a dangerous path traversal segment", nameof(files));
             }
 
-            if (fileList.Count != fileList.Distinct().Count())
+            if (fileList.Count != fileList.Select(f => f.Filename).Distinct().Count())
             {
                 throw new ArgumentException("Two or more files in request are duplicated", nameof(files));
             }
