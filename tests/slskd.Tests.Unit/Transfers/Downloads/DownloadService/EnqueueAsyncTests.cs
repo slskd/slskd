@@ -780,6 +780,56 @@ public partial class DownloadServiceTests
             await Task.Delay(100);
         }
 
+        [Fact]
+        public async Task Cancellation_Token_Is_Released_When_DownloadAsync_Throws_Before_Starting()
+        {
+            using var fixture = new Fixture();
+
+            fixture.ClientDownloads = () =>
+            {
+                // the first call is EnqueueAsync() checking for duplicates (no record yet); once the record exists, DownloadAsync()
+                // makes the same check, and reporting a duplicate makes it throw DuplicateTransferException before its try block
+                var record = fixture.Service.Find(t => t.Filename == Filename);
+                return record is null ? [] : [SoulseekTransfer(Username, Filename, TransferStates.Queued | TransferStates.Remotely)];
+            };
+
+            var transfer = await fixture.EnqueueAsync();
+
+            var record = await fixture.WaitForCompletedAsync(transfer.Id);
+            Assert.Equal(TransferStates.Completed | TransferStates.Errored, record.State);
+            Assert.Empty(fixture.Downloads);
+
+            await Task.Delay(100);
+            Assert.False(fixture.CancellationTokens.ContainsKey(transfer.Id));
+        }
+
+        [Fact]
+        public async Task Cancellation_Token_Is_Released_When_Batch_Is_Cancelled_Mid_Loop()
+        {
+            using var fixture = new Fixture();
+            using var cts = new CancellationTokenSource();
+            var inCriticalSection = false;
+
+            fixture.OnCreateDbContext = () => inCriticalSection = true;
+            fixture.ClientDownloads = () =>
+            {
+                if (inCriticalSection)
+                {
+                    cts.Cancel();
+                }
+
+                return [];
+            };
+
+            await Record.ExceptionAsync(() => fixture.Service.EnqueueAsync(Username, [(Filename, Size), (OtherFilename, Size)], cancellationToken: cts.Token));
+
+            var record = await fixture.WaitForCompletedAsync(Assert.Single(fixture.Records()).Id);
+            Assert.Equal(TransferStates.Completed | TransferStates.Cancelled, record.State);
+
+            await Task.Delay(100);
+            Assert.False(fixture.CancellationTokens.ContainsKey(record.Id));
+        }
+
         private const string OtherFilename = "@alice\\Music\\track2.flac";
 
         private static List<(string Filename, long Size)> Files(int count)
