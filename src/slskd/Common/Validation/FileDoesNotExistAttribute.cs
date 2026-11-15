@@ -42,7 +42,7 @@ namespace slskd.Validation
     {
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            if (value != null)
+            if (value is not null && !string.IsNullOrEmpty(value.ToString()))
             {
                 var file = Path.GetFullPath(value?.ToString());
 
