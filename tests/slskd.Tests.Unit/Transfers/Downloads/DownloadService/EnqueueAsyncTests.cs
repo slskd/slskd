@@ -243,6 +243,17 @@ public partial class DownloadServiceTests
         }
 
         [Fact]
+        public async Task Throws_ArgumentException_When_Filenames_Are_Duplicated_With_Different_Sizes()
+        {
+            using var fixture = new Fixture();
+
+            var ex = await Record.ExceptionAsync(() => fixture.Service.EnqueueAsync(Username, [(Filename, Size), (Filename, Size + 1)]));
+
+            Assert.Contains("duplicated", Assert.IsType<ArgumentException>(ex).Message);
+            Assert.Empty(fixture.Records());
+        }
+
+        [Fact]
         public async Task Rethrows_When_User_Endpoint_Lookup_Fails()
         {
             using var fixture = new Fixture();
