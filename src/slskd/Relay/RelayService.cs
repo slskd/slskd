@@ -366,8 +366,8 @@ namespace slskd.Relay
         {
             var token = Cryptography.Random.GetBytes(32).ToBase62();
 
-            // this token is only valid for this connection id for a short time this is important to prevent replay-type attacks.
-            MemoryCache.Set(GetAuthTokenCacheKey(connectionId), token, TimeSpan.FromSeconds(10));
+            // this token is only valid for this connection id for a short time; this is important to prevent replay-type attacks.
+            MemoryCache.Set(GetAuthTokenCacheKey(connectionId), token, TimeSpan.FromMinutes(1));
             Log.Debug("Cached auth token {Token} for ID {Id}", token, connectionId);
             return token;
         }
