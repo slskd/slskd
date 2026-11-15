@@ -765,6 +765,9 @@ namespace slskd.Relay
                 return false;
             }
 
+            // challenge tokens can be used exactly once, pass or fail
+            MemoryCache.Remove(GetAuthTokenCacheKey(connectionId));
+
             var agentOptions = OptionsMonitor.CurrentValue.Relay.Agents.Values.SingleOrDefault(a => a.InstanceName == agentName);
 
             if (agentOptions == default)
