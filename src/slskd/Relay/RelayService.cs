@@ -858,6 +858,8 @@ namespace slskd.Relay
                     else
                     {
                         // the controller changed. disconnect and throw away the client and create a new one
+                        var oldClient = Client;
+
                         Client = new RelayClient(
                             shareService: Shares,
                             fileService: Files,
@@ -866,6 +868,8 @@ namespace slskd.Relay
 
                         Client.StateMonitor.OnChange(clientState
                             => State.SetValue(state => state with { Controller = state.Controller with { State = clientState.Current } }));
+
+                        oldClient.TryDispose();
 
                         State.SetValue(state => state with
                         {
