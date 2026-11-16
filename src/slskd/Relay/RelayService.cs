@@ -366,8 +366,8 @@ namespace slskd.Relay
         {
             var token = Cryptography.Random.GetBytes(32).ToBase62();
 
-            // this token is only valid for this connection id for a short time this is important to prevent replay-type attacks.
-            MemoryCache.Set(GetAuthTokenCacheKey(connectionId), token, TimeSpan.FromSeconds(10));
+            // this token is only valid for this connection id for a short time; this is important to prevent replay-type attacks.
+            MemoryCache.Set(GetAuthTokenCacheKey(connectionId), token, TimeSpan.FromMinutes(1));
             Log.Debug("Cached auth token {Token} for ID {Id}", token, connectionId);
             return token;
         }
@@ -765,6 +765,9 @@ namespace slskd.Relay
                 return false;
             }
 
+            // challenge tokens can be used exactly once, pass or fail
+            MemoryCache.Remove(GetAuthTokenCacheKey(connectionId));
+
             var agentOptions = OptionsMonitor.CurrentValue.Relay.Agents.Values.SingleOrDefault(a => a.InstanceName == agentName);
 
             if (agentOptions == default)
@@ -777,7 +780,9 @@ namespace slskd.Relay
             var tokenBytes = System.Text.Encoding.UTF8.GetBytes((string)challengeToken);
             var expectedCredential = Aes.Encrypt(tokenBytes, key).ToBase62();
 
-            if (expectedCredential != credential)
+            if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                left: System.Text.Encoding.UTF8.GetBytes(expectedCredential),
+                right: System.Text.Encoding.UTF8.GetBytes(credential ?? string.Empty)))
             {
                 Log.Debug("Validation failed: Supplied credential {Credential} does not match expected credential {Expected}", credential, expectedCredential);
                 return false;
@@ -853,6 +858,8 @@ namespace slskd.Relay
                     else
                     {
                         // the controller changed. disconnect and throw away the client and create a new one
+                        var oldClient = Client;
+
                         Client = new RelayClient(
                             shareService: Shares,
                             fileService: Files,
@@ -861,6 +868,8 @@ namespace slskd.Relay
 
                         Client.StateMonitor.OnChange(clientState
                             => State.SetValue(state => state with { Controller = state.Controller with { State = clientState.Current } }));
+
+                        oldClient.TryDispose();
 
                         State.SetValue(state => state with
                         {
@@ -925,7 +934,9 @@ namespace slskd.Relay
                 var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
                 var expectedCredential = Aes.Encrypt(tokenBytes, key).ToBase62();
 
-                if (expectedCredential != credential)
+                if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                    left: System.Text.Encoding.UTF8.GetBytes(expectedCredential),
+                    right: System.Text.Encoding.UTF8.GetBytes(credential ?? string.Empty)))
                 {
                     Log.Debug("Validation failed: Supplied credential {Credential} does not match expected credential {Expected}", credential, expectedCredential);
                     return false;

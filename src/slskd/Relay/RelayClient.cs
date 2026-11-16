@@ -447,7 +447,9 @@ namespace slskd.Relay
                     request.Content = content;
 
                     Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
-                    var response = await CreateHttpClient().SendAsync(request);
+
+                    using var client = CreateHttpClient();
+                    using var response = await client.SendAsync(request);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -463,7 +465,7 @@ namespace slskd.Relay
                     Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
                     // report the failure to the controller. this avoids a failure due to timeout.
-                    await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
+                    await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token, ex.Message);
                 }
             });
         }
@@ -658,7 +660,9 @@ namespace slskd.Relay
 
                 Log.Information("Beginning upload of shares ({Size})", size);
                 Log.Debug("Shares: {Shares}", Shares.LocalHost.Shares.ToJson());
-                var response = await CreateHttpClient().SendAsync(request, cancellationToken);
+
+                using var client = CreateHttpClient();
+                using var response = await client.SendAsync(request, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
                 {
