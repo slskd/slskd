@@ -931,7 +931,7 @@ namespace slskd
                                         try
                                         {
                                             // check to see if the provided value is a valid API key
-                                            var service = services.BuildServiceProvider().GetRequiredService<SecurityService>();
+                                            var service = context.HttpContext.RequestServices.GetRequiredService<SecurityService>();
                                             var (name, role) = service.AuthenticateWithApiKey(token, callerIpAddress: context.HttpContext.Connection.RemoteIpAddress);
 
                                             // the API key is valid. create a new, short lived jwt for the key name and role
