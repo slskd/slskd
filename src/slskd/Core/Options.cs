@@ -2093,6 +2093,12 @@ namespace slskd
             public WebAuthenticationOptions Authentication { get; init; } = new WebAuthenticationOptions();
 
             /// <summary>
+            ///      CORS options.
+            /// </summary>
+            [Validate]
+            public CorsOptions Cors { get; init; } = new CorsOptions();
+
+            /// <summary>
             ///     Authentication options.
             /// </summary>
             public class WebAuthenticationOptions : IValidatableObject
@@ -2383,6 +2389,67 @@ namespace slskd
                     [RequiresRestart]
                     [Secret]
                     public string Password { get; init; }
+                }
+            }
+
+            public class CorsOptions : IValidatableObject
+            {
+                [Argument(default, "cors-allowed-origins")]
+                [EnvironmentVariable("CORS_ALLOWED_ORIGINS")]
+                [Description("CORS allowed origins, comma separated")]
+                [RequiresRestart]
+                public string[] AllowedOrigins { get; init; } = null;
+
+                [Argument(default, "cors-allow-credentials")]
+                [EnvironmentVariable("CORS_ALLOW_CREDENTIALS")]
+                [Description("CORS allow credentials (cookies, basic auth)")]
+                [RequiresRestart]
+                public bool AllowCredentials { get; init; } = false;
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    if (AllowedOrigins?.Count(x => x == "*") > 1)
+                    {
+                        yield return new ValidationResult("Specify only one wildcard origin (\"*\")");
+                    }
+
+                    foreach (var origin in (AllowedOrigins ?? []).Where(o => o != "*"))
+                    {
+                        if (origin.Contains('*'))
+                        {
+                            yield return new ValidationResult($"Origin {origin} must not contain a wildcard");
+                        }
+
+                        if (!Uri.TryCreate(origin, default(UriCreationOptions), out var o))
+                        {
+                            yield return new ValidationResult($"Origin {origin} is not a valid URI");
+                        }
+
+                        if (!o.IsAbsoluteUri)
+                        {
+                            yield return new ValidationResult($"Origin {origin} must be an absolute URI");
+                        }
+
+                        string[] validSchemes = ["http", "https"];
+
+                        if (!validSchemes.Contains(o.Scheme, StringComparer.OrdinalIgnoreCase))
+                        {
+                            yield return new ValidationResult($"Origin {origin} must use the HTTP or HTTPS scheme");
+                        }
+
+                        var policy = new Microsoft.AspNetCore.Cors.Infrastructure.CorsPolicyBuilder().WithOrigins(origin).Build();
+                        var browserOrigin = $"{o.Scheme}://{o.IdnHost}{(o.IsDefaultPort ? string.Empty : $":{o.Port}")}";
+
+                        if (!policy.IsOriginAllowed(browserOrigin))
+                        {
+                            yield return new ValidationResult($"Origin {origin} is malformed and will never match a browser request; rewrite it as {browserOrigin}");
+                        }
+                    }
+
+                    if ((AllowedOrigins is null || AllowedOrigins.Length == 0 || AllowedOrigins.Contains("*")) && AllowCredentials)
+                    {
+                        yield return new ValidationResult("Credentials can not be allowed while allowing all origins");
+                    }
                 }
             }
         }
