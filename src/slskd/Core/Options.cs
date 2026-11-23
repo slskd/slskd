@@ -2423,6 +2423,7 @@ namespace slskd
                         if (!Uri.TryCreate(origin, default(UriCreationOptions), out var o))
                         {
                             yield return new ValidationResult($"Origin {origin} is not a valid URI");
+                            continue;
                         }
 
                         if (!o.IsAbsoluteUri)
