@@ -2415,9 +2415,17 @@ namespace slskd
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
-                    if (AllowedOrigins?.Count(x => x == "*") > 1)
+                    if (AllowedOrigins?.Contains("*") ?? false)
                     {
-                        yield return new ValidationResult("Specify only one wildcard origin (\"*\")");
+                        if (AllowedOrigins.Count(x => x == "*") > 1)
+                        {
+                            yield return new ValidationResult("Specify only one wildcard origin (\"*\")");
+                        }
+
+                        if (AllowedOrigins.Any(x => x != "*"))
+                        {
+                            yield return new ValidationResult("Specifying wildcard origin (\"*\") with other origins has no effect; remove either the wildcard or all non-wildcard origins");
+                        }
                     }
 
                     foreach (var origin in (AllowedOrigins ?? []).Where(o => o != "*"))
