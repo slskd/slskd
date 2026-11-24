@@ -842,32 +842,32 @@ namespace slskd
 
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
         {
-            var allowedCorsOrigins = OptionsAtStartup.Web.Cors.AllowedOrigins
-                .Where(origin => !string.IsNullOrWhiteSpace(origin))
-                .Select(origin => origin.Trim().TrimEnd('/'))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            if (allowedCorsOrigins.Length == 0)
+            services.AddCors(options => options.AddPolicy("CORS", builder =>
             {
-                Log.Warning("CORS allowlist is empty; cross-origin browser requests are disabled");
-            }
+                var cors = OptionsAtStartup.Web.Cors;
+                var origins = (cors.AllowedOrigins ?? [])
+                    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+                    .Select(origin => origin.Trim().TrimEnd('/'))
+                    .ToArray();
 
-            services.AddCors(options => options.AddPolicy("AllowConfiguredOrigins", builder =>
-            {
                 builder
                     .AllowAnyHeader()
                     .AllowAnyMethod()
+                    .DisallowCredentials()
                     .WithExposedHeaders("X-URL-Base", "X-Total-Count");
 
-                if (allowedCorsOrigins.Length > 0)
+                if (origins.Length > 0 && !origins.Contains("*"))
                 {
-                    builder.WithOrigins(allowedCorsOrigins);
+                    builder.WithOrigins(origins);
 
-                    if (OptionsAtStartup.Web.Cors.AllowCredentials)
+                    if (cors.AllowCredentials)
                     {
                         builder.AllowCredentials();
                     }
+                }
+                else
+                {
+                    builder.SetIsOriginAllowed((origin) => true); // allow any origin
                 }
             }));
 

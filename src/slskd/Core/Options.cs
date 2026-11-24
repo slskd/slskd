@@ -2087,17 +2087,16 @@ namespace slskd
             public bool Logging { get; init; } = false;
 
             /// <summary>
-            ///     Gets CORS options.
-            /// </summary>
-            [Validate]
-            [RequiresRestart]
-            public CorsOptions Cors { get; init; } = new CorsOptions();
-
-            /// <summary>
             ///     Gets authentication options.
             /// </summary>
             [Validate]
             public WebAuthenticationOptions Authentication { get; init; } = new WebAuthenticationOptions();
+
+            /// <summary>
+            ///      Gets CORS options.
+            /// </summary>
+            [Validate]
+            public CorsOptions Cors { get; init; } = new CorsOptions();
 
             /// <summary>
             ///     Authentication options.
@@ -2404,7 +2403,7 @@ namespace slskd
                 [Argument(default, "cors-allowed-origins")]
                 [EnvironmentVariable("CORS_ALLOWED_ORIGINS")]
                 [Description("list of allowed CORS origins")]
-                public string[] AllowedOrigins { get; init; } = Array.Empty<string>();
+                public string[] AllowedOrigins { get; init; } = null;
 
                 /// <summary>
                 ///     Gets a value indicating whether CORS requests may include credentials.
@@ -2416,33 +2415,49 @@ namespace slskd
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
-                    var results = new List<ValidationResult>();
-                    var origins = AllowedOrigins
-                        .Where(origin => !string.IsNullOrWhiteSpace(origin))
-                        .Select(origin => origin.Trim())
-                        .ToArray();
-
-                    if (AllowCredentials && origins.Length == 0)
+                    if (AllowedOrigins?.Count(x => x == "*") > 1)
                     {
-                        results.Add(new ValidationResult("CORS credentials require at least one allowed origin"));
+                        yield return new ValidationResult("Specify only one wildcard origin (\"*\")");
                     }
 
-                    foreach (var origin in origins)
+                    foreach (var origin in (AllowedOrigins ?? []).Where(o => o != "*"))
                     {
-                        if (origin == "*")
+                        if (origin.Contains('*'))
                         {
-                            results.Add(new ValidationResult("CORS wildcard origins are not allowed; specify explicit origins"));
+                            yield return new ValidationResult($"Origin {origin} must not contain a wildcard");
+                        }
+
+                        if (!Uri.TryCreate(origin, default(UriCreationOptions), out var o))
+                        {
+                            yield return new ValidationResult($"Origin {origin} is not a valid URI");
                             continue;
                         }
 
-                        if (!Uri.TryCreate(origin, UriKind.Absolute, out var parsed) ||
-                            (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
+                        if (!o.IsAbsoluteUri)
                         {
-                            results.Add(new ValidationResult($"CORS origin '{origin}' must be an absolute http:// or https:// URL"));
+                            yield return new ValidationResult($"Origin {origin} must be an absolute URI");
+                        }
+
+                        string[] validSchemes = ["http", "https"];
+
+                        if (!validSchemes.Contains(o.Scheme, StringComparer.OrdinalIgnoreCase))
+                        {
+                            yield return new ValidationResult($"Origin {origin} must use the HTTP or HTTPS scheme");
+                        }
+
+                        var policy = new Microsoft.AspNetCore.Cors.Infrastructure.CorsPolicyBuilder().WithOrigins(origin).Build();
+                        var browserOrigin = $"{o.Scheme}://{o.IdnHost}{(o.IsDefaultPort ? string.Empty : $":{o.Port}")}";
+
+                        if (!policy.IsOriginAllowed(browserOrigin))
+                        {
+                            yield return new ValidationResult($"Origin {origin} is malformed and will never match a browser request; rewrite it as {browserOrigin}");
                         }
                     }
 
-                    return results;
+                    if ((AllowedOrigins is null || AllowedOrigins.Length == 0 || AllowedOrigins.Contains("*")) && AllowCredentials)
+                    {
+                        yield return new ValidationResult("Credentials can not be allowed while allowing all origins");
+                    }
                 }
             }
         }
