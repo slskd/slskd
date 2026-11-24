@@ -63,10 +63,41 @@ public class CorsOptionsTests
         }
 
         [Fact]
-        public void Wildcard_and_valid_origin_produces_no_errors()
+        public void Wildcard_and_valid_origin_produces_error()
         {
             var options = new CorsOptions { AllowedOrigins = ["*", "https://example.com"] };
-            Assert.Empty(Validate(options));
+            var results = Validate(options);
+            Assert.Single(results);
+            Assert.Contains("other origins", results[0].ErrorMessage);
+        }
+
+        [Fact]
+        public void Valid_origin_and_wildcard_produces_error()
+        {
+            var options = new CorsOptions { AllowedOrigins = ["https://example.com", "*"] };
+            var results = Validate(options);
+            Assert.Single(results);
+            Assert.Contains("other origins", results[0].ErrorMessage);
+        }
+
+        [Fact]
+        public void Multiple_wildcards_and_valid_origin_produces_both_errors()
+        {
+            var options = new CorsOptions { AllowedOrigins = ["*", "https://example.com", "*"] };
+            var results = Validate(options);
+            Assert.Equal(2, results.Count);
+            Assert.Contains(results, r => r.ErrorMessage.Contains("only one wildcard"));
+            Assert.Contains(results, r => r.ErrorMessage.Contains("other origins"));
+        }
+
+        [Fact]
+        public void Wildcard_and_invalid_origin_produces_errors_for_both()
+        {
+            var options = new CorsOptions { AllowedOrigins = ["*", "ftp://example.com"] };
+            var results = Validate(options);
+            Assert.Equal(2, results.Count);
+            Assert.Contains(results, r => r.ErrorMessage.Contains("other origins"));
+            Assert.Contains(results, r => r.ErrorMessage.Contains("HTTP or HTTPS"));
         }
 
         [Theory]
@@ -188,8 +219,15 @@ public class CorsOptionsTests
         {
             var options = new CorsOptions { AllowedOrigins = ["*", "https://example.com"], AllowCredentials = true };
             var results = Validate(options);
-            Assert.Single(results);
-            Assert.Contains("Credentials", results[0].ErrorMessage);
+            Assert.Contains(results, r => r.ErrorMessage.Contains("Credentials"));
+        }
+
+        [Fact]
+        public void Credentials_with_multiple_wildcards_produces_error()
+        {
+            var options = new CorsOptions { AllowedOrigins = ["*", "*"], AllowCredentials = true };
+            var results = Validate(options);
+            Assert.Contains(results, r => r.ErrorMessage.Contains("Credentials"));
         }
 
         [Fact]
@@ -203,6 +241,20 @@ public class CorsOptionsTests
         public void No_credentials_with_null_origins_produces_no_errors()
         {
             var options = new CorsOptions { AllowedOrigins = null, AllowCredentials = false };
+            Assert.Empty(Validate(options));
+        }
+
+        [Fact]
+        public void No_credentials_with_empty_origins_produces_no_errors()
+        {
+            var options = new CorsOptions { AllowedOrigins = [], AllowCredentials = false };
+            Assert.Empty(Validate(options));
+        }
+
+        [Fact]
+        public void No_credentials_with_wildcard_origin_produces_no_errors()
+        {
+            var options = new CorsOptions { AllowedOrigins = ["*"], AllowCredentials = false };
             Assert.Empty(Validate(options));
         }
     }
