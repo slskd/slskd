@@ -2403,6 +2403,7 @@ namespace slskd
                 [Argument(default, "cors-allowed-origins")]
                 [EnvironmentVariable("CORS_ALLOWED_ORIGINS")]
                 [Description("list of allowed CORS origins")]
+                [RequiresRestart]
                 public string[] AllowedOrigins { get; init; } = null;
 
                 /// <summary>
@@ -2411,6 +2412,7 @@ namespace slskd
                 [Argument(default, "cors-allow-credentials")]
                 [EnvironmentVariable("CORS_ALLOW_CREDENTIALS")]
                 [Description("allow CORS credentials for allowed origins")]
+                [RequiresRestart]
                 public bool AllowCredentials { get; init; } = false;
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
