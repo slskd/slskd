@@ -159,10 +159,6 @@
 #   url_base: /
 #   content_path: wwwroot
 #   logging: false
-#   cors:
-#     allowed_origins:
-#       - https://app.example.com
-#     allow_credentials: false
 #   authentication:
 #     disabled: false
 #     username: slskd
@@ -177,7 +173,7 @@
 #         cidr: 0.0.0.0/0,::/0
 #   cors:
 #     allowed_origins:
-#       - *
+#       - https://app.example.com
 #     allow_credentials: false
 # retention:
 #   search: 10080 # 7 days, in minutes
