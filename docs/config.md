@@ -992,6 +992,31 @@ web:
         cidr: 0.0.0.0/0,::/0
 ```
 
+## Cross-Origin Resource Sharing (CORS)
+
+[CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS) controls whether a web page served from one origin (scheme, host, and port) is allowed by the browser to make requests to the API from another origin. This only applies to requests made by a browser; scripts, command-line tools, and other applications that call the API directly are not affected.
+
+Most users don't need to change these options. The web UI is served by the application itself, so requests it makes are not cross-origin. A common reason to configure CORS is to call the API from a custom web page or dashboard hosted somewhere else, such as `https://dashboard.example.com`.
+
+By default, the list of allowed origins is empty, which allows requests from any origin. A list containing a single wildcard (`*`) entry has the same effect. To restrict access, supply a list of the specific origins that should be allowed.
+
+Credentials (cookies and HTTP authentication) are not allowed in CORS requests by default. Credentials can only be allowed if a list of specific origins is supplied; attempting to allow credentials while all origins are allowed (an empty list or a wildcard) will cause a validation error. Note that JWTs and API keys are sent in headers and don't require this option.
+
+| Command-Line                | Environment Variable           | Description                                         |
+| --------------------------- | ------------------------------ | --------------------------------------------------- |
+| `--cors-allowed-origins`    | `SLSKD_CORS_ALLOWED_ORIGINS`   | The list of allowed CORS origins                    |
+| `--cors-allow-credentials`  | `SLSKD_CORS_ALLOW_CREDENTIALS` | Determines whether CORS requests may include credentials |
+
+#### **YAML**
+```yaml
+web:
+  cors:
+    allowed_origins:
+      - https://dashboard.example.com
+      - http://localhost:3000
+    allow_credentials: false
+```
+
 # Filters
 
 A number of filters can be configured to control various aspects of how the application interacts with the Soulseek network.
