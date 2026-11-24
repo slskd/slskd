@@ -842,7 +842,7 @@ namespace slskd
 
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
         {
-            services.AddCors(options => options.AddPolicy("CORS", builder =>
+            services.AddCors(options => options.AddPolicy(nameof(OptionsAtStartup.Web.Cors), builder =>
             {
                 var cors = OptionsAtStartup.Web.Cors;
                 var origins = (cors.AllowedOrigins ?? [])
@@ -1098,7 +1098,7 @@ namespace slskd
                 await context.Response.WriteAsJsonAsync(context.Features.Get<IExceptionHandlerPathFeature>().Error.Message);
             }));
 
-            app.UseCors("AllowConfiguredOrigins");
+            app.UseCors(nameof(OptionsAtStartup.Web.Cors));
 
             if (OptionsAtStartup.Web.Https.Force)
             {
