@@ -36,7 +36,6 @@ namespace slskd.Authentication
     {
         ReadOnly = 0,
         ReadWrite = 1,
-        Guest = 2,
         Administrator = 3,
     }
 }

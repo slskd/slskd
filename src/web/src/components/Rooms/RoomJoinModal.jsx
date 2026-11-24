@@ -25,7 +25,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
     const getAvailableRooms = async () => {
       setLoading(true);
       const availableResult = await rooms.getAvailable();
-      setAvailable(availableResult);
+      setAvailable(availableResult ?? []);
       setLoading(false);
     };
 

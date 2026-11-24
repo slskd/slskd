@@ -1463,6 +1463,7 @@ namespace slskd
             [EnvironmentVariable("LOKI")]
             [Description("optional; url to a Grafana Loki instance to which to log")]
             [RequiresRestart]
+            [Secret]
             public string Loki { get; init; } = null;
 
             /// <summary>
@@ -2102,6 +2103,12 @@ namespace slskd
             public WebAuthenticationOptions Authentication { get; init; } = new WebAuthenticationOptions();
 
             /// <summary>
+            ///      Gets CORS options.
+            /// </summary>
+            [Validate]
+            public CorsOptions Cors { get; init; } = new CorsOptions();
+
+            /// <summary>
             ///     Authentication options.
             /// </summary>
             public class WebAuthenticationOptions : IValidatableObject
@@ -2195,9 +2202,12 @@ namespace slskd
                         {
                             var role = tuple.Split('=').LastOrDefault();
 
-                            if (!Enum.TryParse(typeof(Role), value: role, ignoreCase: true, out _))
+                            var roleResult = new EnumAttribute(typeof(Role), ignoreCase: true)
+                                .GetValidationResult(role, new ValidationContext(this) { MemberName = nameof(ApiKey), DisplayName = "API key role" });
+
+                            if (roleResult != ValidationResult.Success)
                             {
-                                results.Add(new ValidationResult($"API key role must be one of: {string.Join(", ", Enum.GetNames(typeof(Role)))}"));
+                                results.Add(new ValidationResult(roleResult.ErrorMessage));
                             }
                         }
                         else if (tuple.StartsWith("cidr=", StringComparison.OrdinalIgnoreCase))
@@ -2252,7 +2262,7 @@ namespace slskd
                     [Argument(default, "jwt-ttl")]
                     [EnvironmentVariable("JWT_TTL")]
                     [Description("TTL for JWTs")]
-                    [Range(3600, int.MaxValue)]
+                    [Range(3600000, int.MaxValue)]
                     [RequiresRestart]
                     public int Ttl { get; init; } = 604800000;
                 }
@@ -2389,6 +2399,85 @@ namespace slskd
                     [RequiresRestart]
                     [Secret]
                     public string Password { get; init; }
+                }
+            }
+
+            /// <summary>
+            ///     CORS options.
+            /// </summary>
+            public class CorsOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the list of CORS allowed origins.
+                /// </summary>
+                [Argument(default, "cors-allowed-origins")]
+                [EnvironmentVariable("CORS_ALLOWED_ORIGINS")]
+                [Description("list of allowed CORS origins")]
+                [RequiresRestart]
+                public string[] AllowedOrigins { get; init; } = null;
+
+                /// <summary>
+                ///     Gets a value indicating whether CORS requests may include credentials.
+                /// </summary>
+                [Argument(default, "cors-allow-credentials")]
+                [EnvironmentVariable("CORS_ALLOW_CREDENTIALS")]
+                [Description("allow CORS credentials for allowed origins")]
+                [RequiresRestart]
+                public bool AllowCredentials { get; init; } = false;
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    if (AllowedOrigins?.Contains("*") ?? false)
+                    {
+                        if (AllowedOrigins.Count(x => x == "*") > 1)
+                        {
+                            yield return new ValidationResult("Specify only one wildcard origin (\"*\")");
+                        }
+
+                        if (AllowedOrigins.Any(x => x != "*"))
+                        {
+                            yield return new ValidationResult("Specifying wildcard origin (\"*\") with other origins has no effect; remove either the wildcard or all non-wildcard origins");
+                        }
+                    }
+
+                    foreach (var origin in (AllowedOrigins ?? []).Where(o => o != "*"))
+                    {
+                        if (origin.Contains('*'))
+                        {
+                            yield return new ValidationResult($"Origin {origin} must not contain a wildcard");
+                        }
+
+                        if (!Uri.TryCreate(origin, default(UriCreationOptions), out var o))
+                        {
+                            yield return new ValidationResult($"Origin {origin} is not a valid URI");
+                            continue;
+                        }
+
+                        if (!o.IsAbsoluteUri)
+                        {
+                            yield return new ValidationResult($"Origin {origin} must be an absolute URI");
+                        }
+
+                        string[] validSchemes = ["http", "https"];
+
+                        if (!validSchemes.Contains(o.Scheme, StringComparer.OrdinalIgnoreCase))
+                        {
+                            yield return new ValidationResult($"Origin {origin} must use the HTTP or HTTPS scheme");
+                        }
+
+                        var policy = new Microsoft.AspNetCore.Cors.Infrastructure.CorsPolicyBuilder().WithOrigins(origin).Build();
+                        var browserOrigin = $"{o.Scheme}://{o.IdnHost}{(o.IsDefaultPort ? string.Empty : $":{o.Port}")}";
+
+                        if (!policy.IsOriginAllowed(browserOrigin))
+                        {
+                            yield return new ValidationResult($"Origin {origin} is malformed and will never match a browser request; rewrite it as {browserOrigin}");
+                        }
+                    }
+
+                    if ((AllowedOrigins is null || AllowedOrigins.Length == 0 || AllowedOrigins.Contains("*")) && AllowCredentials)
+                    {
+                        yield return new ValidationResult("Credentials can not be allowed while allowing all origins");
+                    }
                 }
             }
         }
@@ -2582,6 +2671,7 @@ namespace slskd
                 ///     Gets the fully qualified URL for the webhook.
                 /// </summary>
                 [NotNullOrWhiteSpace]
+                [Secret]
                 public string Url { get; init; }
 
                 /// <summary>
@@ -2618,6 +2708,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets the header's value.
                 /// </summary>
+                [Secret]
                 public string Value { get; init; }
             }
 
@@ -2658,6 +2749,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets the shell command to run.
                 /// </summary>
+                [Secret]
                 public string Command { get; init; }
 
                 /// <summary>
@@ -2671,6 +2763,7 @@ namespace slskd
                 /// <remarks>
                 ///     Mutually exclusive with <see cref="Arglist"/>.
                 /// </remarks>
+                [Secret]
                 public string Args { get; init; }
 
                 /// <summary>

@@ -90,7 +90,7 @@ namespace slskd.Transfers.API
         /// <response code="204">The download was cancelled successfully.</response>
         /// <response code="404">The specified download was not found.</response>
         [HttpDelete("downloads/{username}/{id}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public IActionResult CancelDownloadAsync([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id, [FromQuery] bool remove = false)
@@ -128,7 +128,7 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="204">The downloads were removed successfully.</response>
         [HttpDelete("downloads/all/completed")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
         public IActionResult ClearCompletedDownloads()
         {
@@ -159,7 +159,7 @@ namespace slskd.Transfers.API
         /// <response code="204">The upload was cancelled successfully.</response>
         /// <response code="404">The specified upload was not found.</response>
         [HttpDelete("uploads/{username}/{id}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public IActionResult CancelUpload([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id, [FromQuery] bool remove = false)
@@ -197,7 +197,7 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="204">The uploads were removed successfully.</response>
         [HttpDelete("uploads/all/completed")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
         public IActionResult ClearCompletedUploads()
         {
@@ -229,7 +229,7 @@ namespace slskd.Transfers.API
         /// <response code="500">An unexpected error was encountered.</response>
         [Obsolete("Will be phased out in future versions; use batches")]
         [HttpPost("downloads/{username}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 403)]
         [ProducesResponseType(typeof(string), 500)]
@@ -303,7 +303,7 @@ namespace slskd.Transfers.API
         /// <response code="429">Request throttled.</response>
         /// <response code="500">An unexpected error was encountered.</response>
         [HttpPost("downloads/batches")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(typeof(EnqueueDownloadBatchResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(EnqueueDownloadBatchResponse), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(EnqueueDownloadBatchResponse), StatusCodes.Status207MultiStatus)]
@@ -583,7 +583,7 @@ namespace slskd.Transfers.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The specified download was not found.</response>
         [HttpGet("downloads/{username}/{id}/position")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(typeof(Transfer), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetPlaceInQueueAsync([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id)
@@ -710,7 +710,7 @@ namespace slskd.Transfers.API
                 return BadRequest();
             }
 
-            var upload = Transfers.Uploads.Find(t => t.Id == guid);
+            var upload = Transfers.Uploads.Find(guid);
 
             if (upload == default)
             {

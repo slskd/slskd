@@ -5,9 +5,15 @@ import { Button, Divider, Header, Icon } from 'semantic-ui-react';
 
 const clear = async ({ direction, setState }) => {
   setState(true);
-  await clearCompleted({ direction });
-  setState(false);
-  toast.success(`Completed ${direction}s cleared!`);
+
+  try {
+    await clearCompleted({ direction });
+    toast.success(`Completed ${direction}s cleared!`);
+  } catch (error) {
+    toast.error(error?.response?.data ?? error?.message ?? error);
+  } finally {
+    setState(false);
+  }
 };
 
 const Data = () => {

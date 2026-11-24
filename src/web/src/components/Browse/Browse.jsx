@@ -251,8 +251,13 @@ class Browse extends Component {
       return;
     }
 
-    const response = await users.getBrowseStatus({ username });
-    this.setState({ browseStatus: response.data });
+    try {
+      const response = await users.getBrowseStatus({ username });
+      this.setState({ browseStatus: response.data });
+    } catch {
+      // status is not available until the first progress update, and is removed shortly after completion;
+      // this runs on an interval, so just try again next time
+    }
   };
 
   getDirectoryTree = ({ directories, separator }) => {

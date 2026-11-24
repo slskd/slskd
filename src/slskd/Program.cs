@@ -57,6 +57,7 @@ namespace slskd
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Server.Kestrel.Core;
+    using Microsoft.Data.Sqlite;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
@@ -281,6 +282,7 @@ namespace slskd
         private static Mutex Mutex { get; set; }
         private static IDisposable DotNetRuntimeStats { get; set; }
         private static VolatileOverlayConfigurationSource<OptionsOverlay> VolatileOverlayConfigurationSource { get; set; } = new VolatileOverlayConfigurationSource<OptionsOverlay>();
+        private static List<SqliteConnection> VolatileDatabaseKeepaliveConnections { get; } = [];
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -388,7 +390,11 @@ namespace slskd
             // only one long-running instance.
             try
             {
-                Mutex = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName), out bool created);
+                Mutex = new Mutex(
+                    initiallyOwned: true,
+                    name: Compute.Sha256Hash(AppName),
+                    options: new NamedWaitHandleOptions { CurrentUserOnly = false, CurrentSessionOnly = true },
+                    out bool created);
 
                 if (!created)
                 {
@@ -456,7 +462,17 @@ namespace slskd
 
                 if (OptionsAtStartup.Debug)
                 {
-                    Log.Information($"Configuration:\n{Configuration.GetDebugView()}");
+                    // redact values for any key matching the name of a property marked [Secret]. keys from YAML may be
+                    // snake or kebab case, so normalize before comparing. this over-redacts, which is fine here
+                    var secretNames = typeof(Options).Assembly.GetTypes()
+                        .Where(t => t == typeof(Options) || (t.FullName?.StartsWith($"{typeof(Options).FullName}+") ?? false))
+                        .SelectMany(t => t.GetProperties())
+                        .Where(p => p.GetCustomAttributes(typeof(SecretAttribute), inherit: false).Length > 0)
+                        .Select(p => p.Name.ToLowerInvariant())
+                        .ToHashSet();
+
+                    Log.Information($"Configuration:\n{Configuration.GetDebugView(context =>
+                        secretNames.Contains(context.Key.Replace("_", string.Empty).Replace("-", string.Empty).ToLowerInvariant()) ? "*****" : context.Value)}");
                 }
 
                 if (!OptionsAtStartup.TryValidate(out var result))
@@ -467,7 +483,7 @@ namespace slskd
             }
             catch (Exception ex)
             {
-                Log.Information($"Invalid configuration: {(!OptionsAtStartup.Debug ? ex : ex.Message)}");
+                Log.Information($"Invalid configuration: {(OptionsAtStartup.Debug ? ex : ex.Message)}");
                 return;
             }
 
@@ -527,7 +543,7 @@ namespace slskd
 
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
-                Log.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", OptionsAtStartup.Logger.Loki);
+                Log.Information("Forwarding logs to Grafana Loki");
             }
 
             // bootstrap the ASP.NET application
@@ -755,7 +771,7 @@ namespace slskd
                     var pooling = OptionsAtStartup.Flags.NoSqlitePooling ? "False" : "True"; // don't invert and ToString this it is confusing
 
                     var connStr = OptionsAtStartup.Flags.Volatile
-                        ? $"Data Source=file:{database}?mode=memory;Pooling={pooling};"
+                        ? $"Data Source=file:{database}?mode=memory&cache=shared;Pooling={pooling};"
                         : $"Data Source={Path.Combine(DataDirectory, $"{database}.db")};Pooling={pooling}";
 
                     return new KeyValuePair<Database, ConnectionString>(database, connStr);
@@ -848,12 +864,34 @@ namespace slskd
 
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
         {
-            services.AddCors(options => options.AddPolicy("AllowAll", builder => builder
-                .SetIsOriginAllowed((host) => true)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials()
-                .WithExposedHeaders("X-URL-Base", "X-Total-Count")));
+            services.AddCors(options => options.AddPolicy(nameof(OptionsAtStartup.Web.Cors), builder =>
+            {
+                var cors = OptionsAtStartup.Web.Cors;
+                var origins = (cors.AllowedOrigins ?? [])
+                    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+                    .Select(origin => origin.Trim().TrimEnd('/'))
+                    .ToArray();
+
+                builder
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .DisallowCredentials()
+                    .WithExposedHeaders("X-URL-Base", "X-Total-Count");
+
+                if (origins.Length > 0 && !origins.Contains("*"))
+                {
+                    builder.WithOrigins(origins);
+
+                    if (cors.AllowCredentials)
+                    {
+                        builder.AllowCredentials();
+                    }
+                }
+                else
+                {
+                    builder.SetIsOriginAllowed((origin) => true); // allow any origin
+                }
+            }));
 
             services.ConfigureTelemetry();
 
@@ -937,7 +975,7 @@ namespace slskd
                                         try
                                         {
                                             // check to see if the provided value is a valid API key
-                                            var service = services.BuildServiceProvider().GetRequiredService<SecurityService>();
+                                            var service = context.HttpContext.RequestServices.GetRequiredService<SecurityService>();
                                             var (name, role) = service.AuthenticateWithApiKey(token, callerIpAddress: context.HttpContext.Connection.RemoteIpAddress);
 
                                             // the API key is valid. create a new, short lived jwt for the key name and role
@@ -1042,6 +1080,22 @@ namespace slskd
 
                     // avoid conflicts with clashing class names; use the fully qualified name
                     options.CustomSchemaIds(type => type.FullName.Replace("+", "."));
+                    options.SwaggerDoc("v0", new OpenApiInfo
+                    {
+                        Version = "v0",
+                        Title = AppName,
+                        Description = "A modern client-server application for the Soulseek file sharing network",
+                        Contact = new OpenApiContact
+                        {
+                            Name = "GitHub",
+                            Url = new Uri("https://github.com/slskd/slskd"),
+                        },
+                        License = new OpenApiLicense
+                        {
+                            Name = "AGPL-3.0-only",
+                            Url = new Uri("https://github.com/slskd/slskd/blob/master/LICENSE"),
+                        },
+                    });
 
                     // allow endpoints marked with multiple content types in [Produces] to generate properly
                     options.OperationFilter<ContentNegotiationOperationFilter>();
@@ -1104,7 +1158,7 @@ namespace slskd
                 await context.Response.WriteAsJsonAsync(context.Features.Get<IExceptionHandlerPathFeature>().Error.Message);
             }));
 
-            app.UseCors("AllowAll");
+            app.UseCors(nameof(OptionsAtStartup.Web.Cors));
 
             if (OptionsAtStartup.Web.Https.Force)
             {
@@ -1208,12 +1262,14 @@ namespace slskd
                         if (!options.Authentication.Disabled)
                         {
                             var auth = context.Request.Headers["Authorization"].FirstOrDefault();
-                            var providedCreds = auth?.Split(' ').Last();
+                            var providedCreds = auth?.Split(' ').Last() ?? string.Empty;
                             var validCreds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Authentication.Username}:{options.Authentication.Password}"));
 
+                            // use paranoid FixedTimeEquals to protect against time attacks
                             if (string.IsNullOrEmpty(auth) ||
-                                !auth.StartsWith("Basic", StringComparison.InvariantCultureIgnoreCase) ||
-                                !string.Equals(providedCreds, validCreds, StringComparison.InvariantCultureIgnoreCase))
+                                !auth.StartsWith("Basic ", StringComparison.InvariantCultureIgnoreCase) ||
+                                string.IsNullOrEmpty(providedCreds) ||
+                                !System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(providedCreds), Encoding.UTF8.GetBytes(validCreds)))
                             {
                                 context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                                 return;
@@ -1303,8 +1359,7 @@ namespace slskd
                             Path.Combine(LogDirectory, $"{AppName}-.log"),
                             outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:yyyy-MM-ddTHH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day,
-                            retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs),
-                            shared: true))) // allow log file to be read concurrently
+                            retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs))))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
                     config =>
@@ -1330,7 +1385,7 @@ namespace slskd
                         var record = new LogRecord()
                         {
                             Timestamp = logEvent.Timestamp.LocalDateTime,
-                            Context = logEvent.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
+                            Context = logEvent.Properties.TryGetValue("SourceContext", out var sourceContext) ? sourceContext.ToString().TrimStart('"').TrimEnd('"') : null,
                             SubContext = logEvent.Properties.ContainsKey("SubContext") ? logEvent.Properties["SubContext"].ToString().TrimStart('"').TrimEnd('"') : null,
                             Level = logEvent.Level.ToString(),
                             Message = message.TrimStart('"').TrimEnd('"'),
@@ -1362,11 +1417,11 @@ namespace slskd
 
                 if (e.IsTerminating)
                 {
-                    Serilog.Log.Logger.Fatal(exception, "Unhandled fatal exception: {Message}", e.IsTerminating);
+                    Serilog.Log.Logger.Fatal(exception, "Unhandled fatal exception: {Message}", exception?.Message);
                 }
                 else
                 {
-                    Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception.Message);
+                    Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception?.Message);
                 }
             };
         }
@@ -1554,6 +1609,17 @@ namespace slskd
                             .LogTo(OptionsAtStartup.Debug ? Log.Debug : Log.Information, LogLevel.Information);
                     }
                 });
+
+                // in-memory databases are destroyed when the last connection to them closes. hold one open for the
+                // lifetime of the application so the data (and schema) survive between operations. this must be
+                // opened before EnsureCreated(), otherwise the schema is created in a database that is destroyed
+                // as soon as EnsureCreated() closes its connection
+                if (OptionsAtStartup.Flags.Volatile)
+                {
+                    var keepalive = new SqliteConnection(connectionString);
+                    keepalive.Open();
+                    VolatileDatabaseKeepaliveConnections.Add(keepalive);
+                }
 
                 /*
                     instantiate the DbContext and make sure it is created

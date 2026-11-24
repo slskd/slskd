@@ -457,7 +457,7 @@ namespace slskd.Shares
         {
             if (CancellationTokenSource != null)
             {
-                CancellationTokenSource.Cancel();
+                CancellationTokenSource.Cancel(swallowObjectDisposedException: true);
                 return true;
             }
 

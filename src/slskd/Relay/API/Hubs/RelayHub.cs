@@ -85,7 +85,7 @@ namespace slskd.Relay
     /// <summary>
     ///     The relay SignalR hub.
     /// </summary>
-    [Authorize]
+    [Authorize(Policy = AuthPolicy.Any)]
     public class RelayHub : Hub<IRelayHub>
     {
         /// <summary>
@@ -120,6 +120,7 @@ namespace slskd.Relay
             {
                 Log.Debug("Agent connection {Id} from {IP} aborted; Relay is not enabled, or is not in Controller mode", Context.ConnectionId, GetRemoteIPAddress());
                 Context.Abort();
+                return;
             }
 
             var token = Relay.GenerateAuthenticationChallengeToken(Context.ConnectionId);
@@ -222,9 +223,9 @@ namespace slskd.Relay
         ///     Executed by the agent to notify the controller that the agent was unable to upload the file requested by a call to <see cref="IRelayHub.RequestFileUpload"/>.
         /// </summary>
         /// <param name="id">The unique identifier of the request.</param>
-        /// <param name="exception">The Exception that caused the failure.</param>
+        /// <param name="message">A message describing the failure.</param>
         /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
-        public void NotifyFileUploadFailed(Guid id, Exception exception)
+        public void NotifyFileUploadFailed(Guid id, string message)
         {
             if (!Relay.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
@@ -232,9 +233,9 @@ namespace slskd.Relay
                 throw new UnauthorizedAccessException();
             }
 
-            Log.Warning("Agent {Agent} (connection {ConnectionId}) from {IP} reported upload failure for {Id}: {Message}", record.Agent, Context.ConnectionId, GetRemoteIPAddress(), id, exception.Message);
+            Log.Warning("Agent {Agent} (connection {ConnectionId}) from {IP} reported upload failure for {Id}: {Message}", record.Agent.Name, Context.ConnectionId, GetRemoteIPAddress(), id, message);
 
-            Relay.NotifyFileStreamException(record.Agent.Name, id, exception);
+            Relay.NotifyFileStreamException(record.Agent.Name, id, new RelayException(message));
         }
 
         /// <summary>

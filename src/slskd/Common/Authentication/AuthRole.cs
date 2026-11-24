@@ -32,6 +32,8 @@
 
 namespace slskd
 {
+    using slskd.Authentication;
+
     /// <summary>
     ///     Authentication roles.
     /// </summary>
@@ -40,9 +42,8 @@ namespace slskd
     /// </remarks>
     public static class AuthRole
     {
-        public const string AdministratorOnly = "Administrator";
-        public const string ReadWriteOrAdministrator = "ReadWrite,Administrator";
-        public const string GuestOrAdministrator = "Guest,Administrator";
-        public const string Any = "ReadOnly,ReadWrite,Guest,Administrator";
+        public const string AdministratorOnly = $"{nameof(Role.Administrator)}";
+        public const string ReadWriteOrAdministrator = $"{nameof(Role.ReadWrite)},{nameof(Role.Administrator)}";
+        public const string Any = $"{nameof(Role.ReadOnly)},{nameof(Role.ReadWrite)},{nameof(Role.Administrator)}";
     }
 }

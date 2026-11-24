@@ -171,6 +171,10 @@
 #         key: <some example string between 16 and 255 characters>
 #         role: readonly # readonly, readwrite, administrator
 #         cidr: 0.0.0.0/0,::/0
+#   cors:
+#     allowed_origins:
+#       - https://app.example.com
+#     allow_credentials: false
 # retention:
 #   search: 10080 # 7 days, in minutes
 #   transfers:

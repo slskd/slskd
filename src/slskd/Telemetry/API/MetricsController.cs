@@ -79,13 +79,13 @@ public class MetricsController : ControllerBase
     /// </summary>
     private List<Regex> KpiRegexes { get; } =
     [
-        new Regex("slskd_.*", RegexOptions.Compiled),
-        new Regex("node_(?!cpu)", RegexOptions.Compiled),
-        new Regex("process_.*", RegexOptions.Compiled),
-        new Regex("dotnet_total_memory_bytes", RegexOptions.Compiled),
-        new Regex("system_runtime_[cpu_usage|working_set|alloc_total]", RegexOptions.Compiled),
-        new Regex("system_net_sockets.*", RegexOptions.Compiled),
-        new Regex("microsoft_aspnetcore_server_kestrel_[current|total]_connections", RegexOptions.Compiled),
+        new Regex("^slskd_.*", RegexOptions.Compiled),
+        new Regex("^node_(?!cpu)", RegexOptions.Compiled),
+        new Regex("^process_.*", RegexOptions.Compiled),
+        new Regex("^dotnet_total_memory_bytes", RegexOptions.Compiled),
+        new Regex("^system_runtime_(cpu_usage|working_set|alloc_total)", RegexOptions.Compiled),
+        new Regex("^system_net_sockets.*", RegexOptions.Compiled),
+        new Regex("^microsoft_aspnetcore_server_kestrel_(current|total)_connections", RegexOptions.Compiled),
     ];
 
     /// <summary>

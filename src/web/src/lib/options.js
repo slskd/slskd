@@ -17,9 +17,9 @@ export const getYamlLocation = async () => {
 };
 
 export const validateYaml = async ({ yaml }) => {
-  return (await api.post('/options/yaml/validate', yaml)).data;
+  return (await api.post('/options/yaml/validate', JSON.stringify(yaml))).data;
 };
 
 export const updateYaml = async ({ yaml }) => {
-  return (await api.put('/options/yaml', yaml)).data;
+  return (await api.put('/options/yaml', JSON.stringify(yaml))).data;
 };

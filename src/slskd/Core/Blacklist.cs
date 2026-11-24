@@ -39,6 +39,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using NetTools;
 using Serilog;
@@ -315,6 +316,18 @@ public class Blacklist
     /// <returns>A value indicating whether the specified IP is contained within the blacklist.</returns>
     public virtual bool Contains(IPAddress ip)
     {
+        // looks like '::ffff:1.2.3.4'; convert it back to IPv4 so the lookup below works
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        // only IPv4 ranges are supported
+        if (ip.AddressFamily != AddressFamily.InterNetwork)
+        {
+            return false;
+        }
+
         // grab the first octet
         int first = ip.GetAddressBytes()[0];
 

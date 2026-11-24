@@ -42,8 +42,9 @@ const Info = ({ state, theme }) => {
             mediaQuery="(max-width: 686px)"
             onClick={() =>
               window.open(
-                `http://www.slsknet.org/qtlogin.php?username=${state?.user?.username}`,
+                `http://www.slsknet.org/qtlogin.php?username=${encodeURIComponent(state?.user?.username ?? '')}`,
                 '_blank',
+                'noopener,noreferrer',
               )
             }
           >

@@ -148,19 +148,17 @@ namespace slskd.Shares.API
         /// <response code="409">A share scan is already in progress.</response>
         [HttpPut]
         [Route("")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
         [ProducesResponseType(409)]
         public IActionResult RescanSharesAsync()
         {
-            try
+            if (Shares.StateMonitor.CurrentValue.Scanning)
             {
-                _ = Shares.ScanAsync();
+                return Conflict("A share scan is already in progress");
             }
-            catch (ShareScanInProgressException)
-            {
-                return Conflict("A share scan is already in progress.");
-            }
+
+            _ = Shares.ScanAsync();
 
             return Ok();
         }
@@ -173,7 +171,7 @@ namespace slskd.Shares.API
         /// <response code="409">A share scan was not in progress.</response>
         [HttpDelete]
         [Route("")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public IActionResult CancelShareScan()

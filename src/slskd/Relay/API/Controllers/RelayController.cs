@@ -322,6 +322,12 @@ namespace slskd.Relay
                 return Unauthorized();
             }
 
+            if (!Relay.TryValidateShareUploadCredential(token: guid, agentName, credential))
+            {
+                Log.Warning("Failed to authenticate share upload from caller claiming to be agent {Agent} using token {Token}", agentName, guid);
+                return Unauthorized();
+            }
+
             IEnumerable<Share> shares;
             IFormFile database;
 
@@ -338,12 +344,6 @@ namespace slskd.Relay
 
             Log.Information("Handling share upload ({Token}) from a caller claiming to be agent {Agent}", token, agentName);
 
-            if (!Relay.TryValidateShareUploadCredential(token: guid, agentName, credential))
-            {
-                Log.Warning("Failed to authenticate share upload from caller claiming to be agent {Agent} using token {Token}", agentName, guid);
-                return Unauthorized();
-            }
-
             Directory.CreateDirectory(FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName));
             var temp = FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName, $"share_{FileSafety.SanitizeFilename(agentName)}_{Path.GetRandomFileName()}.db");
 
@@ -354,14 +354,16 @@ namespace slskd.Relay
                 var sw = new Stopwatch();
                 sw.Start();
 
-                using var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
-                using var inputStream = database.OpenReadStream();
-
-                await inputStream.CopyToAsync(outputStream);
+                // the streams must be closed (and the output flushed) before the file is handed off to be opened as a database
+                using (var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write))
+                using (var inputStream = database.OpenReadStream())
+                {
+                    await inputStream.CopyToAsync(outputStream);
+                }
 
                 sw.Stop();
 
-                Log.Information("Download of shares from {Agent} ({Token}) complete ({Size} in {Duration}ms)", agentName, guid, ((double)inputStream.Length).SizeSuffix(), sw.ElapsedMilliseconds);
+                Log.Information("Download of shares from {Agent} ({Token}) complete ({Size} in {Duration}ms)", agentName, guid, ((double)database.Length).SizeSuffix(), sw.ElapsedMilliseconds);
 
                 await Relay.HandleShareUploadAsync(agentName, id: guid, shares, temp);
 

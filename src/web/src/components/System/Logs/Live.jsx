@@ -20,6 +20,7 @@ class Live extends Component {
 
   componentDidMount() {
     const logsHub = createLogsHubConnection();
+    this.logsHub = logsHub;
 
     logsHub.on('buffer', (buffer) => {
       this.setState({
@@ -42,6 +43,10 @@ class Live extends Component {
     logsHub.onreconnected(() => this.setState({ connected: true }));
 
     logsHub.start();
+  }
+
+  componentWillUnmount() {
+    this.logsHub?.stop();
   }
 
   nextId = 0;

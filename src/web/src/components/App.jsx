@@ -127,7 +127,7 @@ const ModeSpecificConnectButton = ({
       color = 'yellow';
     }
 
-    if (server?.isConnecting || server?.IsLoggingIn) {
+    if (server?.isConnecting || server?.isLoggingIn) {
       icon = 'sync alternate loading';
       color = 'green';
     }
@@ -499,8 +499,8 @@ class App extends Component {
                   <Modal.Content>
                     <p>
                       You are currently running version{' '}
-                      <strong>{current}</strong>
-                      while version <strong>{latest}</strong> is available.
+                      <strong>{current}</strong> while version{' '}
+                      <strong>{latest}</strong> is available.
                     </p>
                   </Modal.Content>
                   <Modal.Actions>

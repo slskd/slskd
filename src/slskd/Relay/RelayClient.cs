@@ -148,7 +148,15 @@ namespace slskd.Relay
 
                         // the controller will send an authentication challenge immediately after connection
                         // wait for the auth handler to log in before proceeding with the initial share upload
-                        await LoggedInTaskCompletionSource.Task;
+                        try
+                        {
+                            await LoggedInTaskCompletionSource.Task;
+                        }
+                        catch (Exception)
+                        {
+                            await StopAsync(cancellationToken);
+                            throw;
+                        }
 
                         Log.Information("Uploading shares...");
 
@@ -271,7 +279,7 @@ namespace slskd.Relay
 
                 // if the client is attempting a connection, cancel it it's going to be dropped when we create a new instance, but
                 // we need the retry loop around connection to stop.
-                StartCancellationTokenSource?.Cancel();
+                StartCancellationTokenSource?.Cancel(swallowObjectDisposedException: true);
 
                 HubConnection = new HubConnectionBuilder()
                     .WithUrl($"{options.Relay.Controller.Address.TrimEnd('/')}/hub/relay", builder =>
@@ -366,6 +374,7 @@ namespace slskd.Relay
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to handle authentication challenge: {Message}", ex.Message);
+                LoggedInTaskCompletionSource.TrySetException(ex);
             }
         }
 
@@ -375,6 +384,7 @@ namespace slskd.Relay
             {
                 Log.Warning("Suspicious attempt to request file info containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
                 await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, false, 0);
+                return;
             }
 
             Log.Information("Relay controller requested file info for {Filename} with ID {Id}", filename, id);
@@ -399,7 +409,8 @@ namespace slskd.Relay
             if (FileSafety.ContainsTraversalSegments(filename))
             {
                 Log.Warning("Suspicious attempt to request a file upload containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
-                await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
+                await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token, "Requested filename contains unsafe path segments");
+                return;
             }
 
             _ = Task.Run(async () =>
@@ -436,7 +447,9 @@ namespace slskd.Relay
                     request.Content = content;
 
                     Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
-                    var response = await CreateHttpClient().SendAsync(request);
+
+                    using var client = CreateHttpClient();
+                    using var response = await client.SendAsync(request);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -452,7 +465,7 @@ namespace slskd.Relay
                     Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
                     // report the failure to the controller. this avoids a failure due to timeout.
-                    await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
+                    await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token, ex.Message);
                 }
             });
         }
@@ -647,7 +660,9 @@ namespace slskd.Relay
 
                 Log.Information("Beginning upload of shares ({Size})", size);
                 Log.Debug("Shares: {Shares}", Shares.LocalHost.Shares.ToJson());
-                var response = await CreateHttpClient().SendAsync(request, cancellationToken);
+
+                using var client = CreateHttpClient();
+                using var response = await client.SendAsync(request, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
                 {

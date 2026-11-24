@@ -97,6 +97,7 @@ namespace slskd
                 return;
             }
 
+            // previously staged action is lost, intentionally
             Staged = action;
         }
 
@@ -131,8 +132,11 @@ namespace slskd
             {
                 try
                 {
-                    Staged?.Invoke();
+                    // capture the staged action before nulling it to avoid
+                    // a race where another action might slip in between the invoke and null
+                    var staged = Staged;
                     Staged = null;
+                    staged?.Invoke();
                 }
                 finally
                 {

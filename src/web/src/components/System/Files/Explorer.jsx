@@ -9,6 +9,7 @@ const FileRow = ({
   length,
   modifiedAt,
   name,
+  onDeleted,
   remoteFileManagement,
   root,
   subdirectory,
@@ -34,7 +35,7 @@ const FileRow = ({
                   path: `${subdirectory.join('/')}/${fullName}`,
                   root,
                 });
-                fetch();
+                onDeleted();
               },
             },
           ]}
@@ -66,6 +67,7 @@ const DirectoryRow = ({
   modifiedAt,
   name,
   onClick = () => {},
+  onDeleted,
   remoteFileManagement,
   root,
   subdirectory,
@@ -94,7 +96,7 @@ const DirectoryRow = ({
                   path: `${subdirectory.join('/')}/${fullName}`,
                   root,
                 });
-                fetch();
+                onDeleted();
               },
             },
           ]}
@@ -131,12 +133,19 @@ const Explorer = ({ remoteFileManagement, root }) => {
 
   const fetch = async () => {
     setLoading(true);
-    const directoryResult = await list({
-      root,
-      subdirectory: subdirectory.join('/'),
-    });
-    setDirectory(directoryResult);
-    setLoading(false);
+
+    try {
+      const directoryResult = await list({
+        root,
+        subdirectory: subdirectory.join('/'),
+      });
+      setDirectory(directoryResult);
+    } catch (error) {
+      console.error(error);
+      setDirectory({ directories: [], files: [] });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -281,6 +290,7 @@ const Explorer = ({ remoteFileManagement, root }) => {
                 <DirectoryRow
                   key={d.name}
                   onClick={() => select({ path: d.name })}
+                  onDeleted={fetch}
                   remoteFileManagement={remoteFileManagement}
                   root={root}
                   subdirectory={subdirectory}
@@ -290,6 +300,7 @@ const Explorer = ({ remoteFileManagement, root }) => {
               {sortedFiles?.map((f) => (
                 <FileRow
                   key={f.name}
+                  onDeleted={fetch}
                   remoteFileManagement={remoteFileManagement}
                   root={root}
                   subdirectory={subdirectory}

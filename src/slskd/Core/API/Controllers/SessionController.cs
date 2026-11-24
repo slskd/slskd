@@ -34,8 +34,11 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Core.API
 {
+    using System.Security.Cryptography;
+    using System.Text;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
     using slskd.Authentication;
@@ -115,13 +118,15 @@ namespace slskd.Core.API
         {
             if (OptionsAtStartup.Headless)
             {
-                Log.Warning("Login from {User} rejected; web UI is DISABLED when running in headless mode", login.Username);
+                // if running headless, reject all login attempts and provide no feedback about inputs; there is nothing
+                // a caller can do to change the outcome, so a 400 is misleading
+                Log.Warning("Login from {User} rejected; web UI is DISABLED when running in headless mode", login?.Username ?? "<unspecified>");
                 return Forbid();
             }
 
             if (login == default)
             {
-                return BadRequest();
+                return BadRequest("No credentials provided");
             }
 
             if (string.IsNullOrWhiteSpace(login.Username) || string.IsNullOrWhiteSpace(login.Password))
@@ -129,8 +134,24 @@ namespace slskd.Core.API
                 return BadRequest("Username and/or Password missing or invalid");
             }
 
+            Options.WebOptions.WebAuthenticationOptions options = OptionsSnapshot.Value.Web.Authentication;
+
+            if (string.IsNullOrEmpty(options.Username) || string.IsNullOrEmpty(options.Password))
+            {
+                // validation within the Options class should prevent this, but confirm in case of regression
+                Log.Error("Authentication is misconfigured; when enabled, username and password must be at least one character. Login is disabled.");
+                return StatusCode(StatusCodes.Status500InternalServerError, "Login disabled, check application logs for details");
+            }
+
+            // compare in constant time to avoid timing attacks
+            static bool ParanoidEquals(string left, string right)
+                => CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(left), Encoding.UTF8.GetBytes(right));
+
             // only admin login for now
-            if (OptionsSnapshot.Value.Web.Authentication.Username == login.Username && OptionsSnapshot.Value.Web.Authentication.Password == login.Password)
+            var usernameMatches = ParanoidEquals(options.Username, login.Username);
+            var passwordMatches = ParanoidEquals(options.Password, login.Password);
+
+            if (usernameMatches & passwordMatches)
             {
                 return Ok(new TokenResponse(Security.GenerateJwt(login.Username, Role.Administrator)));
             }

@@ -325,7 +325,15 @@ namespace slskd.Users
         {
             ArgumentNullException.ThrowIfNull(username);
 
-            if (BlacklistDecisionCache.TryGetValue<bool>(username, out var cached))
+            // looks like '::ffff:1.2.3.4'; convert it back to IPv4 so CIDR checks work
+            if (ipAddress is not null && ipAddress.IsIPv4MappedToIPv6)
+            {
+                ipAddress = ipAddress.MapToIPv4();
+            }
+
+            var cacheKey = ipAddress is null ? username : $"{username}@{ipAddress}";
+
+            if (BlacklistDecisionCache.TryGetValue<bool>(cacheKey, out var cached))
             {
                 return cached;
             }
@@ -343,7 +351,7 @@ namespace slskd.Users
             var blacklisted = IsBlacklistedInternal(username, ipAddress);
 
             BlacklistDecisionCache.Set(
-                key: username,
+                key: cacheKey,
                 value: blacklisted,
                 options: new MemoryCacheEntryOptions
                 {
@@ -444,7 +452,7 @@ namespace slskd.Users
             {
                 UserDictionary.AddOrUpdate(
                     key: username,
-                    addValue: new User() { Status = new Status { IsPrivileged = true } },
+                    addValue: new User() { Username = username, Status = new Status { IsPrivileged = true } },
                     updateValueFactory: (key, user) => user with { Username = username, Status = user.Status with { IsPrivileged = true } });
             }
         }
@@ -564,7 +572,7 @@ namespace slskd.Users
         {
             UserDictionary.AddOrUpdate(
                 key: username,
-                addValue: new User() { Statistics = statistics },
+                addValue: new User() { Username = username, Statistics = statistics },
                 updateValueFactory: (key, user) => user with { Username = username, Statistics = statistics });
         }
 
@@ -572,7 +580,7 @@ namespace slskd.Users
         {
             UserDictionary.AddOrUpdate(
                 key: username,
-                addValue: new User() { Status = status },
+                addValue: new User() { Username = username, Status = status },
                 updateValueFactory: (key, user) => user with { Username = username, Status = status });
         }
     }

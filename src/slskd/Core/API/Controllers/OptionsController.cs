@@ -127,7 +127,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet]
         [Route("startup")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Startup()
         {
@@ -221,7 +221,7 @@ namespace slskd.Core.API
         }
 
         [HttpPost]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
         [Route("yaml/validate")]
         public IActionResult ValidateYamlFile([FromBody] string yaml)
         {

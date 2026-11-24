@@ -127,7 +127,7 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="404">The specified roomName could not be found.</response>
         [HttpPost("joined/{roomName}/messages")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(201)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> SendMessage([FromRoute, UrlEncoded] string roomName, [FromBody] string message)
@@ -155,7 +155,7 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="404">The specified roomName could not be found.</response>
         [HttpPost("joined/{roomName}/ticker")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(201)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> SetTicker([FromRoute, UrlEncoded] string roomName, [FromBody] string message)
@@ -183,7 +183,7 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="404">The specified roomName could not be found.</response>
         [HttpPost("joined/{roomName}/members")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(201)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> AddRoomMember([FromRoute, UrlEncoded] string roomName, [FromBody] string username)
@@ -298,7 +298,7 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="304">The room has already been joined.</response>
         [HttpPost("joined")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(typeof(Room), 201)]
         [ProducesResponseType(304)]
         public async Task<IActionResult> JoinRoom([FromBody] string roomName)
@@ -339,7 +339,7 @@ namespace slskd.Messaging.API
         /// <response code="204">The request completed successfully.</response>
         /// <response code="404">The room has not been joined.</response>
         [HttpDelete("joined/{roomName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.ReadWriteOrAdministrator)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> LeaveRoom([FromRoute, UrlEncoded] string roomName)

@@ -46,6 +46,7 @@ namespace slskd.Core.API
     [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
+    [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
     public class DebugController : ControllerBase
     {
         public DebugController(ISoulseekClient soulseekClient)
@@ -56,7 +57,7 @@ namespace slskd.Core.API
         private ISoulseekClient Client { get; }
 
         [HttpGet("transfers")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
         [ProducesResponseType(typeof(Transfer), 200)]
         public IActionResult Transfers()
         {

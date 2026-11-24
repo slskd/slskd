@@ -49,7 +49,7 @@ export const getUsers = async ({ roomName }) => {
 };
 
 export const join = async ({ roomName }) => {
-  return api.post('/rooms/joined', roomName);
+  return api.post('/rooms/joined', JSON.stringify(roomName));
 };
 
 export const leave = async ({ roomName }) => {

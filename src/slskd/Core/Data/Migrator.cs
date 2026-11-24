@@ -133,7 +133,7 @@ public class Migrator
         */
         Log.Warning("{Count} outstanding database migration(s) to apply. This operation must be completed before the application can start.", migrationsToApply.Count());
 
-        var migrationId = DateTime.UtcNow.ToString("MMddyy_hhmmss");
+        var migrationId = DateTime.UtcNow.ToString("MMddyy_HHmmss");
 
         Log.Warning("--> The ID for this migration is {MigrationId}. Use it to locate pre-migration database backups, should manual cleanup be needed. <--", migrationId);
 

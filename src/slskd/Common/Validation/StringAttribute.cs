@@ -90,7 +90,7 @@ namespace slskd.Validation
 
             if (Pattern is not null && Pattern.IsMatch(val))
             {
-                return new ValidationResult($"The {validationContext.DisplayName} field must match the regular expression {Pattern.ToJson()}");
+                return new ValidationResult($"The {validationContext.DisplayName} field must not match the regular expression {Pattern.ToJson()}");
             }
 
             return ValidationResult.Success;

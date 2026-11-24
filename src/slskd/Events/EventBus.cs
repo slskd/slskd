@@ -88,6 +88,15 @@ public class EventBus
     public virtual void Raise<T>(T data)
         where T : Event
     {
+        // we look up the list of subscribers using T, and then cast the callback to Func<T, Task>, and this breaks when
+        // T is Event rather than the derived type.  the fix for this involves wrapping the callbacks with another delegate
+        // that performs the proper cast (or just rethinking this approach entirely), so we're just going to throw
+        // at run-time instead, which the smallest amount of functional testing will surface
+        if (typeof(T) == typeof(Event))
+        {
+            throw new ArgumentException($"Raise can not be called with a type argument of type Event because the bus can't properly source the list of subscribers.  Supply the derived Event Type when calling");
+        }
+
         Log.Debug("Handling {Type}: {Data}", typeof(T), data);
 
         // save the event to the database before broadcasting to consumers
