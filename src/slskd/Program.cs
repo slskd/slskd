@@ -1080,22 +1080,6 @@ namespace slskd
 
                     // avoid conflicts with clashing class names; use the fully qualified name
                     options.CustomSchemaIds(type => type.FullName.Replace("+", "."));
-                    options.SwaggerDoc("v0", new OpenApiInfo
-                    {
-                        Version = "v0",
-                        Title = AppName,
-                        Description = "A modern client-server application for the Soulseek file sharing network",
-                        Contact = new OpenApiContact
-                        {
-                            Name = "GitHub",
-                            Url = new Uri("https://github.com/slskd/slskd"),
-                        },
-                        License = new OpenApiLicense
-                        {
-                            Name = "AGPL-3.0-only",
-                            Url = new Uri("https://github.com/slskd/slskd/blob/master/LICENSE"),
-                        },
-                    });
 
                     // allow endpoints marked with multiple content types in [Produces] to generate properly
                     options.OperationFilter<ContentNegotiationOperationFilter>();
