@@ -35,6 +35,14 @@ jobs:
       - name: Dotnet
         run: ./bin/build --dotnet-only --version ${{ env.VERSION }}
 
+      - name: Check OpenAPI Spec
+        run: |
+          ./bin/openapi
+          if ! git diff --exit-code -- openapi.yml; then
+            echo "::error file=openapi.yml::The API has changed and openapi.yml is out of date. If the change is intended, run ./bin/openapi and commit the updated openapi.yml."
+            exit 1
+          fi
+
       - name: Upload Static Web Content
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
