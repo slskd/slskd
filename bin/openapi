@@ -37,4 +37,8 @@ if [ ! -f "$output" ]; then
   exit 1
 fi
 
+# normalize to unix line endings so the spec is identical regardless of the OS it was generated on
+tr -d '\r' < "$output" > "$output.tmp"
+mv "$output.tmp" "$output"
+
 echo $'\n\t🎉  OpenAPI spec written to '$output$'\n'
