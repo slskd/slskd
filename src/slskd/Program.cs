@@ -97,8 +97,11 @@ namespace slskd
     using slskd.Users;
     using slskd.Validation;
     using Soulseek;
+    using Swashbuckle.AspNetCore.Swagger;
+    using Swashbuckle.AspNetCore.SwaggerGen;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
+    using IODirectory = System.IO.Directory;
     using IOFile = System.IO.File;
 
     /// <summary>
@@ -286,6 +289,9 @@ namespace slskd
 
         [Argument('k', "generate-secret", "generate random secret of the specified length")]
         private static int GenerateSecret { get; set; }
+
+        [Argument(default, "generate-openapi", "generate an openapi spec and output to the specified file")]
+        private static string GenerateOpenAPI { get; set; }
 
         [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
@@ -653,6 +659,22 @@ namespace slskd
                 if (OptionsAtStartup.Flags.NoStart)
                 {
                     Log.Information("Quitting because 'no-start' option is enabled");
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(GenerateOpenAPI))
+                {
+                    var document = app.Services.GetRequiredService<ISwaggerProvider>().GetSwagger("all");
+
+                    var extension = Path.GetExtension(GenerateOpenAPI).ToLowerInvariant();
+                    var spec = extension.Equals(".yaml", StringComparison.OrdinalIgnoreCase) || extension.Equals(".yml", StringComparison.OrdinalIgnoreCase)
+                        ? document.SerializeAsYamlAsync(OpenApiSpecVersion.OpenApi3_0).GetAwaiter().GetResult()
+                        : document.SerializeAsJsonAsync(OpenApiSpecVersion.OpenApi3_0).GetAwaiter().GetResult();
+
+                    IODirectory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(GenerateOpenAPI)));
+                    IOFile.WriteAllText(GenerateOpenAPI, spec);
+
+                    Log.Information($"OpenAPI spec written to {GenerateOpenAPI}");
                     return;
                 }
 
@@ -1055,26 +1077,15 @@ namespace slskd
                 services.AddSwaggerGen(options =>
                 {
                     options.DescribeAllParametersInCamelCase();
-                    options.CustomSchemaIds(type => type.FullName);
-                    options.SwaggerDoc("v0", new OpenApiInfo
-                    {
-                        Version = "v0",
-                        Title = AppName,
-                        Description = "A modern client-server application for the Soulseek file sharing network",
-                        Contact = new OpenApiContact
-                        {
-                            Name = "GitHub",
-                            Url = new Uri("https://github.com/slskd/slskd"),
-                        },
-                        License = new OpenApiLicense
-                        {
-                            Name = "AGPL-3.0-only",
-                            Url = new Uri("https://github.com/slskd/slskd/blob/master/LICENSE"),
-                        },
-                    });
+
+                    // avoid conflicts with clashing class names; use the fully qualified name
+                    options.CustomSchemaIds(type => type.FullName.Replace("+", "."));
 
                     // allow endpoints marked with multiple content types in [Produces] to generate properly
                     options.OperationFilter<ContentNegotiationOperationFilter>();
+
+                    // the 'all' document includes every endpoint; each versioned document includes only its own
+                    options.DocInclusionPredicate((documentName, description) => documentName == "all" || description.GroupName == documentName);
 
                     if (IOFile.Exists(XmlDocumentationFile))
                     {
@@ -1085,6 +1096,39 @@ namespace slskd
                         Log.Warning($"Unable to find XML documentation in {XmlDocumentationFile}, Swagger will not include metadata");
                     }
                 });
+
+                services.AddOptions<SwaggerGenOptions>()
+                    .Configure<IApiVersionDescriptionProvider>((options, provider) =>
+                    {
+                        var info = new OpenApiInfo
+                        {
+                            Title = AppName,
+                            Description = "A modern client-server application for the Soulseek file sharing network",
+                            Contact = new OpenApiContact
+                            {
+                                Name = "GitHub",
+                                Url = new Uri("https://github.com/slskd/slskd"),
+                            },
+                            License = new OpenApiLicense
+                            {
+                                Name = "AGPL-3.0-only",
+                                Url = new Uri("https://github.com/slskd/slskd/blob/master/LICENSE"),
+                            },
+                        };
+
+                        foreach (var description in provider.ApiVersionDescriptions)
+                        {
+                            options.SwaggerDoc(description.GroupName, new OpenApiInfo(info)
+                            {
+                                Version = description.GroupName,
+                            });
+                        }
+
+                        options.SwaggerDoc("all", new OpenApiInfo(info)
+                        {
+                            Version = string.Join(", ", provider.ApiVersionDescriptions.Select(description => description.GroupName)),
+                        });
+                    });
             }
 
             return services;

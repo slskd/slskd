@@ -1,0 +1,6168 @@
+openapi: 3.0.4
+info:
+  title: slskd
+  description: A modern client-server application for the Soulseek file sharing network
+  contact:
+    name: GitHub
+    url: https://github.com/slskd/slskd
+  license:
+    name: AGPL-3.0-only
+    url: https://github.com/slskd/slskd/blob/master/LICENSE
+  version: v0
+paths:
+  /api/v0/application:
+    get:
+      tags:
+        - Application
+      summary: Gets the current state of the application.
+      responses:
+        '200':
+          description: OK
+    delete:
+      tags:
+        - Application
+      summary: Stops the application.
+      responses:
+        '200':
+          description: OK
+    put:
+      tags:
+        - Application
+      summary: Restarts the application.
+      responses:
+        '200':
+          description: OK
+  /api/v0/application/version:
+    get:
+      tags:
+        - Application
+      summary: Gets the current application version.
+      responses:
+        '200':
+          description: OK
+  /api/v0/application/version/latest:
+    get:
+      tags:
+        - Application
+      summary: Checks for updates.
+      parameters:
+        - name: forceCheck
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: OK
+  '/api/v0/conversations/{username}/{id}':
+    put:
+      tags:
+        - Conversations
+      summary: Acknowledges the given message id for the given username.
+      parameters:
+        - name: username
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: The request completed successfully.
+        '404':
+          description: 'A conversation with the specified username, or a message matching the specified id could not be found.'
+  '/api/v0/conversations/{username}':
+    put:
+      tags:
+        - Conversations
+      summary: Acknowledges all messages from the given username.
+      parameters:
+        - name: username
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+        '404':
+          description: A conversation with the specified username could not be found.
+    delete:
+      tags:
+        - Conversations
+      summary: Closes the conversation associated with the given username.
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '404':
+          description: A conversation with the specified username could not be found.
+        '204':
+          description: The request completed successfully.
+    get:
+      tags:
+        - Conversations
+      summary: Gets the conversation associated with the specified username.
+      parameters:
+        - name: username
+          in: path
+          description: The username associated with the desired conversation.
+          required: true
+          schema:
+            type: string
+        - name: includeMessages
+          in: query
+          description: ''
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Messaging.Conversation'
+        '404':
+          description: A matching search was not found.
+    post:
+      tags:
+        - Conversations
+      summary: Sends a private message to the specified username.
+      parameters:
+        - name: username
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: The request completed successfully.
+        '400':
+          description: The specified message is null or empty.
+  /api/v0/conversations:
+    get:
+      tags:
+        - Conversations
+      summary: Gets all active conversations.
+      parameters:
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: unAcknowledgedOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/slskd.Messaging.Conversation'
+  '/api/v0/conversations/{username}/messages':
+    get:
+      tags:
+        - Conversations
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: unAcknowledgedOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/slskd.Messaging.PrivateMessage'
+        '404':
+          description: Not Found
+  /api/v0/events:
+    get:
+      tags:
+        - Events
+      summary: Retrieves a paginated list of past event records.
+      operationId: GetEvents
+      parameters:
+        - name: offset
+          in: query
+          description: The offset (number of records) at which to start the requested page.
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: limit
+          in: query
+          description: The page size.
+          schema:
+            type: integer
+            format: int32
+            default: 100
+      responses:
+        '400':
+          description: 'The offset is less than zero, or if the limit is less than or equal to zero.'
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          description: Authentication credentials are omitted.
+        '403':
+          description: Authentication is valid but not sufficient to access this endpoint.
+        '500':
+          description: An unexpected error is encountered.
+          content:
+            application/json:
+              schema:
+                type: string
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/slskd.Events.EventRecord'
+  '/api/v0/events/{type}':
+    post:
+      tags:
+        - Events
+      summary: Raises a sample event of the specified type.
+      operationId: RaiseEvent
+      parameters:
+        - name: type
+          in: path
+          description: The type of event to raise.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: An optional string used to disambiguate generated events.
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '400':
+          description: The specified type is not a valid event type.
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          description: Authentication credentials are omitted.
+        '403':
+          description: Authentication is valid but not sufficient to access this endpoint.
+        '500':
+          description: An unexpected error is encountered.
+          content:
+            application/json:
+              schema:
+                type: string
+        '201':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Events.Event'
+  /api/v0/files/downloads/directories:
+    get:
+      tags:
+        - Files
+      summary: Lists the contents of the downloads directory.
+      parameters:
+        - name: recursive
+          in: query
+          description: An optional value indicating whether to recursively list subdirectories and files.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Files.FilesystemDirectory'
+        '401':
+          description: Authentication failed.
+  '/api/v0/files/downloads/directories/{base64SubdirectoryName}':
+    get:
+      tags:
+        - Files
+      summary: Lists the contents of the specified subdirectory within the downloads directory.
+      parameters:
+        - name: base64SubdirectoryName
+          in: path
+          description: 'The relative, base 64 encoded, name of the subdirectory to list.'
+          required: true
+          schema:
+            type: string
+        - name: recursive
+          in: query
+          description: An optional value indicating whether to recursively list subdirectories and files.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Files.FilesystemDirectory'
+        '401':
+          description: Authentication failed.
+        '403':
+          description: Access to the specified subdirectory was denied.
+        '404':
+          description: The specified subdirectory does not exist.
+    delete:
+      tags:
+        - Files
+      summary: Deletes the specified subdirectory within the downloads directory.
+      parameters:
+        - name: base64SubdirectoryName
+          in: path
+          description: 'The relative, base 64 encoded, name of the subdirectory to delete.'
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The request completed successfully.
+        '401':
+          description: Authentication failed.
+        '403':
+          description: Access to the specified subdirectory was denied.
+        '404':
+          description: The specified subdirectory does not exist.
+  '/api/v0/files/downloads/files/{base64FileName}':
+    delete:
+      tags:
+        - Files
+      summary: Deletes the specified file within the downloads directory.
+      parameters:
+        - name: base64FileName
+          in: path
+          description: 'The relative, base 64 encoded, name of the file to delete.'
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The request completed successfully.
+        '401':
+          description: Authentication failed.
+        '403':
+          description: Access to the specified subdirectory was denied.
+        '404':
+          description: The specified subdirectory does not exist.
+  /api/v0/files/incomplete/directories:
+    get:
+      tags:
+        - Files
+      summary: Lists the contents of the downloads directory.
+      parameters:
+        - name: recursive
+          in: query
+          description: An optional value indicating whether to recursively list subdirectories and files.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Files.FilesystemDirectory'
+        '401':
+          description: Authentication failed.
+  '/api/v0/files/incomplete/directories/{base64SubdirectoryName}':
+    get:
+      tags:
+        - Files
+      summary: Lists the contents of the specified subdirectory within the incomplete directory.
+      parameters:
+        - name: base64SubdirectoryName
+          in: path
+          description: 'The relative, base 64 encoded, name of the subdirectory to list.'
+          required: true
+          schema:
+            type: string
+        - name: recursive
+          in: query
+          description: An optional value indicating whether to recursively list subdirectories and files.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Files.FilesystemDirectory'
+        '401':
+          description: Authentication failed.
+        '403':
+          description: Access to the specified subdirectory was denied.
+        '404':
+          description: The specified subdirectory does not exist.
+    delete:
+      tags:
+        - Files
+      summary: Deletes the specified subdirectory within the downloads directory.
+      parameters:
+        - name: base64SubdirectoryName
+          in: path
+          description: 'The relative, base 64 encoded, name of the subdirectory to delete.'
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The request completed successfully.
+        '401':
+          description: Authentication failed.
+        '403':
+          description: Access to the specified subdirectory was denied.
+        '404':
+          description: The specified subdirectory does not exist.
+  '/api/v0/files/incomplete/files/{base64FileName}':
+    delete:
+      tags:
+        - Files
+      summary: Deletes the specified file within the downloads directory.
+      parameters:
+        - name: base64FileName
+          in: path
+          description: 'The relative, base 64 encoded, name of the file to delete.'
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The request completed successfully.
+        '401':
+          description: Authentication failed.
+        '403':
+          description: Access to the specified subdirectory was denied.
+        '404':
+          description: The specified subdirectory does not exist.
+  /api/v0/logs/live:
+    get:
+      tags:
+        - Logs
+      summary: Gets the last few application logs.
+      responses:
+        '200':
+          description: OK
+  /api/v0/logs/files:
+    get:
+      tags:
+        - Logs
+      summary: Lists the log files currently on disk.
+      responses:
+        '200':
+          description: OK
+  '/api/v0/logs/files/{filename}':
+    get:
+      tags:
+        - Logs
+      summary: Retrieves the requested log file from disk as plain text.
+      parameters:
+        - name: filename
+          in: path
+          description: The name of the log file.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: string
+  /api/v0/options:
+    get:
+      tags:
+        - Options
+      summary: Gets the current application options.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Options'
+    patch:
+      tags:
+        - Options
+      summary: Overlay the application options with new values.
+      requestBody:
+        description: The overlay to apply.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/slskd.OptionsOverlay'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.OptionsOverlay'
+  /api/v0/options/startup:
+    get:
+      tags:
+        - Options
+      summary: Gets the application options provided at startup.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Options'
+  /api/v0/options/debug:
+    get:
+      tags:
+        - Options
+      summary: Gets the debug view of the current application options.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v0/options/yaml/location:
+    get:
+      tags:
+        - Options
+      responses:
+        '200':
+          description: OK
+  /api/v0/options/yaml:
+    get:
+      tags:
+        - Options
+      responses:
+        '200':
+          description: OK
+    put:
+      tags:
+        - Options
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: OK
+  /api/v0/options/yaml/validate:
+    post:
+      tags:
+        - Options
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: OK
+  /api/v0/relay/agent:
+    put:
+      tags:
+        - Relay
+      summary: Connects to the configured controller.
+      responses:
+        '200':
+          description: OK
+    delete:
+      tags:
+        - Relay
+      summary: Disconnects from the connected controller.
+      responses:
+        '200':
+          description: OK
+  '/api/v0/relay/controller/downloads/{token}':
+    get:
+      tags:
+        - Relay
+      summary: Downloads a file from the connected controller.
+      parameters:
+        - name: token
+          in: path
+          description: The unique identifier for the request.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  '/api/v0/relay/controller/files/{token}':
+    post:
+      tags:
+        - Relay
+      summary: Uploads a file to the connected controller.
+      parameters:
+        - name: token
+          in: path
+          description: The unique identifier for the request.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  '/api/v0/relay/controller/shares/{token}':
+    post:
+      tags:
+        - Relay
+      summary: Uploads share information to the connected controller.
+      parameters:
+        - name: token
+          in: path
+          description: The unique identifier for the request.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  /api/v0/rooms/joined:
+    get:
+      tags:
+        - Rooms
+      summary: Gets all rooms.
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/slskd.Messaging.Room'
+    post:
+      tags:
+        - Rooms
+      summary: Joins a room.
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Messaging.Room'
+        '304':
+          description: The room has already been joined.
+  '/api/v0/rooms/joined/{roomName}':
+    get:
+      tags:
+        - Rooms
+      summary: Gets the specified room.
+      parameters:
+        - name: roomName
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Messaging.Room'
+        '404':
+          description: The specified roomName could not be found.
+    delete:
+      tags:
+        - Rooms
+      summary: Leaves a room.
+      parameters:
+        - name: roomName
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The request completed successfully.
+        '404':
+          description: The room has not been joined.
+  '/api/v0/rooms/joined/{roomName}/messages':
+    post:
+      tags:
+        - Rooms
+      summary: Sends a message to the specified room.
+      parameters:
+        - name: roomName
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: The request completed successfully.
+        '404':
+          description: The specified roomName could not be found.
+    get:
+      tags:
+        - Rooms
+      summary: Gets the current list of messages for the specified room.
+      parameters:
+        - name: roomName
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/slskd.Messaging.RoomMessage'
+        '404':
+          description: The specified roomName could not be found.
+  '/api/v0/rooms/joined/{roomName}/ticker':
+    post:
+      tags:
+        - Rooms
+      summary: Sets a ticker for the specified room.
+      parameters:
+        - name: roomName
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: The request completed successfully.
+        '404':
+          description: The specified roomName could not be found.
+  '/api/v0/rooms/joined/{roomName}/members':
+    post:
+      tags:
+        - Rooms
+      summary: Adds a member to a private room.
+      parameters:
+        - name: roomName
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: The request completed successfully.
+        '404':
+          description: The specified roomName could not be found.
+  '/api/v0/rooms/joined/{roomName}/users':
+    get:
+      tags:
+        - Rooms
+      summary: Gets the current list of users for the specified room.
+      parameters:
+        - name: roomName
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Soulseek.UserData'
+        '404':
+          description: The specified roomName could not be found.
+  /api/v0/rooms/available:
+    get:
+      tags:
+        - Rooms
+      summary: Gets a list of rooms from the server.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Soulseek.RoomInfo'
+  /api/v0/searches:
+    post:
+      tags:
+        - Searches
+      summary: Performs a search for the specified request.
+      requestBody:
+        description: The search request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/slskd.Search.API.SearchRequest'
+      responses:
+        '200':
+          description: The search completed successfully.
+        '400':
+          description: The specified request was malformed.
+        '500':
+          description: The search terminated abnormally.
+    get:
+      tags:
+        - Searches
+      summary: Gets the list of active and completed searches.
+      responses:
+        '200':
+          description: OK
+  '/api/v0/searches/{id}':
+    get:
+      tags:
+        - Searches
+      summary: Gets the state of the search corresponding to the specified id.
+      parameters:
+        - name: id
+          in: path
+          description: The unique id of the search.
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: includeResponses
+          in: query
+          description: A value indicating whether to include search responses in the response.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The request completed successfully.
+        '404':
+          description: A matching search was not found.
+    put:
+      tags:
+        - Searches
+      summary: Stops the search corresponding to the specified id.
+      parameters:
+        - name: id
+          in: path
+          description: The unique id of the search.
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The search was stopped.
+        '304':
+          description: The search was not in progress.
+    delete:
+      tags:
+        - Searches
+      summary: Deletes the search corresponding to the specified id.
+      parameters:
+        - name: id
+          in: path
+          description: The unique id of the search.
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: The search was deleted.
+        '404':
+          description: A search with the specified id could not be found.
+  '/api/v0/searches/{id}/responses':
+    get:
+      tags:
+        - Searches
+      summary: Gets the state of the search corresponding to the specified id.
+      parameters:
+        - name: id
+          in: path
+          description: The unique id of the search.
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The request completed successfully.
+        '404':
+          description: A matching search was not found.
+  /api/v0/server:
+    put:
+      tags:
+        - Server
+      summary: Connects the client.
+      responses:
+        '200':
+          description: OK
+        '205':
+          description: Reset Content
+        '403':
+          description: Forbidden
+    delete:
+      tags:
+        - Server
+      summary: Disconnects the client.
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '204':
+          description: No Content
+        '403':
+          description: Forbidden
+    get:
+      tags:
+        - Server
+      summary: Retrieves the current state of the server.
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Core.API.ServerState'
+        '403':
+          description: Forbidden
+  /api/v0/session:
+    get:
+      tags:
+        - Session
+      summary: Checks whether the provided authentication is valid.
+      description: This is a no-op provided so that the application can test for an expired token on load.
+      responses:
+        '200':
+          description: The authentication is valid.
+        '401':
+          description: Unauthorized
+        '403':
+          description: The authentication is is invalid.
+    post:
+      tags:
+        - Session
+      summary: Logs in.
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/slskd.Core.API.LoginRequest'
+      responses:
+        '200':
+          description: Login was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Core.API.TokenResponse'
+        '400':
+          description: Bad request.
+        '401':
+          description: Login failed.
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v0/session/enabled:
+    get:
+      tags:
+        - Session
+      summary: Checks whether security is enabled.
+      responses:
+        '200':
+          description: 'True if security is enabled, false otherwise.'
+          content:
+            application/json:
+              schema:
+                type: boolean
+  /api/v0/shares:
+    get:
+      tags:
+        - Shares
+      summary: Gets the current list of shares.
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/slskd.Shares.Share'
+    put:
+      tags:
+        - Shares
+      summary: Initiates a scan of the configured shares.
+      responses:
+        '204':
+          description: The request completed successfully.
+        '409':
+          description: A share scan is already in progress.
+    delete:
+      tags:
+        - Shares
+      summary: 'Cancels a share scan, if one is running.'
+      responses:
+        '204':
+          description: The request completed successfully.
+        '404':
+          description: Not Found
+        '409':
+          description: A share scan was not in progress.
+  '/api/v0/shares/{id}':
+    get:
+      tags:
+        - Shares
+      summary: Gets the share associated with the specified <see paramref="id" />.
+      parameters:
+        - name: id
+          in: path
+          description: The id of the share.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Shares.Share'
+        '404':
+          description: The requested share could not be found.
+  /api/v0/shares/contents:
+    get:
+      tags:
+        - Shares
+      summary: Returns a list of all shared directories and files.
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Soulseek.Directory'
+  '/api/v0/shares/{id}/contents':
+    get:
+      tags:
+        - Shares
+      summary: Gets the contents of the share associated with the specified <see paramref="id" />.
+      parameters:
+        - name: id
+          in: path
+          description: The id of the share.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Soulseek.Directory'
+        '404':
+          description: The requested share could not be found.
+  /api/v0/telemetry/metrics:
+    get:
+      tags:
+        - Telemetry
+      summary: Gets all application metrics.
+      description: "If the 'Accept' header is set to 'text/plain', the response is in Prometheus format. Otherwise if 'application/json' is set,\r\nthe metrics are formatted into a dictionary."
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/slskd.Telemetry.PrometheusMetric'
+        '500':
+          description: An error occurred.
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: string
+  /api/v0/telemetry/metrics/kpis:
+    get:
+      tags:
+        - Telemetry
+      summary: Gets gets key performance indicators (KPIs) for the application.
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/slskd.Telemetry.PrometheusMetric'
+        '500':
+          description: An error occurred.
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v0/telemetry/reports/transfers/summary:
+    get:
+      tags:
+        - Telemetry
+      summary: 'Gets a summary of all transfer activity over the specified timeframe, grouped by direction and final state.'
+      parameters:
+        - name: start
+          in: query
+          description: 'The start time of the window (default: 7 days ago).'
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          description: 'The end time of the window (default: now).'
+          schema:
+            type: string
+            format: date-time
+        - name: direction
+          in: query
+          description: 'An optional direction (Upload, Download) by which to filter records.'
+          schema:
+            type: string
+        - name: username
+          in: query
+          description: An optional username by which to filter records.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Download:
+                    type: object
+                    properties:
+                      None:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Requested:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Queued:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Initializing:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      InProgress:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Completed:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Succeeded:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Cancelled:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      TimedOut:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Errored:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Rejected:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Aborted:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Locally:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Remotely:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                    additionalProperties: false
+                  Upload:
+                    type: object
+                    properties:
+                      None:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Requested:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Queued:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Initializing:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      InProgress:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Completed:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Succeeded:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Cancelled:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      TimedOut:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Errored:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Rejected:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Aborted:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Locally:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      Remotely:
+                        $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                    additionalProperties: false
+                additionalProperties: false
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          description: An error occurred.
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v0/telemetry/reports/transfers/histogram:
+    get:
+      tags:
+        - Telemetry
+      summary: "Gets a histogram of all transfer activity over the specified timeframe, aggregated into fixed size time intervals\r\nand grouped by direction and final state."
+      parameters:
+        - name: start
+          in: query
+          description: 'The start time of the window (default: 7 days ago).'
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          description: 'The end time of the window (default: now).'
+          schema:
+            type: string
+            format: date-time
+        - name: buckets
+          in: query
+          description: 'The number of evenly sized buckets that the data will be divided into (default: 100).'
+          schema:
+            type: integer
+            format: int32
+        - name: interval
+          in: query
+          description: 'The interval, in minutes (default: null).'
+          schema:
+            type: integer
+            format: int32
+        - name: direction
+          in: query
+          description: 'An optional direction (Upload, Download) by which to filter records.'
+          schema:
+            type: string
+        - name: username
+          in: query
+          description: An optional username by which to filter records.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    Download:
+                      type: object
+                      properties:
+                        None:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Requested:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Queued:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Initializing:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        InProgress:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Completed:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Succeeded:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Cancelled:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        TimedOut:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Errored:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Rejected:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Aborted:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Locally:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Remotely:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      additionalProperties: false
+                    Upload:
+                      type: object
+                      properties:
+                        None:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Requested:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Queued:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Initializing:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        InProgress:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Completed:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Succeeded:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Cancelled:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        TimedOut:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Errored:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Rejected:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Aborted:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Locally:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                        Remotely:
+                          $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+                      additionalProperties: false
+                  additionalProperties: false
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          description: An error occurred.
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v0/telemetry/reports/transfers/leaderboard:
+    get:
+      tags:
+        - Telemetry
+      summary: 'Gets the top N user summaries by count, total bytes, or average speed.'
+      parameters:
+        - name: direction
+          in: query
+          description: 'The direction (Upload, Download).'
+          schema:
+            type: string
+        - name: start
+          in: query
+          description: 'The start time of the window (default: 12/30/2025).'
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          description: 'The end time of the window (default: now).'
+          schema:
+            type: string
+            format: date-time
+        - name: sortBy
+          in: query
+          description: 'The property by which to sort (Count, TotalBytes, AverageSpeed. Default: Count).'
+          schema:
+            type: string
+            default: Count
+        - name: sortOrder
+          in: query
+          description: 'The sort order (ASC, DESC. Default: DESC).'
+          schema:
+            type: string
+            default: DESC
+        - name: limit
+          in: query
+          description: 'The number of records to return (Default: 25).'
+          schema:
+            type: integer
+            format: int32
+            default: 25
+        - name: offset
+          in: query
+          description: The record offset (if paginating).
+          schema:
+            type: integer
+            format: int32
+            default: 0
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          description: An error occurred.
+          content:
+            application/json:
+              schema:
+                type: string
+  '/api/v0/telemetry/reports/transfers/users/{username}':
+    get:
+      tags:
+        - Telemetry
+      summary: Gets detailed transfer activity for the specified user.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the user.
+          required: true
+          schema:
+            type: string
+        - name: start
+          in: query
+          description: 'The start time of the summary window (default: 7 days ago).'
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          description: 'The end time of the summary window (default: now).'
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Download:
+                    $ref: '#/components/schemas/slskd.Telemetry.UserDirectionTransferSummary'
+                  Upload:
+                    $ref: '#/components/schemas/slskd.Telemetry.UserDirectionTransferSummary'
+                additionalProperties: false
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          description: An error occurred.
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v0/telemetry/reports/transfers/exceptions:
+    get:
+      tags:
+        - Telemetry
+      summary: Gets a list of transfer exceptions by direction.
+      parameters:
+        - name: direction
+          in: query
+          description: The direction.
+          schema:
+            type: string
+        - name: start
+          in: query
+          description: The start time.
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          description: The end time.
+          schema:
+            type: string
+            format: date-time
+        - name: username
+          in: query
+          description: An optional username by which to filter exceptions.
+          schema:
+            type: string
+        - name: sortOrder
+          in: query
+          description: 'The sort order (ASC, DESC. Default: DESC).'
+          schema:
+            type: string
+            default: DESC
+        - name: limit
+          in: query
+          description: 'The number of records to return (Default: 25).'
+          schema:
+            type: integer
+            format: int32
+            default: 25
+        - name: offset
+          in: query
+          description: The record offset (if paginating).
+          schema:
+            type: integer
+            format: int32
+            default: 0
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/slskd.Telemetry.TransferExceptionDetail'
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          description: An error occurred.
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v0/telemetry/reports/transfers/exceptions/pareto:
+    get:
+      tags:
+        - Telemetry
+      summary: Gets the top N exceptions by total count and direction.
+      parameters:
+        - name: direction
+          in: query
+          description: The direction.
+          schema:
+            type: string
+        - name: start
+          in: query
+          description: The start time.
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          description: The end time.
+          schema:
+            type: string
+            format: date-time
+        - name: username
+          in: query
+          description: An optional username by which to filter exceptions.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: 'The number of records to return (Default: 25).'
+          schema:
+            type: integer
+            format: int32
+            default: 25
+        - name: offset
+          in: query
+          description: The record offset (if paginating).
+          schema:
+            type: integer
+            format: int32
+            default: 0
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/slskd.Telemetry.TransferExceptionSummary'
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          description: An error occurred.
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v0/telemetry/reports/transfers/directories:
+    get:
+      tags:
+        - Telemetry
+      summary: Gets the top N most frequently downloaded directories by total count and distinct users.
+      parameters:
+        - name: start
+          in: query
+          description: 'The start time of the window (default: 12/30/2025).'
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          description: 'The end time of the window (default: now).'
+          schema:
+            type: string
+            format: date-time
+        - name: username
+          in: query
+          description: An optional username by which to filter records.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: 'The number of records to return (Default: 25).'
+          schema:
+            type: integer
+            format: int32
+            default: 25
+        - name: offset
+          in: query
+          description: The record offset (if paginating).
+          schema:
+            type: integer
+            format: int32
+            default: 0
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransferDirectorySummary'
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          description: An error occurred.
+          content:
+            application/json:
+              schema:
+                type: string
+  '/api/v0/transfers/downloads/{username}/{id}':
+    delete:
+      tags:
+        - Transfers
+      summary: Cancels the specified download.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the download source.
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: The id of the download.
+          required: true
+          schema:
+            type: string
+        - name: remove
+          in: query
+          description: A value indicating whether the tracked download should be removed after cancellation.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '204':
+          description: The download was cancelled successfully.
+        '404':
+          description: The specified download was not found.
+    get:
+      tags:
+        - Transfers
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Soulseek.Transfer'
+        '404':
+          description: Not Found
+  /api/v0/transfers/downloads/all/completed:
+    delete:
+      tags:
+        - Transfers
+      summary: 'Removes all completed downloads, regardless of whether they failed or succeeded.'
+      responses:
+        '204':
+          description: The downloads were removed successfully.
+  '/api/v0/transfers/uploads/{username}/{id}':
+    delete:
+      tags:
+        - Transfers
+      summary: Cancels the specified upload.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the upload destination.
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: The id of the upload.
+          required: true
+          schema:
+            type: string
+        - name: remove
+          in: query
+          description: A value indicating whether the tracked upload should be removed after cancellation.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '204':
+          description: The upload was cancelled successfully.
+        '404':
+          description: The specified upload was not found.
+    get:
+      tags:
+        - Transfers
+      summary: Gets the upload for the specified username matching the specified filename.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the upload destination.
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: The id of the upload.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+  /api/v0/transfers/uploads/all/completed:
+    delete:
+      tags:
+        - Transfers
+      summary: 'Removes all completed uploads, regardless of whether they failed or succeeded.'
+      responses:
+        '204':
+          description: The uploads were removed successfully.
+  '/api/v0/transfers/downloads/{username}':
+    post:
+      tags:
+        - Transfers
+      summary: (Obsolete) Enqueues the specified download.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the download source.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: The list of download requests.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/slskd.Transfers.API.QueueDownloadRequest'
+      responses:
+        '201':
+          description: The download was successfully enqueued.
+        '403':
+          description: The download was rejected.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          description: An unexpected error was encountered.
+          content:
+            application/json:
+              schema:
+                type: string
+      deprecated: true
+    get:
+      tags:
+        - Transfers
+      summary: Gets all downloads for the specified username.
+      parameters:
+        - name: username
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+  /api/v0/transfers/downloads/batches:
+    post:
+      tags:
+        - Transfers
+      summary: Enqueues a batch of downloads.
+      requestBody:
+        description: The batch details.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/slskd.Transfers.API.EnqueueDownloadBatchRequest'
+      responses:
+        '200':
+          description: 'The request succeeded, but all downloads failed to be enqueued.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Transfers.API.EnqueueDownloadBatchResponse'
+        '201':
+          description: All downloads were successfully enqueued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Transfers.API.EnqueueDownloadBatchResponse'
+        '207':
+          description: 'Some downloads were successfully enqueued, while some failed.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Transfers.API.EnqueueDownloadBatchResponse'
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                type: string
+        '403':
+          description: The request was forbidden.
+          content:
+            application/json:
+              schema:
+                type: string
+        '409':
+          description: A batch with the same ID already exists.
+          content:
+            application/json:
+              schema:
+                type: string
+        '429':
+          description: Request throttled.
+          content:
+            application/json:
+              schema:
+                type: string
+        '500':
+          description: An unexpected error was encountered.
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/v0/transfers/downloads:
+    get:
+      tags:
+        - Transfers
+      summary: Gets all downloads.
+      parameters:
+        - name: includeRemoved
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The request completed successfully.
+  '/api/v0/transfers/downloads/batches/{id}':
+    get:
+      tags:
+        - Transfers
+      summary: Gets the specified batch and associated transfers.
+      parameters:
+        - name: id
+          in: path
+          description: The id of the batch.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+        '400':
+          description: The specified id is not valid.
+        '404':
+          description: The specified batch was not found.
+  '/api/v0/transfers/downloads/{username}/{id}/position':
+    get:
+      tags:
+        - Transfers
+      summary: "Gets the download for the specified username matching the specified filename, and requests\r\nthe current place in the remote queue of the specified download."
+      parameters:
+        - name: username
+          in: path
+          description: The username of the download source.
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: The id of the download.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Soulseek.Transfer'
+        '404':
+          description: The specified download was not found.
+  /api/v0/transfers/uploads:
+    get:
+      tags:
+        - Transfers
+      summary: Gets all uploads.
+      parameters:
+        - name: includeRemoved
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The request completed successfully.
+  '/api/v0/transfers/uploads/{username}':
+    get:
+      tags:
+        - Transfers
+      summary: Gets all uploads for the specified username.
+      parameters:
+        - name: username
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+  '/api/v0/users/{username}/endpoint':
+    get:
+      tags:
+        - Users
+      summary: Retrieves the address of the specified username.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the user.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/System.Net.IPEndPoint'
+        '404':
+          description: Not Found
+  '/api/v0/users/{username}/browse':
+    get:
+      tags:
+        - Users
+      summary: Retrieves the files shared by the specified username.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the user.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Soulseek.Directory'
+        '404':
+          description: Not Found
+  '/api/v0/users/{username}/browse/status':
+    get:
+      tags:
+        - Users
+      summary: 'Retrieves the status of the current browse operation for the specified username, if any.'
+      parameters:
+        - name: username
+          in: path
+          description: The username of the user.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: number
+                format: double
+        '404':
+          description: Not Found
+  '/api/v0/users/{username}/directory':
+    post:
+      tags:
+        - Users
+      summary: Retrieves the files from the specified directory from the specified username.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: The directory contents request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/slskd.Users.API.DirectoryContentsRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Soulseek.Directory'
+        '404':
+          description: Not Found
+  '/api/v0/users/{username}/info':
+    get:
+      tags:
+        - Users
+      summary: Retrieves information about the specified username.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the user.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Users.Info'
+        '404':
+          description: Not Found
+  '/api/v0/users/{username}/status':
+    get:
+      tags:
+        - Users
+      summary: Retrieves status for the specified username.
+      parameters:
+        - name: username
+          in: path
+          description: The username of the user.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/slskd.Users.Status'
+        '404':
+          description: Not Found
+components:
+  schemas:
+    Soulseek.Directory:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        fileCount:
+          type: integer
+          format: int32
+          readOnly: true
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/Soulseek.File'
+          nullable: true
+          readOnly: true
+      additionalProperties: false
+    Soulseek.File:
+      type: object
+      properties:
+        attributeCount:
+          type: integer
+          format: int32
+          readOnly: true
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Soulseek.FileAttribute'
+          nullable: true
+          readOnly: true
+        bitDepth:
+          type: integer
+          format: int32
+          nullable: true
+          readOnly: true
+        bitRate:
+          type: integer
+          format: int32
+          nullable: true
+          readOnly: true
+        code:
+          type: integer
+          format: int32
+        extension:
+          type: string
+          nullable: true
+        filename:
+          type: string
+          nullable: true
+        isVariableBitRate:
+          type: boolean
+          nullable: true
+          readOnly: true
+        length:
+          type: integer
+          format: int32
+          nullable: true
+          readOnly: true
+        sampleRate:
+          type: integer
+          format: int32
+          nullable: true
+          readOnly: true
+        size:
+          type: integer
+          format: int64
+      additionalProperties: false
+    Soulseek.FileAttribute:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/Soulseek.FileAttributeType'
+        value:
+          type: integer
+          format: int32
+      additionalProperties: false
+    Soulseek.FileAttributeType:
+      enum:
+        - BitRate
+        - Length
+        - VariableBitRate
+        - SampleRate
+        - BitDepth
+      type: string
+    Soulseek.RoomInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        userCount:
+          type: integer
+          format: int32
+        users:
+          type: array
+          items:
+            type: string
+          nullable: true
+          readOnly: true
+      additionalProperties: false
+    Soulseek.SoulseekClientStates:
+      enum:
+        - None
+        - Disconnected
+        - Connected
+        - LoggedIn
+        - Connecting
+        - LoggingIn
+        - Disconnecting
+      type: string
+    Soulseek.Transfer:
+      type: object
+      properties:
+        averageSpeed:
+          type: number
+          format: double
+        bytesRemaining:
+          type: integer
+          format: int64
+          readOnly: true
+        bytesTransferred:
+          type: integer
+          format: int64
+        direction:
+          $ref: '#/components/schemas/Soulseek.TransferDirection'
+        elapsedTime:
+          type: string
+          format: date-span
+          nullable: true
+          readOnly: true
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+        exception:
+          $ref: '#/components/schemas/System.Exception'
+        filename:
+          type: string
+          nullable: true
+        ipEndPoint:
+          $ref: '#/components/schemas/System.Net.IPEndPoint'
+        percentComplete:
+          type: number
+          format: double
+          readOnly: true
+        remainingTime:
+          type: string
+          format: date-span
+          nullable: true
+          readOnly: true
+        remoteToken:
+          type: integer
+          format: int32
+          nullable: true
+        size:
+          type: integer
+          format: int64
+        startOffset:
+          type: integer
+          format: int64
+        startTime:
+          type: string
+          format: date-time
+          nullable: true
+        state:
+          $ref: '#/components/schemas/Soulseek.TransferStates'
+        token:
+          type: integer
+          format: int32
+        username:
+          type: string
+          nullable: true
+      additionalProperties: false
+    Soulseek.TransferDirection:
+      enum:
+        - Download
+        - Upload
+      type: string
+    Soulseek.TransferStates:
+      enum:
+        - None
+        - Requested
+        - Queued
+        - Initializing
+        - InProgress
+        - Completed
+        - Succeeded
+        - Cancelled
+        - TimedOut
+        - Errored
+        - Rejected
+        - Aborted
+        - Locally
+        - Remotely
+      type: string
+    Soulseek.UserData:
+      type: object
+      properties:
+        averageSpeed:
+          type: integer
+          format: int32
+        countryCode:
+          type: string
+          nullable: true
+        directoryCount:
+          type: integer
+          format: int32
+        fileCount:
+          type: integer
+          format: int32
+        slotsFree:
+          type: integer
+          format: int32
+          nullable: true
+        status:
+          $ref: '#/components/schemas/Soulseek.UserPresence'
+        uploadCount:
+          type: integer
+          format: int64
+        username:
+          type: string
+          nullable: true
+      additionalProperties: false
+    Soulseek.UserPresence:
+      enum:
+        - Offline
+        - Away
+        - Online
+      type: string
+    System.Exception:
+      type: object
+      properties:
+        targetSite:
+          $ref: '#/components/schemas/System.Reflection.MethodBase'
+        message:
+          type: string
+          nullable: true
+          readOnly: true
+        data:
+          type: object
+          additionalProperties: { }
+          nullable: true
+          readOnly: true
+        innerException:
+          $ref: '#/components/schemas/System.Exception'
+        helpLink:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+        hResult:
+          type: integer
+          format: int32
+        stackTrace:
+          type: string
+          nullable: true
+          readOnly: true
+      additionalProperties: false
+    System.IO.FileAttributes:
+      enum:
+        - None
+        - ReadOnly
+        - Hidden
+        - System
+        - Directory
+        - Archive
+        - Device
+        - Normal
+        - Temporary
+        - SparseFile
+        - ReparsePoint
+        - Compressed
+        - Offline
+        - NotContentIndexed
+        - Encrypted
+        - IntegrityStream
+        - NoScrubData
+      type: string
+    System.IntPtr:
+      type: object
+      additionalProperties: false
+    System.ModuleHandle:
+      type: object
+      properties:
+        mdStreamVersion:
+          type: integer
+          format: int32
+          readOnly: true
+      additionalProperties: false
+    System.Net.IPAddress:
+      type: object
+      properties:
+        addressFamily:
+          $ref: '#/components/schemas/System.Net.Sockets.AddressFamily'
+        scopeId:
+          type: integer
+          format: int64
+        isIPv6Multicast:
+          type: boolean
+          readOnly: true
+        isIPv6LinkLocal:
+          type: boolean
+          readOnly: true
+        isIPv6SiteLocal:
+          type: boolean
+          readOnly: true
+        isIPv6Teredo:
+          type: boolean
+          readOnly: true
+        isIPv6UniqueLocal:
+          type: boolean
+          readOnly: true
+        isIPv4MappedToIPv6:
+          type: boolean
+          readOnly: true
+        address:
+          type: integer
+          format: int64
+          deprecated: true
+      additionalProperties: false
+    System.Net.IPEndPoint:
+      type: object
+      properties:
+        addressFamily:
+          $ref: '#/components/schemas/System.Net.Sockets.AddressFamily'
+        address:
+          $ref: '#/components/schemas/System.Net.IPAddress'
+        port:
+          type: integer
+          format: int32
+      additionalProperties: false
+    System.Net.Sockets.AddressFamily:
+      enum:
+        - Unspecified
+        - Unix
+        - InterNetwork
+        - ImpLink
+        - Pup
+        - Chaos
+        - NS
+        - Iso
+        - Ecma
+        - DataKit
+        - Ccitt
+        - Sna
+        - DecNet
+        - DataLink
+        - Lat
+        - HyperChannel
+        - AppleTalk
+        - NetBios
+        - VoiceView
+        - FireFox
+        - Banyan
+        - Atm
+        - InterNetworkV6
+        - Cluster
+        - Ieee12844
+        - Irda
+        - NetworkDesigners
+        - Max
+        - Packet
+        - ControllerAreaNetwork
+        - Unknown
+      type: string
+    System.Reflection.Assembly:
+      type: object
+      properties:
+        definedTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.TypeInfo'
+          nullable: true
+          readOnly: true
+        exportedTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Type'
+          nullable: true
+          readOnly: true
+        codeBase:
+          type: string
+          nullable: true
+          readOnly: true
+          deprecated: true
+        entryPoint:
+          $ref: '#/components/schemas/System.Reflection.MethodInfo'
+        fullName:
+          type: string
+          nullable: true
+          readOnly: true
+        imageRuntimeVersion:
+          type: string
+          nullable: true
+          readOnly: true
+        isDynamic:
+          type: boolean
+          readOnly: true
+        location:
+          type: string
+          nullable: true
+          readOnly: true
+        reflectionOnly:
+          type: boolean
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        isFullyTrusted:
+          type: boolean
+          readOnly: true
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        escapedCodeBase:
+          type: string
+          nullable: true
+          readOnly: true
+          deprecated: true
+        manifestModule:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        modules:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.Module'
+          nullable: true
+          readOnly: true
+        globalAssemblyCache:
+          type: boolean
+          readOnly: true
+          deprecated: true
+        hostContext:
+          type: integer
+          format: int64
+          readOnly: true
+        securityRuleSet:
+          $ref: '#/components/schemas/System.Security.SecurityRuleSet'
+      additionalProperties: false
+    System.Reflection.CallingConventions:
+      enum:
+        - Standard
+        - VarArgs
+        - Any
+        - HasThis
+        - ExplicitThis
+      type: string
+    System.Reflection.ConstructorInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        declaringType:
+          $ref: '#/components/schemas/System.Type'
+        reflectedType:
+          $ref: '#/components/schemas/System.Type'
+        module:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+        attributes:
+          $ref: '#/components/schemas/System.Reflection.MethodAttributes'
+        methodImplementationFlags:
+          $ref: '#/components/schemas/System.Reflection.MethodImplAttributes'
+        callingConvention:
+          $ref: '#/components/schemas/System.Reflection.CallingConventions'
+        isAbstract:
+          type: boolean
+          readOnly: true
+        isConstructor:
+          type: boolean
+          readOnly: true
+        isFinal:
+          type: boolean
+          readOnly: true
+        isHideBySig:
+          type: boolean
+          readOnly: true
+        isSpecialName:
+          type: boolean
+          readOnly: true
+        isStatic:
+          type: boolean
+          readOnly: true
+        isVirtual:
+          type: boolean
+          readOnly: true
+        isAssembly:
+          type: boolean
+          readOnly: true
+        isFamily:
+          type: boolean
+          readOnly: true
+        isFamilyAndAssembly:
+          type: boolean
+          readOnly: true
+        isFamilyOrAssembly:
+          type: boolean
+          readOnly: true
+        isPrivate:
+          type: boolean
+          readOnly: true
+        isPublic:
+          type: boolean
+          readOnly: true
+        isConstructedGenericMethod:
+          type: boolean
+          readOnly: true
+        isGenericMethod:
+          type: boolean
+          readOnly: true
+        isGenericMethodDefinition:
+          type: boolean
+          readOnly: true
+        containsGenericParameters:
+          type: boolean
+          readOnly: true
+        methodHandle:
+          $ref: '#/components/schemas/System.RuntimeMethodHandle'
+        isSecurityCritical:
+          type: boolean
+          readOnly: true
+        isSecuritySafeCritical:
+          type: boolean
+          readOnly: true
+        isSecurityTransparent:
+          type: boolean
+          readOnly: true
+        memberType:
+          $ref: '#/components/schemas/System.Reflection.MemberTypes'
+      additionalProperties: false
+    System.Reflection.CustomAttributeData:
+      type: object
+      properties:
+        attributeType:
+          $ref: '#/components/schemas/System.Type'
+        constructor:
+          $ref: '#/components/schemas/System.Reflection.ConstructorInfo'
+        constructorArguments:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeTypedArgument'
+          nullable: true
+          readOnly: true
+        namedArguments:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeNamedArgument'
+          nullable: true
+          readOnly: true
+      additionalProperties: false
+    System.Reflection.CustomAttributeNamedArgument:
+      type: object
+      properties:
+        memberInfo:
+          $ref: '#/components/schemas/System.Reflection.MemberInfo'
+        typedValue:
+          $ref: '#/components/schemas/System.Reflection.CustomAttributeTypedArgument'
+        memberName:
+          type: string
+          nullable: true
+          readOnly: true
+        isField:
+          type: boolean
+          readOnly: true
+      additionalProperties: false
+    System.Reflection.CustomAttributeTypedArgument:
+      type: object
+      properties:
+        argumentType:
+          $ref: '#/components/schemas/System.Type'
+        value: { }
+      additionalProperties: false
+    System.Reflection.EventAttributes:
+      enum:
+        - None
+        - SpecialName
+        - RTSpecialName
+      type: string
+    System.Reflection.EventInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        declaringType:
+          $ref: '#/components/schemas/System.Type'
+        reflectedType:
+          $ref: '#/components/schemas/System.Type'
+        module:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+        memberType:
+          $ref: '#/components/schemas/System.Reflection.MemberTypes'
+        attributes:
+          $ref: '#/components/schemas/System.Reflection.EventAttributes'
+        isSpecialName:
+          type: boolean
+          readOnly: true
+        addMethod:
+          $ref: '#/components/schemas/System.Reflection.MethodInfo'
+        removeMethod:
+          $ref: '#/components/schemas/System.Reflection.MethodInfo'
+        raiseMethod:
+          $ref: '#/components/schemas/System.Reflection.MethodInfo'
+        isMulticast:
+          type: boolean
+          readOnly: true
+        eventHandlerType:
+          $ref: '#/components/schemas/System.Type'
+      additionalProperties: false
+    System.Reflection.FieldAttributes:
+      enum:
+        - PrivateScope
+        - Private
+        - FamANDAssem
+        - Assembly
+        - Family
+        - FamORAssem
+        - Public
+        - FieldAccessMask
+        - Static
+        - InitOnly
+        - Literal
+        - NotSerialized
+        - HasFieldRVA
+        - SpecialName
+        - RTSpecialName
+        - HasFieldMarshal
+        - PinvokeImpl
+        - HasDefault
+        - ReservedMask
+      type: string
+    System.Reflection.FieldInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        declaringType:
+          $ref: '#/components/schemas/System.Type'
+        reflectedType:
+          $ref: '#/components/schemas/System.Type'
+        module:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+        memberType:
+          $ref: '#/components/schemas/System.Reflection.MemberTypes'
+        attributes:
+          $ref: '#/components/schemas/System.Reflection.FieldAttributes'
+        fieldType:
+          $ref: '#/components/schemas/System.Type'
+        isInitOnly:
+          type: boolean
+          readOnly: true
+        isLiteral:
+          type: boolean
+          readOnly: true
+        isNotSerialized:
+          type: boolean
+          readOnly: true
+          deprecated: true
+        isPinvokeImpl:
+          type: boolean
+          readOnly: true
+        isSpecialName:
+          type: boolean
+          readOnly: true
+        isStatic:
+          type: boolean
+          readOnly: true
+        isAssembly:
+          type: boolean
+          readOnly: true
+        isFamily:
+          type: boolean
+          readOnly: true
+        isFamilyAndAssembly:
+          type: boolean
+          readOnly: true
+        isFamilyOrAssembly:
+          type: boolean
+          readOnly: true
+        isPrivate:
+          type: boolean
+          readOnly: true
+        isPublic:
+          type: boolean
+          readOnly: true
+        isSecurityCritical:
+          type: boolean
+          readOnly: true
+        isSecuritySafeCritical:
+          type: boolean
+          readOnly: true
+        isSecurityTransparent:
+          type: boolean
+          readOnly: true
+        fieldHandle:
+          $ref: '#/components/schemas/System.RuntimeFieldHandle'
+      additionalProperties: false
+    System.Reflection.GenericParameterAttributes:
+      enum:
+        - None
+        - Covariant
+        - Contravariant
+        - VarianceMask
+        - ReferenceTypeConstraint
+        - NotNullableValueTypeConstraint
+        - DefaultConstructorConstraint
+        - SpecialConstraintMask
+        - AllowByRefLike
+      type: string
+    System.Reflection.ICustomAttributeProvider:
+      type: object
+      additionalProperties: false
+    System.Reflection.MemberInfo:
+      type: object
+      properties:
+        memberType:
+          $ref: '#/components/schemas/System.Reflection.MemberTypes'
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        declaringType:
+          $ref: '#/components/schemas/System.Type'
+        reflectedType:
+          $ref: '#/components/schemas/System.Type'
+        module:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+      additionalProperties: false
+    System.Reflection.MemberTypes:
+      enum:
+        - Constructor
+        - Event
+        - Field
+        - Method
+        - Property
+        - TypeInfo
+        - Custom
+        - NestedType
+        - All
+      type: string
+    System.Reflection.MethodAttributes:
+      enum:
+        - PrivateScope
+        - Private
+        - FamANDAssem
+        - Assembly
+        - Family
+        - FamORAssem
+        - Public
+        - MemberAccessMask
+        - UnmanagedExport
+        - Static
+        - Final
+        - Virtual
+        - HideBySig
+        - NewSlot
+        - CheckAccessOnOverride
+        - Abstract
+        - SpecialName
+        - RTSpecialName
+        - PinvokeImpl
+        - HasSecurity
+        - RequireSecObject
+        - ReservedMask
+      type: string
+    System.Reflection.MethodBase:
+      type: object
+      properties:
+        memberType:
+          $ref: '#/components/schemas/System.Reflection.MemberTypes'
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        declaringType:
+          $ref: '#/components/schemas/System.Type'
+        reflectedType:
+          $ref: '#/components/schemas/System.Type'
+        module:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+        attributes:
+          $ref: '#/components/schemas/System.Reflection.MethodAttributes'
+        methodImplementationFlags:
+          $ref: '#/components/schemas/System.Reflection.MethodImplAttributes'
+        callingConvention:
+          $ref: '#/components/schemas/System.Reflection.CallingConventions'
+        isAbstract:
+          type: boolean
+          readOnly: true
+        isConstructor:
+          type: boolean
+          readOnly: true
+        isFinal:
+          type: boolean
+          readOnly: true
+        isHideBySig:
+          type: boolean
+          readOnly: true
+        isSpecialName:
+          type: boolean
+          readOnly: true
+        isStatic:
+          type: boolean
+          readOnly: true
+        isVirtual:
+          type: boolean
+          readOnly: true
+        isAssembly:
+          type: boolean
+          readOnly: true
+        isFamily:
+          type: boolean
+          readOnly: true
+        isFamilyAndAssembly:
+          type: boolean
+          readOnly: true
+        isFamilyOrAssembly:
+          type: boolean
+          readOnly: true
+        isPrivate:
+          type: boolean
+          readOnly: true
+        isPublic:
+          type: boolean
+          readOnly: true
+        isConstructedGenericMethod:
+          type: boolean
+          readOnly: true
+        isGenericMethod:
+          type: boolean
+          readOnly: true
+        isGenericMethodDefinition:
+          type: boolean
+          readOnly: true
+        containsGenericParameters:
+          type: boolean
+          readOnly: true
+        methodHandle:
+          $ref: '#/components/schemas/System.RuntimeMethodHandle'
+        isSecurityCritical:
+          type: boolean
+          readOnly: true
+        isSecuritySafeCritical:
+          type: boolean
+          readOnly: true
+        isSecurityTransparent:
+          type: boolean
+          readOnly: true
+      additionalProperties: false
+    System.Reflection.MethodImplAttributes:
+      enum:
+        - IL
+        - Native
+        - OPTIL
+        - CodeTypeMask
+        - ManagedMask
+        - NoInlining
+        - ForwardRef
+        - Synchronized
+        - NoOptimization
+        - PreserveSig
+        - AggressiveInlining
+        - AggressiveOptimization
+        - InternalCall
+        - Async
+        - MaxMethodImplVal
+      type: string
+    System.Reflection.MethodInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        declaringType:
+          $ref: '#/components/schemas/System.Type'
+        reflectedType:
+          $ref: '#/components/schemas/System.Type'
+        module:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+        attributes:
+          $ref: '#/components/schemas/System.Reflection.MethodAttributes'
+        methodImplementationFlags:
+          $ref: '#/components/schemas/System.Reflection.MethodImplAttributes'
+        callingConvention:
+          $ref: '#/components/schemas/System.Reflection.CallingConventions'
+        isAbstract:
+          type: boolean
+          readOnly: true
+        isConstructor:
+          type: boolean
+          readOnly: true
+        isFinal:
+          type: boolean
+          readOnly: true
+        isHideBySig:
+          type: boolean
+          readOnly: true
+        isSpecialName:
+          type: boolean
+          readOnly: true
+        isStatic:
+          type: boolean
+          readOnly: true
+        isVirtual:
+          type: boolean
+          readOnly: true
+        isAssembly:
+          type: boolean
+          readOnly: true
+        isFamily:
+          type: boolean
+          readOnly: true
+        isFamilyAndAssembly:
+          type: boolean
+          readOnly: true
+        isFamilyOrAssembly:
+          type: boolean
+          readOnly: true
+        isPrivate:
+          type: boolean
+          readOnly: true
+        isPublic:
+          type: boolean
+          readOnly: true
+        isConstructedGenericMethod:
+          type: boolean
+          readOnly: true
+        isGenericMethod:
+          type: boolean
+          readOnly: true
+        isGenericMethodDefinition:
+          type: boolean
+          readOnly: true
+        containsGenericParameters:
+          type: boolean
+          readOnly: true
+        methodHandle:
+          $ref: '#/components/schemas/System.RuntimeMethodHandle'
+        isSecurityCritical:
+          type: boolean
+          readOnly: true
+        isSecuritySafeCritical:
+          type: boolean
+          readOnly: true
+        isSecurityTransparent:
+          type: boolean
+          readOnly: true
+        memberType:
+          $ref: '#/components/schemas/System.Reflection.MemberTypes'
+        returnParameter:
+          $ref: '#/components/schemas/System.Reflection.ParameterInfo'
+        returnType:
+          $ref: '#/components/schemas/System.Type'
+        returnTypeCustomAttributes:
+          $ref: '#/components/schemas/System.Reflection.ICustomAttributeProvider'
+      additionalProperties: false
+    System.Reflection.Module:
+      type: object
+      properties:
+        assembly:
+          $ref: '#/components/schemas/System.Reflection.Assembly'
+        fullyQualifiedName:
+          type: string
+          nullable: true
+          readOnly: true
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        mdStreamVersion:
+          type: integer
+          format: int32
+          readOnly: true
+        moduleVersionId:
+          type: string
+          format: uuid
+          readOnly: true
+        scopeName:
+          type: string
+          nullable: true
+          readOnly: true
+        moduleHandle:
+          $ref: '#/components/schemas/System.ModuleHandle'
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+      additionalProperties: false
+    System.Reflection.ParameterAttributes:
+      enum:
+        - None
+        - In
+        - Out
+        - Lcid
+        - Retval
+        - Optional
+        - HasDefault
+        - HasFieldMarshal
+        - Reserved3
+        - Reserved4
+        - ReservedMask
+      type: string
+    System.Reflection.ParameterInfo:
+      type: object
+      properties:
+        attributes:
+          $ref: '#/components/schemas/System.Reflection.ParameterAttributes'
+        member:
+          $ref: '#/components/schemas/System.Reflection.MemberInfo'
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        parameterType:
+          $ref: '#/components/schemas/System.Type'
+        position:
+          type: integer
+          format: int32
+          readOnly: true
+        isIn:
+          type: boolean
+          readOnly: true
+        isLcid:
+          type: boolean
+          readOnly: true
+        isOptional:
+          type: boolean
+          readOnly: true
+        isOut:
+          type: boolean
+          readOnly: true
+        isRetval:
+          type: boolean
+          readOnly: true
+        defaultValue:
+          readOnly: true
+        rawDefaultValue:
+          readOnly: true
+        hasDefaultValue:
+          type: boolean
+          readOnly: true
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+      additionalProperties: false
+    System.Reflection.PropertyAttributes:
+      enum:
+        - None
+        - SpecialName
+        - RTSpecialName
+        - HasDefault
+        - Reserved2
+        - Reserved3
+        - Reserved4
+        - ReservedMask
+      type: string
+    System.Reflection.PropertyInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        declaringType:
+          $ref: '#/components/schemas/System.Type'
+        reflectedType:
+          $ref: '#/components/schemas/System.Type'
+        module:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+        memberType:
+          $ref: '#/components/schemas/System.Reflection.MemberTypes'
+        propertyType:
+          $ref: '#/components/schemas/System.Type'
+        attributes:
+          $ref: '#/components/schemas/System.Reflection.PropertyAttributes'
+        isSpecialName:
+          type: boolean
+          readOnly: true
+        canRead:
+          type: boolean
+          readOnly: true
+        canWrite:
+          type: boolean
+          readOnly: true
+        getMethod:
+          $ref: '#/components/schemas/System.Reflection.MethodInfo'
+        setMethod:
+          $ref: '#/components/schemas/System.Reflection.MethodInfo'
+      additionalProperties: false
+    System.Reflection.TypeAttributes:
+      enum:
+        - NotPublic
+        - Public
+        - NestedPublic
+        - NestedPrivate
+        - NestedFamily
+        - NestedAssembly
+        - NestedFamANDAssem
+        - VisibilityMask
+        - SequentialLayout
+        - ExplicitLayout
+        - LayoutMask
+        - Interface
+        - Abstract
+        - Sealed
+        - SpecialName
+        - RTSpecialName
+        - Import
+        - Serializable
+        - WindowsRuntime
+        - UnicodeClass
+        - AutoClass
+        - StringFormatMask
+        - HasSecurity
+        - ReservedMask
+        - BeforeFieldInit
+        - CustomFormatMask
+      type: string
+    System.Reflection.TypeInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+        memberType:
+          $ref: '#/components/schemas/System.Reflection.MemberTypes'
+        namespace:
+          type: string
+          nullable: true
+          readOnly: true
+        assemblyQualifiedName:
+          type: string
+          nullable: true
+          readOnly: true
+        fullName:
+          type: string
+          nullable: true
+          readOnly: true
+        assembly:
+          $ref: '#/components/schemas/System.Reflection.Assembly'
+        module:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        isInterface:
+          type: boolean
+          readOnly: true
+        isNested:
+          type: boolean
+          readOnly: true
+        declaringType:
+          $ref: '#/components/schemas/System.Type'
+        declaringMethod:
+          $ref: '#/components/schemas/System.Reflection.MethodBase'
+        reflectedType:
+          $ref: '#/components/schemas/System.Type'
+        underlyingSystemType:
+          $ref: '#/components/schemas/System.Type'
+        isTypeDefinition:
+          type: boolean
+          readOnly: true
+        isArray:
+          type: boolean
+          readOnly: true
+        isByRef:
+          type: boolean
+          readOnly: true
+        isPointer:
+          type: boolean
+          readOnly: true
+        isConstructedGenericType:
+          type: boolean
+          readOnly: true
+        isGenericParameter:
+          type: boolean
+          readOnly: true
+        isGenericTypeParameter:
+          type: boolean
+          readOnly: true
+        isGenericMethodParameter:
+          type: boolean
+          readOnly: true
+        isGenericType:
+          type: boolean
+          readOnly: true
+        isGenericTypeDefinition:
+          type: boolean
+          readOnly: true
+        isSZArray:
+          type: boolean
+          readOnly: true
+        isVariableBoundArray:
+          type: boolean
+          readOnly: true
+        isByRefLike:
+          type: boolean
+          readOnly: true
+        isFunctionPointer:
+          type: boolean
+          readOnly: true
+        isUnmanagedFunctionPointer:
+          type: boolean
+          readOnly: true
+        hasElementType:
+          type: boolean
+          readOnly: true
+        genericTypeArguments:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Type'
+          nullable: true
+          readOnly: true
+        genericParameterPosition:
+          type: integer
+          format: int32
+          readOnly: true
+        genericParameterAttributes:
+          $ref: '#/components/schemas/System.Reflection.GenericParameterAttributes'
+        attributes:
+          $ref: '#/components/schemas/System.Reflection.TypeAttributes'
+        isAbstract:
+          type: boolean
+          readOnly: true
+        isImport:
+          type: boolean
+          readOnly: true
+        isSealed:
+          type: boolean
+          readOnly: true
+        isSpecialName:
+          type: boolean
+          readOnly: true
+        isClass:
+          type: boolean
+          readOnly: true
+        isNestedAssembly:
+          type: boolean
+          readOnly: true
+        isNestedFamANDAssem:
+          type: boolean
+          readOnly: true
+        isNestedFamily:
+          type: boolean
+          readOnly: true
+        isNestedFamORAssem:
+          type: boolean
+          readOnly: true
+        isNestedPrivate:
+          type: boolean
+          readOnly: true
+        isNestedPublic:
+          type: boolean
+          readOnly: true
+        isNotPublic:
+          type: boolean
+          readOnly: true
+        isPublic:
+          type: boolean
+          readOnly: true
+        isAutoLayout:
+          type: boolean
+          readOnly: true
+        isExplicitLayout:
+          type: boolean
+          readOnly: true
+        isLayoutSequential:
+          type: boolean
+          readOnly: true
+        isAnsiClass:
+          type: boolean
+          readOnly: true
+        isAutoClass:
+          type: boolean
+          readOnly: true
+        isUnicodeClass:
+          type: boolean
+          readOnly: true
+        isCOMObject:
+          type: boolean
+          readOnly: true
+        isContextful:
+          type: boolean
+          readOnly: true
+        isEnum:
+          type: boolean
+          readOnly: true
+        isMarshalByRef:
+          type: boolean
+          readOnly: true
+        isPrimitive:
+          type: boolean
+          readOnly: true
+        isValueType:
+          type: boolean
+          readOnly: true
+        isSignatureType:
+          type: boolean
+          readOnly: true
+        isSecurityCritical:
+          type: boolean
+          readOnly: true
+        isSecuritySafeCritical:
+          type: boolean
+          readOnly: true
+        isSecurityTransparent:
+          type: boolean
+          readOnly: true
+        structLayoutAttribute:
+          $ref: '#/components/schemas/System.Runtime.InteropServices.StructLayoutAttribute'
+        typeInitializer:
+          $ref: '#/components/schemas/System.Reflection.ConstructorInfo'
+        typeHandle:
+          $ref: '#/components/schemas/System.RuntimeTypeHandle'
+        guid:
+          type: string
+          format: uuid
+          readOnly: true
+        baseType:
+          $ref: '#/components/schemas/System.Type'
+        isSerializable:
+          type: boolean
+          readOnly: true
+          deprecated: true
+        containsGenericParameters:
+          type: boolean
+          readOnly: true
+        isVisible:
+          type: boolean
+          readOnly: true
+        genericTypeParameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Type'
+          nullable: true
+          readOnly: true
+        declaredConstructors:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.ConstructorInfo'
+          nullable: true
+          readOnly: true
+        declaredEvents:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.EventInfo'
+          nullable: true
+          readOnly: true
+        declaredFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.FieldInfo'
+          nullable: true
+          readOnly: true
+        declaredMembers:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.MemberInfo'
+          nullable: true
+          readOnly: true
+        declaredMethods:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.MethodInfo'
+          nullable: true
+          readOnly: true
+        declaredNestedTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.TypeInfo'
+          nullable: true
+          readOnly: true
+        declaredProperties:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.PropertyInfo'
+          nullable: true
+          readOnly: true
+        implementedInterfaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Type'
+          nullable: true
+          readOnly: true
+      additionalProperties: false
+    System.Runtime.InteropServices.LayoutKind:
+      enum:
+        - Sequential
+        - Explicit
+        - Auto
+      type: string
+    System.Runtime.InteropServices.StructLayoutAttribute:
+      type: object
+      properties:
+        typeId:
+          readOnly: true
+        value:
+          $ref: '#/components/schemas/System.Runtime.InteropServices.LayoutKind'
+      additionalProperties: false
+    System.RuntimeFieldHandle:
+      type: object
+      properties:
+        value:
+          $ref: '#/components/schemas/System.IntPtr'
+      additionalProperties: false
+    System.RuntimeMethodHandle:
+      type: object
+      properties:
+        value:
+          $ref: '#/components/schemas/System.IntPtr'
+      additionalProperties: false
+    System.RuntimeTypeHandle:
+      type: object
+      properties:
+        value:
+          $ref: '#/components/schemas/System.IntPtr'
+      additionalProperties: false
+    System.Security.SecurityRuleSet:
+      enum:
+        - None
+        - Level1
+        - Level2
+      type: string
+    System.Type:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+        customAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Reflection.CustomAttributeData'
+          nullable: true
+          readOnly: true
+        isCollectible:
+          type: boolean
+          readOnly: true
+        metadataToken:
+          type: integer
+          format: int32
+          readOnly: true
+        memberType:
+          $ref: '#/components/schemas/System.Reflection.MemberTypes'
+        namespace:
+          type: string
+          nullable: true
+          readOnly: true
+        assemblyQualifiedName:
+          type: string
+          nullable: true
+          readOnly: true
+        fullName:
+          type: string
+          nullable: true
+          readOnly: true
+        assembly:
+          $ref: '#/components/schemas/System.Reflection.Assembly'
+        module:
+          $ref: '#/components/schemas/System.Reflection.Module'
+        isInterface:
+          type: boolean
+          readOnly: true
+        isNested:
+          type: boolean
+          readOnly: true
+        declaringType:
+          $ref: '#/components/schemas/System.Type'
+        declaringMethod:
+          $ref: '#/components/schemas/System.Reflection.MethodBase'
+        reflectedType:
+          $ref: '#/components/schemas/System.Type'
+        underlyingSystemType:
+          $ref: '#/components/schemas/System.Type'
+        isTypeDefinition:
+          type: boolean
+          readOnly: true
+        isArray:
+          type: boolean
+          readOnly: true
+        isByRef:
+          type: boolean
+          readOnly: true
+        isPointer:
+          type: boolean
+          readOnly: true
+        isConstructedGenericType:
+          type: boolean
+          readOnly: true
+        isGenericParameter:
+          type: boolean
+          readOnly: true
+        isGenericTypeParameter:
+          type: boolean
+          readOnly: true
+        isGenericMethodParameter:
+          type: boolean
+          readOnly: true
+        isGenericType:
+          type: boolean
+          readOnly: true
+        isGenericTypeDefinition:
+          type: boolean
+          readOnly: true
+        isSZArray:
+          type: boolean
+          readOnly: true
+        isVariableBoundArray:
+          type: boolean
+          readOnly: true
+        isByRefLike:
+          type: boolean
+          readOnly: true
+        isFunctionPointer:
+          type: boolean
+          readOnly: true
+        isUnmanagedFunctionPointer:
+          type: boolean
+          readOnly: true
+        hasElementType:
+          type: boolean
+          readOnly: true
+        genericTypeArguments:
+          type: array
+          items:
+            $ref: '#/components/schemas/System.Type'
+          nullable: true
+          readOnly: true
+        genericParameterPosition:
+          type: integer
+          format: int32
+          readOnly: true
+        genericParameterAttributes:
+          $ref: '#/components/schemas/System.Reflection.GenericParameterAttributes'
+        attributes:
+          $ref: '#/components/schemas/System.Reflection.TypeAttributes'
+        isAbstract:
+          type: boolean
+          readOnly: true
+        isImport:
+          type: boolean
+          readOnly: true
+        isSealed:
+          type: boolean
+          readOnly: true
+        isSpecialName:
+          type: boolean
+          readOnly: true
+        isClass:
+          type: boolean
+          readOnly: true
+        isNestedAssembly:
+          type: boolean
+          readOnly: true
+        isNestedFamANDAssem:
+          type: boolean
+          readOnly: true
+        isNestedFamily:
+          type: boolean
+          readOnly: true
+        isNestedFamORAssem:
+          type: boolean
+          readOnly: true
+        isNestedPrivate:
+          type: boolean
+          readOnly: true
+        isNestedPublic:
+          type: boolean
+          readOnly: true
+        isNotPublic:
+          type: boolean
+          readOnly: true
+        isPublic:
+          type: boolean
+          readOnly: true
+        isAutoLayout:
+          type: boolean
+          readOnly: true
+        isExplicitLayout:
+          type: boolean
+          readOnly: true
+        isLayoutSequential:
+          type: boolean
+          readOnly: true
+        isAnsiClass:
+          type: boolean
+          readOnly: true
+        isAutoClass:
+          type: boolean
+          readOnly: true
+        isUnicodeClass:
+          type: boolean
+          readOnly: true
+        isCOMObject:
+          type: boolean
+          readOnly: true
+        isContextful:
+          type: boolean
+          readOnly: true
+        isEnum:
+          type: boolean
+          readOnly: true
+        isMarshalByRef:
+          type: boolean
+          readOnly: true
+        isPrimitive:
+          type: boolean
+          readOnly: true
+        isValueType:
+          type: boolean
+          readOnly: true
+        isSignatureType:
+          type: boolean
+          readOnly: true
+        isSecurityCritical:
+          type: boolean
+          readOnly: true
+        isSecuritySafeCritical:
+          type: boolean
+          readOnly: true
+        isSecurityTransparent:
+          type: boolean
+          readOnly: true
+        structLayoutAttribute:
+          $ref: '#/components/schemas/System.Runtime.InteropServices.StructLayoutAttribute'
+        typeInitializer:
+          $ref: '#/components/schemas/System.Reflection.ConstructorInfo'
+        typeHandle:
+          $ref: '#/components/schemas/System.RuntimeTypeHandle'
+        guid:
+          type: string
+          format: uuid
+          readOnly: true
+        baseType:
+          $ref: '#/components/schemas/System.Type'
+        isSerializable:
+          type: boolean
+          readOnly: true
+          deprecated: true
+        containsGenericParameters:
+          type: boolean
+          readOnly: true
+        isVisible:
+          type: boolean
+          readOnly: true
+      additionalProperties: false
+    TransferDirectorySummary:
+      type: object
+      properties:
+        directory:
+          type: string
+          nullable: true
+        count:
+          type: integer
+          format: int64
+        distinctUsers:
+          type: integer
+          format: int64
+      additionalProperties: false
+    slskd.Core.API.LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          nullable: true
+        password:
+          type: string
+          nullable: true
+      additionalProperties: false
+    slskd.Core.API.ServerState:
+      type: object
+      properties:
+        address:
+          type: string
+          nullable: true
+        ipEndPoint:
+          $ref: '#/components/schemas/System.Net.IPEndPoint'
+        state:
+          $ref: '#/components/schemas/Soulseek.SoulseekClientStates'
+        username:
+          type: string
+          nullable: true
+        isConnected:
+          type: boolean
+          readOnly: true
+        isLoggedIn:
+          type: boolean
+          readOnly: true
+        isTransitioning:
+          type: boolean
+          readOnly: true
+      additionalProperties: false
+    slskd.Core.API.TokenResponse:
+      type: object
+      properties:
+        expires:
+          type: integer
+          description: Gets the time at which the Access Token expires.
+          format: int64
+          readOnly: true
+        issued:
+          type: integer
+          description: Gets the time at which the Access Token was issued.
+          format: int64
+          readOnly: true
+        name:
+          type: string
+          description: Gets the value of the Name claim from the Access Token.
+          nullable: true
+          readOnly: true
+        notBefore:
+          type: integer
+          description: Gets the value of the Not Before claim from the Access Token.
+          format: int64
+          readOnly: true
+        token:
+          type: string
+          description: Gets the Access Token string.
+          nullable: true
+          readOnly: true
+        tokenType:
+          type: string
+          description: Gets the Token type.
+          nullable: true
+          readOnly: true
+      additionalProperties: false
+    slskd.Events.Event:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        timestamp:
+          type: string
+          format: date-time
+        type:
+          $ref: '#/components/schemas/slskd.Events.EventType'
+        version:
+          type: integer
+          format: int32
+          readOnly: true
+      additionalProperties: false
+    slskd.Events.EventRecord:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        type:
+          $ref: '#/components/schemas/slskd.Events.EventType'
+        data:
+          type: string
+          nullable: true
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+      additionalProperties: false
+    slskd.Events.EventType:
+      enum:
+        - None
+        - Any
+        - DownloadFileComplete
+        - DownloadDirectoryComplete
+        - UploadFileComplete
+        - PrivateMessageReceived
+        - RoomMessageReceived
+        - SoulseekClientConnected
+        - SoulseekClientDisconnected
+        - Noop
+      type: string
+    slskd.Files.FilesystemDirectory:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the directory.
+          nullable: true
+        fullName:
+          type: string
+          description: The fully qualified name of the directory.
+          nullable: true
+        attributes:
+          $ref: '#/components/schemas/System.IO.FileAttributes'
+        createdAt:
+          type: string
+          description: The timestamp at which the directory was created.
+          format: date-time
+        modifiedAt:
+          type: string
+          description: The timestamp at which the directory was last modified.
+          format: date-time
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Files.FilesystemFile'
+          description: The files within the directory.
+          nullable: true
+        directories:
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Files.FilesystemDirectory'
+          description: The directories within the directory.
+          nullable: true
+      additionalProperties: false
+      description: A file directory on the host filesystem.
+    slskd.Files.FilesystemFile:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the file.
+          nullable: true
+        fullName:
+          type: string
+          description: The fully qualified name of the file.
+          nullable: true
+        length:
+          type: integer
+          description: 'The size of the file, in bytes.'
+          format: int64
+        attributes:
+          $ref: '#/components/schemas/System.IO.FileAttributes'
+        createdAt:
+          type: string
+          description: The timestamp at which the file was created.
+          format: date-time
+        modifiedAt:
+          type: string
+          description: The timestamp at which the file was last modified.
+          format: date-time
+      additionalProperties: false
+      description: A file on the host filesystem.
+    slskd.Messaging.Conversation:
+      type: object
+      properties:
+        username:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        unAcknowledgedMessageCount:
+          type: integer
+          format: int32
+        hasUnAcknowledgedMessages:
+          type: boolean
+          readOnly: true
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Messaging.PrivateMessage'
+          nullable: true
+      additionalProperties: false
+    slskd.Messaging.MessageDirection:
+      enum:
+        - Out
+        - In
+      type: string
+    slskd.Messaging.PrivateMessage:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          description: The UTC timestamp of the message.
+          format: date-time
+        id:
+          type: integer
+          description: 'The unique message id, used to acknowledge receipt.'
+          format: int32
+        username:
+          type: string
+          description: The username of the remote user.
+          nullable: true
+        direction:
+          $ref: '#/components/schemas/slskd.Messaging.MessageDirection'
+        message:
+          type: string
+          description: The message.
+          nullable: true
+        isAcknowledged:
+          type: boolean
+          description: A value indicating whether the message has been acknowledged.
+        wasReplayed:
+          type: boolean
+          description: A value indicating whether the message has was replayed by the server.
+      additionalProperties: false
+      description: A private message.
+    slskd.Messaging.Room:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The room name.
+          nullable: true
+        isPrivate:
+          type: boolean
+          description: A value indicating whether the room is private.
+        operatorCount:
+          type: integer
+          description: 'The number of operators in the room, if private.'
+          format: int32
+          nullable: true
+        operators:
+          type: array
+          items:
+            type: string
+          description: 'The operators in the room, if private.'
+          nullable: true
+        owner:
+          type: string
+          description: 'The owner of the room, if private.'
+          nullable: true
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/Soulseek.UserData'
+          description: The list of users in the room.
+          nullable: true
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Messaging.RoomMessage'
+          description: The list of messages.
+          nullable: true
+      additionalProperties: false
+    slskd.Messaging.RoomMessage:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          description: The timestamp of the message.
+          format: date-time
+        username:
+          type: string
+          description: The username of the user who sent the message.
+          nullable: true
+        message:
+          type: string
+          description: The message.
+          nullable: true
+        roomName:
+          type: string
+          description: The room to which the message pertains.
+          nullable: true
+        direction:
+          $ref: '#/components/schemas/slskd.Messaging.MessageDirection'
+      additionalProperties: false
+      description: A message sent to a room.
+    slskd.Options:
+      type: object
+      properties:
+        debug:
+          type: boolean
+          description: Gets a value indicating whether the application should run in debug mode.
+        headless:
+          type: boolean
+          description: Gets a value indicating whether the application should run in headless (no web UI) mode.
+        remoteConfiguration:
+          type: boolean
+          description: Gets a value indicating whether remote configuration of options is allowed.
+        remoteFileManagement:
+          type: boolean
+          description: Gets a value indicating whether remote file management is allowed.
+        instanceName:
+          type: string
+          description: Gets the unique name for this instance.
+          nullable: true
+        flags:
+          $ref: '#/components/schemas/slskd.Options.FlagsOptions'
+        relay:
+          $ref: '#/components/schemas/slskd.Options.RelayOptions'
+        permissions:
+          deprecated: true
+        directories:
+          $ref: '#/components/schemas/slskd.Options.DirectoriesOptions'
+        shares:
+          $ref: '#/components/schemas/slskd.Options.SharesOptions'
+        global:
+          deprecated: true
+        groups:
+          deprecated: true
+        transfers:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions'
+        blacklist:
+          $ref: '#/components/schemas/slskd.Options.BlacklistOptions'
+        filters:
+          $ref: '#/components/schemas/slskd.Options.FiltersOptions'
+        rooms:
+          type: array
+          items:
+            type: string
+          description: Gets a list of rooms to automatically join upon connection.
+          nullable: true
+        web:
+          $ref: '#/components/schemas/slskd.Options.WebOptions'
+        retention:
+          $ref: '#/components/schemas/slskd.Options.RetentionOptions'
+        throttling:
+          $ref: '#/components/schemas/slskd.Options.ThrottlingOptions'
+        logger:
+          $ref: '#/components/schemas/slskd.Options.LoggerOptions'
+        metrics:
+          $ref: '#/components/schemas/slskd.Options.MetricsOptions'
+        feature:
+          $ref: '#/components/schemas/slskd.Options.FeatureOptions'
+        soulseek:
+          $ref: '#/components/schemas/slskd.Options.SoulseekOptions'
+        integration:
+          deprecated: true
+        integrations:
+          $ref: '#/components/schemas/slskd.Options.IntegrationsOptions'
+      additionalProperties: false
+      description: Application options.
+    slskd.Options.BlacklistOptions:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Gets a value indicating whether blacklist file support should be enabled.
+        file:
+          type: string
+          description: Gets the path to the blacklist file.
+          nullable: true
+      additionalProperties: false
+      description: Blacklist options.
+    slskd.Options.DirectoriesOptions:
+      type: object
+      properties:
+        incomplete:
+          type: string
+          description: Gets the path where incomplete downloads are saved.
+          nullable: true
+        downloads:
+          type: string
+          description: Gets the path where downloaded files are saved.
+          nullable: true
+      additionalProperties: false
+      description: Directory options.
+    slskd.Options.FeatureOptions:
+      type: object
+      properties:
+        swagger:
+          type: boolean
+          description: Gets a value indicating whether swagger documentation and UI should be enabled.
+      additionalProperties: false
+      description: Feature options.
+    slskd.Options.FiltersOptions:
+      type: object
+      properties:
+        search:
+          $ref: '#/components/schemas/slskd.Options.FiltersOptions.SearchOptions'
+      additionalProperties: false
+      description: Filter options.
+    slskd.Options.FiltersOptions.SearchOptions:
+      type: object
+      properties:
+        request:
+          type: array
+          items:
+            type: string
+          description: Gets the list of search request filters.
+          nullable: true
+      additionalProperties: false
+      description: Search filter options.
+    slskd.Options.FlagsOptions:
+      type: object
+      properties:
+        noLogo:
+          type: boolean
+          description: Gets a value indicating whether the logo should be suppressed on startup.
+        noStart:
+          type: boolean
+          description: Gets a value indicating whether the application should quit after initialization.
+        noConfigWatch:
+          type: boolean
+          description: Gets a value indicating whether the application should watch the configuration file for changes.
+        noConnect:
+          type: boolean
+          description: Gets a value indicating whether the application should connect to the Soulseek network on startup.
+        noShareScan:
+          type: boolean
+          description: Gets a value indicating whether the application should scan shared directories on startup.
+        forceShareScan:
+          type: boolean
+          description: Gets a value indicating whether shares should be forcibly re-scanned on startup.
+        forceMigrations:
+          type: boolean
+          description: Gets a value indicating whether to force database migrations to be applied on startup.
+        noVersionCheck:
+          type: boolean
+          description: Gets a value indicating whether the application should check for a newer version on startup.
+        logSQL:
+          type: boolean
+          description: Gets a value indicating whether Entity Framework queries should be logged.
+        logUnobservedExceptions:
+          type: boolean
+          description: Gets a value indicating whether to log unobserved Exceptions.
+        experimental:
+          type: boolean
+          description: Gets a value indicating whether the application should run in experimental mode.
+        volatile:
+          type: boolean
+          description: Gets a value indicating whether the application should run in volatile mode.
+        caseSensitiveRegEx:
+          type: boolean
+          description: Gets a value indicating whether user-defined regular expressions are case sensitive.
+        legacyWindowsTcpKeepalive:
+          type: boolean
+          description: "Gets a value indicating whether to use legacy TCP keepalive options, for Windows\r\nversions prior to Windows 10, version 1709 (and associated Server SKUs)."
+        optimisticRelayFileInfo:
+          type: boolean
+          description: "Gets a value indicating whether to use the uploaded shares from Relay agents as the source of\r\ntruth for file existence and size, instead of querying the agent prior to enqueueing the file."
+        noSqlitePooling:
+          type: boolean
+          description: Gets a value indicating whether SQLite pooling should be disabled.
+      additionalProperties: false
+      description: Optional flags.
+    slskd.Options.IntegrationsOptions:
+      type: object
+      properties:
+        vpn:
+          $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.VpnOptions'
+        webhooks:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.WebhookOptions'
+          description: Gets webhook configuration.
+          nullable: true
+        scripts:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.ScriptOptions'
+          description: Gets script configuration.
+          nullable: true
+        ftp:
+          $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.FtpOptions'
+        pushbullet:
+          $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.PushbulletOptions'
+      additionalProperties: false
+      description: Options for external integrations.
+    slskd.Options.IntegrationsOptions.FtpOptions:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Gets a value indicating whether the FTP integration is enabled.
+        address:
+          type: string
+          description: Gets the FTP address.
+          nullable: true
+        port:
+          maximum: 65535
+          minimum: 1
+          type: integer
+          description: Gets the FTP port.
+          format: int32
+        encryptionMode:
+          type: string
+          description: Gets the FTP encryption mode.
+          nullable: true
+        ignoreCertificateErrors:
+          type: boolean
+          description: Gets a value indicating whether FTP certificate errors should be ignored.
+        username:
+          type: string
+          description: Gets the FTP username.
+          nullable: true
+        password:
+          type: string
+          description: Gets the FTP password.
+          nullable: true
+        remotePath:
+          type: string
+          description: Gets the remote path for uploads.
+          nullable: true
+        overwriteExisting:
+          type: boolean
+          description: Gets a value indicating whether existing files should be overwritten.
+        connectionTimeout:
+          maximum: 2147483647
+          minimum: 0
+          type: integer
+          description: 'Gets the connection timeout value, in milliseconds.'
+          format: int32
+        retryAttempts:
+          maximum: 5
+          minimum: 0
+          type: integer
+          description: Gets the number of times failing uploads will be retried.
+          format: int32
+      additionalProperties: false
+      description: FTP options.
+    slskd.Options.IntegrationsOptions.PushbulletOptions:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Gets a value indicating whether the Pushbullet integration is enabled.
+        accessToken:
+          type: string
+          description: Gets the Pushbullet API access token.
+          nullable: true
+        notificationPrefix:
+          type: string
+          description: Gets the prefix for Pushbullet notification titles.
+          nullable: true
+        notifyOnPrivateMessage:
+          type: boolean
+          description: Gets a value indicating whether a Pushbullet notification should be sent when a private message is received.
+        notifyOnRoomMention:
+          type: boolean
+          description: "Gets a value indicating whether a Pushbullet notification should be sent when the currently logged\r\nin user's username is mentioned in a room."
+        retryAttempts:
+          maximum: 5
+          minimum: 0
+          type: integer
+          description: Gets the number of times failing Pushbullet notifications will be retried.
+          format: int32
+        cooldownTime:
+          type: integer
+          description: 'Gets the cooldown time for Pushbullet notifications, in milliseconds.'
+          format: int32
+      additionalProperties: false
+      description: Pushbullet options.
+    slskd.Options.IntegrationsOptions.RetryOptions:
+      type: object
+      properties:
+        attempts:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the number of attempts to make before failing.
+          format: int32
+      additionalProperties: false
+      description: Retry configuration.
+    slskd.Options.IntegrationsOptions.ScriptOptions:
+      type: object
+      properties:
+        on:
+          type: array
+          items:
+            type: string
+          description: Gets the list of Event types that trigger the script.
+          nullable: true
+        run:
+          $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.ScriptRunOptions'
+      additionalProperties: false
+      description: Script configuration.
+    slskd.Options.IntegrationsOptions.ScriptRunOptions:
+      type: object
+      properties:
+        command:
+          type: string
+          description: Gets the shell command to run.
+          nullable: true
+        executable:
+          type: string
+          description: Gets the executable to start.
+          nullable: true
+        args:
+          type: string
+          description: Gets the arguments to pass to the executable.
+          nullable: true
+        arglist:
+          type: array
+          items:
+            type: string
+          description: Gets the list of arguments to pass to the executable.
+          nullable: true
+      additionalProperties: false
+      description: Script run options.
+    slskd.Options.IntegrationsOptions.VpnOptions:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Gets a value indicating whether the VPN integration is enabled.
+        portForwarding:
+          type: boolean
+          description: Gets a value indicating whether the configured VPN supports dynamic port forwarding.
+        pollingInterval:
+          maximum: 2147483647
+          minimum: 500
+          type: integer
+          description: 'Gets the rate at which to poll the configured VPN client for status updates, in milliseconds.'
+          format: int32
+        gluetun:
+          $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.VpnOptions.GluetunVpnOptions'
+      additionalProperties: false
+      description: VPN options.
+    slskd.Options.IntegrationsOptions.VpnOptions.GluetunVpnOptions:
+      type: object
+      properties:
+        version:
+          maximum: 1
+          minimum: 1
+          type: integer
+          description: Gets the Gluetun integration version.
+          format: int32
+        url:
+          type: string
+          description: Gets the fully qualified root URL for the Gluetun control server.
+          nullable: true
+        timeout:
+          maximum: 10000
+          minimum: 500
+          type: integer
+          description: 'Gets the timeout for HTTP requests to the Gluetun control server, in milliseconds.'
+          format: int32
+        username:
+          type: string
+          description: Gets the username used for basic auth.
+          nullable: true
+        password:
+          type: string
+          description: Gets the password used for basic auth.
+          nullable: true
+        apiKey:
+          type: string
+          description: Gets the API key used for API key auth.
+          nullable: true
+      additionalProperties: false
+      description: Gluetun options.
+    slskd.Options.IntegrationsOptions.WebhookHttpHeader:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Gets the name of the header.
+          nullable: true
+        value:
+          type: string
+          description: Gets the header's value.
+          nullable: true
+      additionalProperties: false
+      description: Webhook HTTP header configuration.
+    slskd.Options.IntegrationsOptions.WebhookHttpOptions:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Gets the fully qualified URL for the webhook.
+          nullable: true
+        headers:
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.WebhookHttpHeader'
+          description: Gets the HTTP headers to include with the webhook.
+          nullable: true
+        ignoreCertificateErrors:
+          type: boolean
+          description: Gets a value indicating whether HTTPS certificate errors should be ignored.
+      additionalProperties: false
+      description: Webhook HTTP options.
+    slskd.Options.IntegrationsOptions.WebhookOptions:
+      type: object
+      properties:
+        on:
+          type: array
+          items:
+            type: string
+          description: Gets the list of Event types that trigger the webhook.
+          nullable: true
+        call:
+          $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.WebhookHttpOptions'
+        timeout:
+          maximum: 2147483647
+          minimum: 500
+          type: integer
+          description: 'Gets the time to wait before timing out, in milliseconds.'
+          format: int32
+        retry:
+          $ref: '#/components/schemas/slskd.Options.IntegrationsOptions.RetryOptions'
+      additionalProperties: false
+      description: Webhook configuration.
+    slskd.Options.LoggerOptions:
+      type: object
+      properties:
+        loki:
+          type: string
+          description: Gets the URL to a Grafana Loki instance to which to log.
+          nullable: true
+        noDisk:
+          type: boolean
+          description: Gets a value indicating whether to write logs to disk.
+        noColor:
+          type: boolean
+          description: Gets a value indicating whether to suppress colorization of console logs.
+      additionalProperties: false
+      description: Logger options.
+    slskd.Options.MetricsOptions:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Gets a value indicating whether the metrics endpoint should be enabled.
+        url:
+          type: string
+          description: Gets the url for the metrics endpoint.
+          nullable: true
+        authentication:
+          $ref: '#/components/schemas/slskd.Options.MetricsOptions.MetricsAuthenticationOptions'
+      additionalProperties: false
+      description: Metrics options.
+    slskd.Options.MetricsOptions.MetricsAuthenticationOptions:
+      type: object
+      properties:
+        disabled:
+          type: boolean
+          description: Gets a value indicating whether authentication should be disabled.
+        username:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Gets the username for the metrics endpoint.
+          nullable: true
+        password:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Gets the password for the metrics endpoint.
+          nullable: true
+      additionalProperties: false
+      description: Metrics endpoint authentication options.
+    slskd.Options.RelayOptions:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Gets a value indicating whether the relay is enabled.
+        mode:
+          type: string
+          description: Gets the relay mode.
+          nullable: true
+        controller:
+          $ref: '#/components/schemas/slskd.Options.RelayOptions.RelayControllerConfigurationOptions'
+        agents:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/slskd.Options.RelayOptions.RelayAgentConfigurationOptions'
+          description: Gets the agent configuration.
+          nullable: true
+      additionalProperties: false
+      description: Relay options.
+    slskd.Options.RelayOptions.RelayAgentConfigurationOptions:
+      type: object
+      properties:
+        instanceName:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Gets the agent instance name.
+          nullable: true
+        secret:
+          maxLength: 255
+          minLength: 16
+          type: string
+          description: Gets the agent secret.
+          nullable: true
+        cidr:
+          type: string
+          description: Gets the comma separated list of CIDRs that are authorized to connect as this agent.
+          nullable: true
+      additionalProperties: false
+      description: Relay agent configuration options.
+    slskd.Options.RelayOptions.RelayControllerConfigurationOptions:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Gets the controller address.
+          format: uri
+          nullable: true
+        ignoreCertificateErrors:
+          type: boolean
+          description: Gets a value indicating whether controller certificate errors should be ignored.
+        apiKey:
+          maxLength: 255
+          minLength: 16
+          type: string
+          description: Gets the controller API key.
+          nullable: true
+        secret:
+          maxLength: 255
+          minLength: 16
+          type: string
+          description: Gets the controller secret.
+          nullable: true
+        downloads:
+          type: boolean
+          description: Gets a value indicating whether to receive completed downloads from the controller.
+      additionalProperties: false
+      description: Relay controller configuration options.
+    slskd.Options.RetentionOptions:
+      type: object
+      properties:
+        search:
+          maximum: 2147483647
+          minimum: 5
+          type: integer
+          description: 'Gets the time to retain searches, in minutes.'
+          format: int32
+          nullable: true
+        transfers:
+          $ref: '#/components/schemas/slskd.Options.RetentionOptions.TransferRetentionOptions'
+        files:
+          $ref: '#/components/schemas/slskd.Options.RetentionOptions.FileRetentionOptions'
+        logs:
+          maximum: 2147483647
+          minimum: 2
+          type: integer
+          description: 'Gets the time to retain logs, in days.'
+          format: int32
+      additionalProperties: false
+      description: Retention options.
+    slskd.Options.RetentionOptions.FileRetentionOptions:
+      type: object
+      properties:
+        complete:
+          maximum: 2147483647
+          minimum: 30
+          type: integer
+          description: 'Gets the time to retain completed files, in minutes.'
+          format: int32
+          nullable: true
+        incomplete:
+          maximum: 2147483647
+          minimum: 30
+          type: integer
+          description: 'Gets the time to retain incomplete files, in minutes.'
+          format: int32
+          nullable: true
+      additionalProperties: false
+      description: File retention options.
+    slskd.Options.RetentionOptions.TransferRetentionOptions:
+      type: object
+      properties:
+        upload:
+          $ref: '#/components/schemas/slskd.Options.RetentionOptions.TransferRetentionOptions.TransferTypeRetentionOptions'
+        download:
+          $ref: '#/components/schemas/slskd.Options.RetentionOptions.TransferRetentionOptions.TransferTypeRetentionOptions'
+      additionalProperties: false
+      description: Transfer retention options.
+    slskd.Options.RetentionOptions.TransferRetentionOptions.TransferTypeRetentionOptions:
+      type: object
+      properties:
+        succeeded:
+          maximum: 2147483647
+          minimum: 5
+          type: integer
+          description: 'Gets the time to retain successful transfers, in minutes.'
+          format: int32
+          nullable: true
+        errored:
+          maximum: 2147483647
+          minimum: 5
+          type: integer
+          description: 'Gets the time to retain errored transfers, in minutes.'
+          format: int32
+          nullable: true
+        cancelled:
+          maximum: 2147483647
+          minimum: 5
+          type: integer
+          description: 'Gets the time to retain cancelled transfers, in minutes.'
+          format: int32
+          nullable: true
+        failed:
+          maximum: 2147483647
+          minimum: 5
+          type: integer
+          description: 'Gets the time to retain unsuccessful (including errored and cancelled) transfers, in minutes.'
+          format: int32
+          nullable: true
+      additionalProperties: false
+      description: Transfer retention options.
+    slskd.Options.SharesOptions:
+      type: object
+      properties:
+        directories:
+          type: array
+          items:
+            type: string
+          description: Gets the list of paths to shared files.
+          nullable: true
+        filters:
+          type: array
+          items:
+            type: string
+          description: Gets the list of shared file filters.
+          nullable: true
+        cache:
+          $ref: '#/components/schemas/slskd.Options.SharesOptions.ShareCacheOptions'
+      additionalProperties: false
+      description: Share options.
+    slskd.Options.SharesOptions.ShareCacheOptions:
+      type: object
+      properties:
+        storageMode:
+          type: string
+          description: Gets the type of storage to use for the share cache.
+          nullable: true
+        workers:
+          maximum: 128
+          minimum: 1
+          type: integer
+          description: Gets the number of workers to use while scanning shares.
+          format: int32
+        retention:
+          maximum: 2147483647
+          minimum: 60
+          type: integer
+          description: 'Gets the time to retain the cache (the interval on which to re-scan automatically), in minutes.'
+          format: int32
+          nullable: true
+      additionalProperties: false
+      description: Share caching options.
+    slskd.Options.SoulseekOptions:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Gets the address of the Soulseek server.
+          nullable: true
+        port:
+          maximum: 65535
+          minimum: 1024
+          type: integer
+          description: Gets the port of the Soulseek server.
+          format: int32
+        username:
+          type: string
+          description: Gets the username for the Soulseek network.
+          nullable: true
+        password:
+          type: string
+          description: Gets the password for the Soulseek network.
+          nullable: true
+        description:
+          type: string
+          description: Gets the description of the Soulseek user.
+          nullable: true
+        picture:
+          type: string
+          description: Gets the file path for the user's profile picture.
+          nullable: true
+        listenIpAddress:
+          type: string
+          description: Gets the local IP address on which to listen for incoming connections.
+          nullable: true
+        listenPort:
+          maximum: 65535
+          minimum: 1024
+          type: integer
+          description: Gets the port on which to listen for incoming connections.
+          format: int32
+        diagnosticLevel:
+          type: string
+          description: Gets the minimum diagnostic level.
+          nullable: true
+        distributedNetwork:
+          $ref: '#/components/schemas/slskd.Options.SoulseekOptions.DistributedNetworkOptions'
+        connection:
+          $ref: '#/components/schemas/slskd.Options.SoulseekOptions.ConnectionOptions'
+      additionalProperties: false
+      description: Soulseek client options.
+    slskd.Options.SoulseekOptions.ConnectionOptions:
+      type: object
+      properties:
+        timeout:
+          $ref: '#/components/schemas/slskd.Options.SoulseekOptions.ConnectionOptions.TimeoutOptions'
+        buffer:
+          $ref: '#/components/schemas/slskd.Options.SoulseekOptions.ConnectionOptions.BufferOptions'
+        proxy:
+          $ref: '#/components/schemas/slskd.Options.SoulseekOptions.ConnectionOptions.ProxyOptions'
+        mtu:
+          maximum: 65535
+          minimum: 576
+          type: integer
+          description: 'Gets the MTU to use for the server connection, or null to use the OS default.'
+          format: int32
+          nullable: true
+      additionalProperties: false
+      description: Connection options.
+    slskd.Options.SoulseekOptions.ConnectionOptions.BufferOptions:
+      type: object
+      properties:
+        read:
+          maximum: 2147483647
+          minimum: 1024
+          type: integer
+          description: 'Gets the connection read buffer size, in bytes.'
+          format: int32
+        write:
+          maximum: 2147483647
+          minimum: 1024
+          type: integer
+          description: 'Gets the connection write buffer size, in bytes.'
+          format: int32
+        transfer:
+          maximum: 2147483647
+          minimum: 81920
+          type: integer
+          description: 'Gets the read/write buffer size for transfers, in bytes.'
+          format: int32
+        writeQueue:
+          maximum: 5000
+          minimum: 5
+          type: integer
+          description: Gets the size of the queue for double buffered writes.
+          format: int32
+      additionalProperties: false
+      description: Connection buffer options.
+    slskd.Options.SoulseekOptions.ConnectionOptions.ProxyOptions:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Gets a value indicating whether the proxy is enabled.
+        address:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Gets the proxy address.
+          nullable: true
+        port:
+          maximum: 65535
+          minimum: 1
+          type: integer
+          description: Gets the proxy port.
+          format: int32
+          nullable: true
+        username:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: 'Gets the proxy username, if applicable.'
+          nullable: true
+        password:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: 'Gets the proxy password, if applicable.'
+          nullable: true
+      additionalProperties: false
+      description: Connection proxy options.
+    slskd.Options.SoulseekOptions.ConnectionOptions.TimeoutOptions:
+      type: object
+      properties:
+        connect:
+          maximum: 2147483647
+          minimum: 1000
+          type: integer
+          description: 'Gets the connection timeout value, in milliseconds.'
+          format: int32
+        inactivity:
+          maximum: 2147483647
+          minimum: 1000
+          type: integer
+          description: 'Gets the connection inactivity timeout, in milliseconds.'
+          format: int32
+        transfer:
+          maximum: 2147483647
+          minimum: 30000
+          type: integer
+          description: 'Gets the transfer connection timeout, in milliseconds.'
+          format: int32
+      additionalProperties: false
+      description: Connection timeout options.
+    slskd.Options.SoulseekOptions.DistributedNetworkOptions:
+      type: object
+      properties:
+        disabled:
+          type: boolean
+          description: Gets a value indicating whether the distributed network should be disabled.
+        disableChildren:
+          type: boolean
+          description: Gets a value indicating whether to accept distributed child connections.
+        childLimit:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the distributed child connection limit.
+          format: int32
+        logging:
+          type: boolean
+          description: Gets a value indicating whether distributed network logging should be enabled.
+      additionalProperties: false
+      description: Distributed network options.
+    slskd.Options.ThrottlingOptions:
+      type: object
+      properties:
+        search:
+          $ref: '#/components/schemas/slskd.Options.ThrottlingOptions.SearchThrottlingOptions'
+      additionalProperties: false
+      description: Throttling options.
+    slskd.Options.ThrottlingOptions.SearchThrottlingOptions:
+      type: object
+      properties:
+        incoming:
+          $ref: '#/components/schemas/slskd.Options.ThrottlingOptions.SearchThrottlingOptions.IncomingSearchThrottlingOptions'
+      additionalProperties: false
+      description: Search throttling options.
+    slskd.Options.ThrottlingOptions.SearchThrottlingOptions.IncomingSearchThrottlingOptions:
+      type: object
+      properties:
+        concurrency:
+          maximum: 100
+          minimum: 1
+          type: integer
+          description: Gets the limit for the number of concurrent search response operations.
+          format: int32
+        circuitBreaker:
+          maximum: 10000
+          minimum: 100
+          type: integer
+          description: 'Gets the limit for the number of queued search response operations, after which requests will be discarded.'
+          format: int32
+        responseFileLimit:
+          maximum: 5000
+          minimum: 100
+          type: integer
+          description: Gets the limit for the number of files that can be returned in a single search request.
+          format: int32
+      additionalProperties: false
+      description: Search response throttling options.
+    slskd.Options.TransfersOptions:
+      type: object
+      properties:
+        upload:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GlobalUploadOptions'
+        download:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GlobalDownloadOptions'
+        groups:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GroupsOptions'
+      additionalProperties: false
+      description: Transfer options.
+    slskd.Options.TransfersOptions.GlobalDownloadOptions:
+      type: object
+      properties:
+        slots:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the limit for the total number of download slots.
+          format: int32
+        speedLimit:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: 'Gets the total download speed limit, in kibibytes.'
+          format: int32
+        retry:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GlobalDownloadOptions.RetryOptions'
+        destination:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions'
+      additionalProperties: false
+      description: Gets global download options.
+    slskd.Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions:
+      type: object
+      properties:
+        subdirectory:
+          type: string
+          description: Gets the destination subdirectory for the files in the batch.
+          nullable: true
+        exists:
+          type: string
+          description: Gets the strategy for handling existing files on disk.
+          nullable: true
+        permissions:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions.DestinationPermissionsOptions'
+      additionalProperties: false
+      description: Download destination options.
+    slskd.Options.TransfersOptions.GlobalDownloadOptions.DestinationOptions.DestinationPermissionsOptions:
+      type: object
+      properties:
+        mode:
+          type: string
+          description: Gets the permissions to apply to newly created files.
+          nullable: true
+      additionalProperties: false
+      description: Download destination permission options.
+    slskd.Options.TransfersOptions.GlobalDownloadOptions.RetryOptions:
+      type: object
+      properties:
+        attempts:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the maximum number of times to retry a failed transfer.
+          format: int32
+        delay:
+          maximum: 2147483647
+          minimum: 1000
+          type: integer
+          description: 'Gets the base time to wait between retry attempts, in milliseconds.'
+          format: int32
+        maxDelay:
+          maximum: 2147483647
+          minimum: 30000
+          type: integer
+          description: 'Gets the maximum time to wait between retry attempts, in milliseconds.'
+          format: int32
+        partial:
+          type: string
+          description: Gets the strategy for handling partial files upon retry.
+          nullable: true
+      additionalProperties: false
+      description: Download retry options.
+    slskd.Options.TransfersOptions.GlobalUploadOptions:
+      type: object
+      properties:
+        slots:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the limit for the total number of upload slots.
+          format: int32
+        speedLimit:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: 'Gets the total upload speed limit, in kibibytes.'
+          format: int32
+        limits:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.LimitsOptions'
+      additionalProperties: false
+      description: Global upload options.
+    slskd.Options.TransfersOptions.GroupsOptions:
+      type: object
+      properties:
+        default:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GroupsOptions.BaseGroupOptions'
+        leechers:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GroupsOptions.LeecherOptions'
+        blacklisted:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GroupsOptions.BlacklistedOptions'
+        userDefined:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/slskd.Options.TransfersOptions.GroupsOptions.UserDefinedOptions'
+          description: Gets user defined groups and options.
+          nullable: true
+      additionalProperties: false
+      description: User groups.
+    slskd.Options.TransfersOptions.GroupsOptions.BaseGroupOptions:
+      type: object
+      properties:
+        upload:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions'
+      additionalProperties: false
+      description: Options that are common to all groups.
+    slskd.Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions:
+      type: object
+      properties:
+        priority:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the priority of the group.
+          format: int32
+        strategy:
+          type: string
+          description: Gets the queue strategy for the group.
+          nullable: true
+        slots:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the limit for the total number of upload slots for the group.
+          format: int32
+        speedLimit:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: 'Gets the total upload speed limit for the group, in kibibytes.'
+          format: int32
+        limits:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.LimitsOptions'
+      additionalProperties: false
+      description: User group upload options.
+    slskd.Options.TransfersOptions.GroupsOptions.BlacklistedOptions:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            type: string
+          description: Gets the list of group member usernames.
+          nullable: true
+        patterns:
+          type: array
+          items:
+            type: string
+          description: Gets the list of regular expression patterns matched against usernames.
+          nullable: true
+        cidrs:
+          type: array
+          items:
+            type: string
+          description: Gets the list of group CIDRs.
+          nullable: true
+      additionalProperties: false
+      description: Built in blacklisted group options.
+    slskd.Options.TransfersOptions.GroupsOptions.LeecherOptions:
+      type: object
+      properties:
+        upload:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions'
+        thresholds:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GroupsOptions.LeecherOptions.ThresholdOptions'
+      additionalProperties: false
+      description: Built in leecher group options.
+    slskd.Options.TransfersOptions.GroupsOptions.LeecherOptions.ThresholdOptions:
+      type: object
+      properties:
+        files:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the minimum number of shared files required to avoid being classified as a leecher.
+          format: int32
+        directories:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the minimum number of shared directories required to avoid being classified as a leecher.
+          format: int32
+      additionalProperties: false
+      description: Leecher threshold options.
+    slskd.Options.TransfersOptions.GroupsOptions.UserDefinedOptions:
+      type: object
+      properties:
+        upload:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions'
+        members:
+          type: array
+          items:
+            type: string
+          description: Gets the list of group member usernames.
+          nullable: true
+      additionalProperties: false
+      description: User defined user group options.
+    slskd.Options.TransfersOptions.LimitsOptions:
+      type: object
+      properties:
+        queued:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.LimitsOptions.Limits'
+        daily:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.LimitsOptions.Limits'
+        weekly:
+          $ref: '#/components/schemas/slskd.Options.TransfersOptions.LimitsOptions.Limits'
+      additionalProperties: false
+      description: Limit options.
+    slskd.Options.TransfersOptions.LimitsOptions.Limits:
+      type: object
+      properties:
+        files:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the limit for number of files.
+          format: int32
+          nullable: true
+        megabytes:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the limit for number of megabytes.
+          format: int32
+          nullable: true
+        failures:
+          maximum: 2147483647
+          minimum: 1
+          type: integer
+          description: Gets the limit for number of failures.
+          format: int32
+          nullable: true
+      additionalProperties: false
+      description: Limits.
+    slskd.Options.WebOptions:
+      type: object
+      properties:
+        port:
+          maximum: 65535
+          minimum: 1
+          type: integer
+          description: Gets the HTTP listen port.
+          format: int32
+        ipAddress:
+          type: string
+          description: Gets the comma separated list of IPv4 or IPv6 IP addresses on which to listen for HTTP requests.
+          nullable: true
+        socket:
+          type: string
+          description: Gets the HTTP listen unix domain socket (UDS) path.
+          nullable: true
+        https:
+          $ref: '#/components/schemas/slskd.Options.WebOptions.HttpsOptions'
+        urlBase:
+          type: string
+          description: Gets the base url for web requests.
+          nullable: true
+        contentPath:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Gets the path to static web content.
+          nullable: true
+        logging:
+          type: boolean
+          description: Gets a value indicating whether HTTP request logging should be enabled.
+        authentication:
+          $ref: '#/components/schemas/slskd.Options.WebOptions.WebAuthenticationOptions'
+        cors:
+          $ref: '#/components/schemas/slskd.Options.WebOptions.CorsOptions'
+      additionalProperties: false
+      description: Web server options.
+    slskd.Options.WebOptions.CorsOptions:
+      type: object
+      properties:
+        allowedOrigins:
+          type: array
+          items:
+            type: string
+          description: Gets the list of CORS allowed origins.
+          nullable: true
+        allowCredentials:
+          type: boolean
+          description: Gets a value indicating whether CORS requests may include credentials.
+      additionalProperties: false
+      description: CORS options.
+    slskd.Options.WebOptions.HttpsOptions:
+      type: object
+      properties:
+        disabled:
+          type: boolean
+          description: Gets a value indicating whether HTTPS should be disabled.
+        port:
+          maximum: 65535
+          minimum: 1
+          type: integer
+          description: Gets the HTTPS listen port.
+          format: int32
+        ipAddress:
+          type: string
+          description: Gets the comma separated list of IPv4 or IPv6 IP addresses on which to listen for HTTPS requests.
+          nullable: true
+        force:
+          type: boolean
+          description: Gets a value indicating whether HTTP requests should be redirected to HTTPS.
+        certificate:
+          $ref: '#/components/schemas/slskd.Options.WebOptions.HttpsOptions.CertificateOptions'
+      additionalProperties: false
+      description: HTTPS options.
+    slskd.Options.WebOptions.HttpsOptions.CertificateOptions:
+      type: object
+      properties:
+        pfx:
+          type: string
+          description: Gets the path to the the X509 certificate .pfx file.
+          nullable: true
+        password:
+          type: string
+          description: Gets the password for the X509 certificate.
+          nullable: true
+      additionalProperties: false
+      description: Certificate options.
+    slskd.Options.WebOptions.WebAuthenticationOptions:
+      type: object
+      properties:
+        disabled:
+          type: boolean
+          description: Gets a value indicating whether authentication should be disabled.
+        username:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Gets the username for the web UI.
+          nullable: true
+        password:
+          maxLength: 255
+          minLength: 1
+          type: string
+          description: Gets the password for the web UI.
+          nullable: true
+        jwt:
+          $ref: '#/components/schemas/slskd.Options.WebOptions.WebAuthenticationOptions.JwtOptions'
+        apiKey:
+          type: string
+          description: "Gets the primary API key.  Defaults to 'Administrator' role and CIDR '0.0.0.0/0,::/0'.\r\nrole and CIDR can be supplied by prefixing the key with 'role=[role];cidr=[cidrs];[key]'."
+          nullable: true
+        apiKeys:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/slskd.Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions'
+          description: Gets API keys.
+          nullable: true
+      additionalProperties: false
+      description: Authentication options.
+    slskd.Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions:
+      type: object
+      properties:
+        key:
+          maxLength: 255
+          minLength: 16
+          type: string
+          description: Gets the API key value.
+          nullable: true
+        role:
+          type: string
+          description: Gets the role for the key.
+          nullable: true
+        cidr:
+          type: string
+          description: Gets the comma separated list of CIDRs that are authorized to use the key.
+          nullable: true
+      additionalProperties: false
+      description: API key options.
+    slskd.Options.WebOptions.WebAuthenticationOptions.JwtOptions:
+      type: object
+      properties:
+        key:
+          maxLength: 255
+          minLength: 32
+          type: string
+          description: Gets the key with which to sign JWTs.
+          nullable: true
+        ttl:
+          maximum: 2147483647
+          minimum: 3600000
+          type: integer
+          description: 'Gets the TTL for JWTs, in milliseconds.'
+          format: int32
+      additionalProperties: false
+      description: JWT options.
+    slskd.OptionsOverlay:
+      type: object
+      properties:
+        soulseek:
+          $ref: '#/components/schemas/slskd.OptionsOverlay.SoulseekOptionsPatch'
+      additionalProperties: false
+      description: Volatile run-time overlay for application slskd.Options.
+    slskd.OptionsOverlay.SoulseekOptionsPatch:
+      type: object
+      properties:
+        listenIpAddress:
+          type: string
+          description: Gets the local IP address on which to listen for incoming connections.
+          nullable: true
+        listenPort:
+          maximum: 65535
+          minimum: 1024
+          type: integer
+          description: Gets the port on which to listen for incoming connections.
+          format: int32
+          nullable: true
+      additionalProperties: false
+      description: Soulseek client options.
+    slskd.Search.API.SearchRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Gets or sets the unique search identifier.
+          format: uuid
+          nullable: true
+        fileLimit:
+          maximum: 2147483647
+          minimum: 0
+          type: integer
+          description: 'Gets or sets the maximum number of file results to accept before the search is considered complete. (Default = 10,000).'
+          format: int32
+          nullable: true
+        filterResponses:
+          type: boolean
+          description: Gets or sets a value indicating whether responses are to be filtered. (Default = true).
+          nullable: true
+        maximumPeerQueueLength:
+          maximum: 2147483647
+          minimum: 0
+          type: integer
+          description: Gets or sets the maximum queue depth a peer may have in order for a response to be processed. (Default = 1000000).
+          format: int32
+          nullable: true
+        minimumPeerUploadSpeed:
+          maximum: 2147483647
+          minimum: 0
+          type: integer
+          description: Gets or sets the minimum upload speed a peer must have in order for a response to be processed. (Default = 0).
+          format: int32
+          nullable: true
+        minimumResponseFileCount:
+          maximum: 2147483647
+          minimum: 0
+          type: integer
+          description: Gets or sets the minimum number of files a response must contain in order to be processed. (Default = 1).
+          format: int32
+          nullable: true
+        responseLimit:
+          maximum: 2147483647
+          minimum: 0
+          type: integer
+          description: Gets or sets the maximum number of search results to accept before the search is considered complete. (Default = 100).
+          format: int32
+          nullable: true
+        searchText:
+          type: string
+          description: Gets or sets the search text.
+          nullable: true
+        searchTimeout:
+          maximum: 2147483647
+          minimum: 5
+          type: integer
+          description: 'Gets or sets the search timeout value, in seconds, used to determine when the search is complete. (Default = 15).'
+          format: int32
+          nullable: true
+      additionalProperties: false
+      description: A search request.
+    slskd.Shares.Share:
+      type: object
+      properties:
+        id:
+          type: string
+          nullable: true
+        alias:
+          type: string
+          nullable: true
+        isExcluded:
+          type: boolean
+        localPath:
+          type: string
+          nullable: true
+        raw:
+          type: string
+          nullable: true
+        remotePath:
+          type: string
+          nullable: true
+        directories:
+          type: integer
+          format: int32
+          nullable: true
+        files:
+          type: integer
+          format: int32
+          nullable: true
+      additionalProperties: false
+      description: A file share.
+    slskd.Telemetry.PrometheusMetric:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        help:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        sum:
+          type: number
+          format: double
+          nullable: true
+        count:
+          type: number
+          format: double
+          nullable: true
+        samples:
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Telemetry.PrometheusMetricSample'
+          nullable: true
+        buckets:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/slskd.Telemetry.PrometheusMetricSample'
+          nullable: true
+        quantiles:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          nullable: true
+      additionalProperties: false
+    slskd.Telemetry.PrometheusMetricSample:
+      type: object
+      properties:
+        value:
+          type: number
+          format: double
+          nullable: true
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+          nullable: true
+      additionalProperties: false
+    slskd.Telemetry.TransferExceptionDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        direction:
+          $ref: '#/components/schemas/Soulseek.TransferDirection'
+        filename:
+          type: string
+          nullable: true
+        size:
+          type: integer
+          format: int64
+        state:
+          $ref: '#/components/schemas/Soulseek.TransferStates'
+        requestedAt:
+          type: string
+          format: date-time
+        enqueuedAt:
+          type: string
+          format: date-time
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        bytesTransferred:
+          type: integer
+          format: int64
+        averageSpeed:
+          type: number
+          format: double
+        exception:
+          type: string
+          nullable: true
+      additionalProperties: false
+    slskd.Telemetry.TransferExceptionSummary:
+      type: object
+      properties:
+        exception:
+          type: string
+          nullable: true
+        count:
+          type: integer
+          format: int64
+        distinctUsers:
+          type: integer
+          format: int64
+      additionalProperties: false
+    slskd.Telemetry.TransferSummary:
+      type: object
+      properties:
+        username:
+          type: string
+          nullable: true
+        totalBytes:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
+        distinctUsers:
+          type: integer
+          format: int64
+        averageSpeed:
+          type: number
+          format: double
+        averageWait:
+          type: number
+          format: double
+        averageDuration:
+          type: number
+          format: double
+      additionalProperties: false
+    slskd.Telemetry.UserDirectionTransferStatistics:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int64
+        successful:
+          type: integer
+          format: int64
+        errored:
+          type: integer
+          format: int64
+        cancelled:
+          type: integer
+          format: int64
+      additionalProperties: false
+    slskd.Telemetry.UserDirectionTransferSummary:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            None:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Requested:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Queued:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Initializing:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            InProgress:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Completed:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Succeeded:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Cancelled:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            TimedOut:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Errored:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Rejected:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Aborted:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Locally:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+            Remotely:
+              $ref: '#/components/schemas/slskd.Telemetry.TransferSummary'
+          additionalProperties: false
+          nullable: true
+        statistics:
+          $ref: '#/components/schemas/slskd.Telemetry.UserDirectionTransferStatistics'
+        exceptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Telemetry.TransferExceptionSummary'
+          nullable: true
+      additionalProperties: false
+    slskd.Transfers.API.EnqueueDownloadBatchItem:
+      required:
+        - filename
+        - size
+      type: object
+      properties:
+        filename:
+          minLength: 1
+          type: string
+          description: The name of the file.
+        size:
+          maximum: 9.223372036854776E+18
+          minimum: 0
+          type: integer
+          description: The file size.
+          format: int64
+      additionalProperties: false
+      description: An item in a download batch.
+    slskd.Transfers.API.EnqueueDownloadBatchOptions:
+      type: object
+      properties:
+        destination:
+          type: string
+          description: 'The destination directory for the files, relative to the configured download directory.'
+          nullable: true
+        externalId:
+          type: string
+          description: An optional external ID for the batch.
+          nullable: true
+      additionalProperties: false
+      description: Download batch options.
+    slskd.Transfers.API.EnqueueDownloadBatchRequest:
+      required:
+        - files
+        - username
+      type: object
+      properties:
+        id:
+          type: string
+          description: The ID of the Batch.
+          nullable: true
+        searchId:
+          type: string
+          description: 'The ID of the associated Search, if applicable.'
+          nullable: true
+        username:
+          minLength: 1
+          type: string
+          description: The username of the user from which to download.
+        files:
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Transfers.API.EnqueueDownloadBatchItem'
+          description: The list of files to download.
+        options:
+          $ref: '#/components/schemas/slskd.Transfers.API.EnqueueDownloadBatchOptions'
+      additionalProperties: false
+      description: Enqueue a batch of downloads.
+    slskd.Transfers.API.EnqueueDownloadBatchResponse:
+      type: object
+      properties:
+        batch:
+          $ref: '#/components/schemas/slskd.Transfers.Batch'
+        failures:
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Transfers.API.EnqueueDownloadBatchResponseFailure'
+          nullable: true
+      additionalProperties: false
+    slskd.Transfers.API.EnqueueDownloadBatchResponseFailure:
+      type: object
+      properties:
+        filename:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+      additionalProperties: false
+    slskd.Transfers.API.QueueDownloadRequest:
+      required:
+        - filename
+      type: object
+      properties:
+        filename:
+          minLength: 1
+          type: string
+          description: Gets or sets the filename to download.
+        size:
+          type: integer
+          description: Gets or sets the size of the file.
+          format: int64
+      additionalProperties: false
+    slskd.Transfers.Batch:
+      type: object
+      properties:
+        searchId:
+          type: string
+          description: "Gets the associated slskd.Search.Search.Id, if one was specified when the\r\nBatch was enqueued."
+          format: uuid
+          nullable: true
+        id:
+          type: string
+          description: Gets the unique identifier for the Batch.
+          format: uuid
+        username:
+          type: string
+          description: Gets the username associated with the Batch.
+          nullable: true
+        direction:
+          $ref: '#/components/schemas/Soulseek.TransferDirection'
+        createdAt:
+          type: string
+          description: Gets the time at which the Batch was created.
+          format: date-time
+        transfers:
+          type: array
+          items:
+            $ref: '#/components/schemas/slskd.Transfers.Transfer'
+          description: Gets the Transfer records associated with the batch.
+          nullable: true
+        options:
+          $ref: '#/components/schemas/slskd.Transfers.BatchOptions'
+      additionalProperties: false
+      description: "\r\nA Transfer Batch is a lightweight association between a number of related Transfer\r\n                    records and optionally the associated Search the Transfers are intended to fulfil.\r\n\r\nTransfers may be enqueued in a Batch, and a caller that enqueued a Batch may use the\r\n                    available API(s) to determine whether all of the Transfers within the Batch are complete,\r\n                    but otherwise a Batch serves no functional purpose within the application."
+    slskd.Transfers.BatchOptions:
+      type: object
+      properties:
+        destination:
+          type: string
+          description: "Gets the optional destination directory for the files in the Batch, relative to the configured\r\ndownload directory."
+          nullable: true
+        externalId:
+          type: string
+          description: Gets an optional external ID for the batch.
+          nullable: true
+      additionalProperties: false
+      description: Options for slskd.Transfers.Batches.
+    slskd.Transfers.Transfer:
+      type: object
+      properties:
+        batchId:
+          type: string
+          description: 'Gets the associated slskd.Transfers.Batch.Id, if one was specified when the Transfer was created.'
+          format: uuid
+          nullable: true
+        id:
+          type: string
+          description: Gets the unique identifier for the Transfer.
+          format: uuid
+        username:
+          type: string
+          description: Gets the remote username associated with the Transfer.
+          nullable: true
+        direction:
+          $ref: '#/components/schemas/Soulseek.TransferDirection'
+        filename:
+          type: string
+          description: Gets the remote filename of the file.
+          nullable: true
+        size:
+          type: integer
+          description: Gets or sets the remote size of the file.
+          format: int64
+        state:
+          $ref: '#/components/schemas/Soulseek.TransferStates'
+        requestedAt:
+          type: string
+          description: Gets or sets the time at which the Transfer was requested from the remote peer.
+          format: date-time
+        enqueuedAt:
+          type: string
+          description: 'Gets or sets the time at which the Transfer was enqueued, or null if the Transfer has not yet been enqueued.'
+          format: date-time
+          nullable: true
+        startedAt:
+          type: string
+          description: "Gets or sets the time at which the Transfer connection was established and data transfer began, or null if the\r\nTransfer has not yet been started."
+          format: date-time
+          nullable: true
+        endedAt:
+          type: string
+          description: 'Gets or sets the time at which the Transfer ended, or null if the Transfer has not yet started or is still in progress.'
+          format: date-time
+          nullable: true
+        bytesTransferred:
+          type: integer
+          description: Gets or sets the number of bytes transferred.
+          format: int64
+        averageSpeed:
+          type: number
+          description: Gets or sets the average speed of the Transfer over the duration.
+          format: double
+        placeInQueue:
+          type: integer
+          description: 'Gets or sets the current place in line in the remote peer''s queue, if place has been requested.'
+          format: int32
+          nullable: true
+        exception:
+          type: string
+          description: 'Gets or sets the associated Exception, if the Transfer did not end successfully, or null if it did.'
+          nullable: true
+        attempts:
+          type: integer
+          description: Gets or sets the number of attempts.  Incremented each time the Transfer is retried.
+          format: int32
+        nextAttemptAt:
+          type: string
+          description: 'Gets or sets the time at which the next retry attempt will be made, if applicable.'
+          format: date-time
+          nullable: true
+        removed:
+          type: boolean
+          description: Gets or sets a value indicating whether the Transfer has been removed from the UI.
+        bytesRemaining:
+          type: integer
+          format: int64
+          readOnly: true
+        elapsedTime:
+          type: string
+          format: date-span
+          nullable: true
+          readOnly: true
+        percentComplete:
+          type: number
+          format: double
+          readOnly: true
+        remainingTime:
+          type: string
+          format: date-span
+          nullable: true
+          readOnly: true
+      additionalProperties: false
+      description: A file Transfer between network peers.
+    slskd.Users.API.DirectoryContentsRequest:
+      type: object
+      properties:
+        directory:
+          type: string
+          nullable: true
+      additionalProperties: false
+    slskd.Users.Info:
+      type: object
+      properties:
+        description:
+          type: string
+          nullable: true
+        hasFreeUploadSlot:
+          type: boolean
+        hasPicture:
+          type: boolean
+        picture:
+          type: string
+          format: byte
+          nullable: true
+        queueLength:
+          type: integer
+          format: int32
+        uploadSlots:
+          type: integer
+          format: int32
+      additionalProperties: false
+    slskd.Users.Status:
+      type: object
+      properties:
+        isPrivileged:
+          type: boolean
+          description: Gets a value indicating whether the user is privileged.
+        presence:
+          $ref: '#/components/schemas/Soulseek.UserPresence'
+      additionalProperties: false
+      description: User status.
+tags:
+  - name: Application
+  - name: Conversations
+  - name: Events
+  - name: Files
+  - name: Logs
+  - name: Options
+  - name: Relay
+  - name: Rooms
+  - name: Searches
+  - name: Server
+  - name: Session
+  - name: Shares
+  - name: Telemetry
+  - name: Transfers
+  - name: Users

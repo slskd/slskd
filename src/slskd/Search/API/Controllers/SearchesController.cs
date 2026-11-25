@@ -49,6 +49,7 @@ namespace slskd.Search.API
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
+    [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
     public class SearchesController : ControllerBase

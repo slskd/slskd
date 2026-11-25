@@ -1,0 +1,44 @@
+#!/bin/bash
+set -e
+
+output=openapi.yml
+
+while test $# -gt 0; do
+  case "$1" in
+    -h|--help)
+      echo 'options:'
+      echo '-h, --help          show help'
+      echo '--output            output file. defaults to openapi.yml'
+      exit 0
+      ;;
+    --output)
+      shift
+      output=$1
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+# dotnet run executes from the project directory, so resolve the output path against the current directory
+output=$(realpath -m "$output")
+
+# remove any existing spec so a stale file isn't mistaken for a successful run
+rm -f "$output"
+
+echo $'\n\t🛠️  dotnet run --project src/slskd --configuration Release -- --swagger --generate-openapi '$output$'\n'
+dotnet run --project src/slskd --configuration Release -- --swagger --generate-openapi "$output"
+
+# the app exits 0 even if it crashes, so check that the spec was actually written
+if [ ! -f "$output" ]; then
+  echo $'\n\t❌  OpenAPI spec was not written to '$output$'\n'
+  exit 1
+fi
+
+# normalize to unix line endings so the spec is identical regardless of the OS it was generated on
+tr -d '\r' < "$output" > "$output.tmp"
+mv "$output.tmp" "$output"
+
+echo $'\n\t🎉  OpenAPI spec written to '$output$'\n'
